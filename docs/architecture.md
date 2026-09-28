@@ -24,6 +24,6 @@ O dashboard nunca se conecta diretamente ao carregador. O gateway e a interface 
 
 ## Próximas partes da fase OCPP
 
-Retentativa automática, atualização por Supabase Realtime e teste com hardware/simulador continuam pendentes. A migration `202609280005_command_recovery.sql` precisa ser aplicada antes de implantar esta versão do gateway. Uma resposta `Accepted` confirma que o carregador aceitou o comando, mas não prova que a carga começou; isso só é confirmado por `StartTransaction`. Cartões RFID e autorização de moradores continuam fora desta etapa.
+Retentativa automática, atualização por Supabase Realtime e teste com hardware/simulador continuam pendentes. A migration `202609280005_command_recovery.sql` foi aplicada e a recuperação persistente está publicada no gateway. Uma resposta `Accepted` confirma que o carregador aceitou o comando, mas não prova que a carga começou; isso só é confirmado por `StartTransaction`. Cartões RFID e autorização de moradores continuam fora desta etapa.
 
 O protocolo fica dentro de `apps/ocpp-gateway`; uma implementação futura de OCPP 2.0.1 deve ser adicionada por uma camada específica, sem misturar mensagens e tipos das duas versões.
