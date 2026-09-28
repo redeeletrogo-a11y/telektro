@@ -27,7 +27,7 @@ export async function signIn(_previousState: LoginState, formData: FormData): Pr
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { error: "Não foi possível entrar. Confira suas credenciais e tente novamente." };
-  redirect("/");
+  redirect(getSiteUrl());
 }
 
 export async function resendConfirmation(_previousState: LoginState, formData: FormData): Promise<LoginState> {
@@ -79,6 +79,6 @@ export async function signUp(_previousState: LoginState, formData: FormData): Pr
     options: { emailRedirectTo: `${siteUrl}/auth/callback` },
   });
   if (error) return { error: "Não foi possível criar a conta. Confira os dados e tente novamente." };
-  if (data.session) redirect("/");
+  if (data.session) redirect(getSiteUrl());
   return { message: "Cadastro iniciado. Confira seu e-mail para confirmar a conta e continuar." };
 }
