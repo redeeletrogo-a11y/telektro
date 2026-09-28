@@ -19,6 +19,20 @@ export async function signIn(_previousState: LoginState, formData: FormData): Pr
   redirect("/");
 }
 
+export async function signInWithGoogle() {
+  let supabase;
+  try { supabase = await createSupabaseServerClient(); }
+  catch { redirect("/login?error=configuration"); }
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: `${siteUrl}/auth/callback` },
+  });
+  if (error || !data.url) redirect("/login?error=google");
+  redirect(data.url);
+}
+
 export async function signUp(_previousState: LoginState, formData: FormData): Promise<LoginState> {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");

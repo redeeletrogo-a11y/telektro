@@ -193,6 +193,11 @@ tbody tr:last-child td { border-bottom: 0; }
 .login-foot { margin: 18px 0 0; color: #9aa5aa; font-size: 10px; text-align: center; }
 
 .auth-switch { margin: 18px 0 0; color: #718087; font-size: 11px; text-align: center; }
+.auth-divider { display: flex; align-items: center; gap: 10px; margin: 17px 0 12px; color: #9aa5aa; font-size: 9px; }
+.auth-divider span { height: 1px; flex: 1; background: #e9edef; }
+.google-button { display: flex; width: 100%; min-height: 40px; align-items: center; justify-content: center; gap: 10px; border: 1px solid #dfe6e8; border-radius: 7px; color: #43535b; background: #fff; font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; transition: background .15s,border-color .15s; }
+.google-button:hover { border-color: #cbd7da; background: #fafcfc; }
+.google-mark { color: #4285f4; font-family: Arial,sans-serif; font-size: 16px; font-weight: 750; }
 .auth-switch a, .onboarding-footer a { color: #387c72; font-weight: 650; text-decoration: none; }
 .auth-switch a:hover, .onboarding-footer a:hover { text-decoration: underline; }
 .form-success { margin: 3px 0 0; border-radius: 6px; padding: 9px 10px; color: #377866; background: #edf7f2; font-size: 11px; line-height: 1.5; }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { ArrowRight, ShieldCheck, Zap } from "lucide-react";
 import { signUp, type LoginState } from "@/app/login/actions";
+import { GoogleSignInButton } from "@/components/google-sign-in-button";
 
 const initialState: LoginState = {};
 
@@ -20,6 +21,7 @@ export default function RegisterPage() {
       {state.message && <p className="form-success" role="status">{state.message}</p>}
       <button className="primary-button login-submit" disabled={pending}>{pending ? "Criando conta…" : "Criar conta"}<ArrowRight size={15}/></button>
     </form>
+    <div className="auth-divider"><span/>ou<span/></div><GoogleSignInButton/>
     <p className="auth-switch">Já tem acesso? <Link href="/login">Entrar</Link></p>
     <div className="login-security"><ShieldCheck size={14}/>Confirmação de e-mail protegida pelo Supabase</div>
   </section><p className="login-foot">Telektro · Infraestrutura de recarga, sob controle.</p></main>;
