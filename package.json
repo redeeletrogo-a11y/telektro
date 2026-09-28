@@ -1,0 +1,13 @@
+{
+  "name": "telektro",
+  "private": true,
+  "packageManager": "pnpm@11.19.0",
+  "scripts": {
+    "dev": "pnpm --filter @telektro/web dev",
+    "dev:gateway": "pnpm --filter @telektro/ocpp-gateway dev",
+    "build": "pnpm --filter @telektro/web build && pnpm --filter @telektro/ocpp-gateway build",
+    "lint": "pnpm --filter @telektro/web lint && pnpm --filter @telektro/ocpp-gateway lint",
+    "typecheck": "pnpm --filter @telektro/web typecheck && pnpm --filter @telektro/ocpp-gateway typecheck",
+    "test": "pnpm --filter @telektro/ocpp-gateway test"
+  }
+}

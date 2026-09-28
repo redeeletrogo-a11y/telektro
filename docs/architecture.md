@@ -1,0 +1,23 @@
+# Arquitetura inicial
+
+## Aplicações
+
+- `apps/web`: Next.js App Router, TypeScript, Tailwind CSS v4 e interface web responsiva.
+- `apps/ocpp-gateway`: serviço Node.js independente para WebSocket persistente e protocolo OCPP 1.6J.
+- `supabase/migrations`: esquema PostgreSQL, isolamento por organização e políticas RLS.
+
+O dashboard nunca se conecta diretamente ao carregador. O gateway e a interface são processos separados; o gateway não deve ser implantado em uma função serverless de curta duração.
+
+## Estado implementado
+
+- Dashboard e login inicial.
+- Sessão Supabase SSR com atualização de cookies no `proxy.ts`.
+- Esquema base para organizações, membership, locais, carregadores, conectores, sessões, medições, comandos e auditoria OCPP.
+- RLS habilitado em todas as tabelas da primeira migration.
+- Servidor WebSocket com health check, validação e respostas para `BootNotification`, `Heartbeat` e `StatusNotification`.
+
+## Limites atuais
+
+O dashboard usa dados demonstrativos explícitos. Ainda não existe fluxo de criação de organização, convites, persistência do gateway, credenciais individuais de carregador, atualização por Supabase Realtime nem envio de comandos OCPP. Nenhuma ação remota é simulada como concluída.
+
+O protocolo fica dentro de `apps/ocpp-gateway`; uma implementação futura de OCPP 2.0.1 deve ser adicionada por uma camada específica, sem misturar mensagens e tipos das duas versões.
