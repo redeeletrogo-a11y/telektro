@@ -283,6 +283,16 @@ tbody tr:last-child td { border-bottom: 0; }
 .command-rejected, .command-failed { color: #b34b4b; }
 .command-timeout { color: #a67936; }
 .command-pending, .command-sent { color: #7c8589; }
+.pwa-install-button { position: fixed; right: 18px; bottom: 18px; z-index: 45; display: inline-flex; align-items: center; gap: 8px; border: 1px solid #0f776c; border-radius: 999px; padding: 11px 15px; color: #fff; background: #0f776c; box-shadow: 0 8px 26px rgb(14 60 54 / 22%); font-size: 11px; font-weight: 650; }
+.pwa-install-button:hover { background: #0c655c; }
+.pwa-help-backdrop { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 20px; background: rgb(12 29 32 / 52%); }
+.pwa-help-dialog { position: relative; width: min(100%, 370px); border: 1px solid #e1eae7; border-radius: 16px; padding: 24px; color: #40515a; background: #fff; box-shadow: 0 20px 70px rgb(9 27 29 / 25%); }
+.pwa-help-dialog .eyebrow { margin: 0 0 8px; color: #438d81; font-size: 9px; font-weight: 700; letter-spacing: .12em; }
+.pwa-help-dialog h2 { margin: 0 26px 16px 0; font-size: 18px; }
+.pwa-help-dialog ol { display: grid; gap: 11px; margin: 0; padding-left: 20px; color: #718087; font-size: 12px; line-height: 1.5; }
+.pwa-help-dialog ol strong { color: #40515a; }
+.pwa-help-dialog > p:last-child { margin: 17px 0 0; color: #8a989d; font-size: 10px; }
+.pwa-help-close { position: absolute; top: 13px; right: 13px; display: grid; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 50%; color: #718087; background: #f3f6f5; }
 .credential-reveal { display: grid; gap: 7px; border: 1px solid #cde7dd; border-radius: 7px; padding: 10px; color: #426b5e; background: #f0f8f4; font-size: 10px; overflow-wrap: anywhere; }
 .credential-reveal strong { color: #2e6455; font-size: 10px; }
 .credential-reveal code { color: #33444c; font-family: var(--font-technical); font-size: 9px; user-select: all; }
@@ -358,6 +368,7 @@ tbody tr:last-child td { border-bottom: 0; }
   .session-stop-control { grid-column: 2; margin-left: 43px; }
   .command-history-row { grid-template-columns: minmax(0,1fr) auto; }
   .command-history-row small { grid-column: 1 / -1; }
+  .pwa-install-button { right: 12px; bottom: calc(70px + env(safe-area-inset-bottom)); }
 }
 @media (max-width: 420px) {
   .page-heading { flex-direction: column; }

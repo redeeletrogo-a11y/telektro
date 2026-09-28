@@ -32,9 +32,15 @@ Sem Supabase configurado, o dashboard informa as variáveis de configuração ne
 
 ## Gateway OCPP
 
-O processo separado atende `GET /health` e conexões WebSocket em `/ocpp/{chargePointId}` com subprotocolo `ocpp1.6`. Nesta etapa, `BootNotification`, `Heartbeat` e `StatusNotification` são reconhecidos. Carregadores provisionados autenticam com HTTP Basic: usuário igual ao charge point ID e senha individual. A senha aparece uma vez durante o cadastro; o banco guarda apenas o hash.
+O processo separado atende `GET /health` e conexões WebSocket em `/ocpp/{chargePointId}` com subprotocolo `ocpp1.6`. Ele persiste estados, sessões e medições e processa autorização temporária, início/parada remotos e confirmações do carregador. Carregadores provisionados autenticam com HTTP Basic: usuário igual ao charge point ID e senha individual. A senha aparece uma vez durante o cadastro; o banco guarda apenas o hash.
 
 Para desenvolvimento local, `OCPP_DEV_TOKEN` habilita a autenticação temporária pelo cabeçalho `x-telektro-dev-token`. Esta opção só funciona fora de `NODE_ENV=production`. O gateway consulta `chargers` com service role para verificar credenciais individuais; configure `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` somente no ambiente do gateway.
+
+## App para celular
+
+O dashboard pode ser instalado como PWA pela opção **Instalar Telektro**. No Android, aceite a instalação do navegador; no iPhone, abra o site no Safari e use **Compartilhar → Adicionar à Tela de Início**. A instalação usa o site HTTPS publicado e não gera um pacote para App Store/Google Play nem habilita uso offline.
+
+Na Vercel, configure a raiz do projeto como `apps/web` e defina `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. O gateway OCPP permanece um serviço separado: publique-o em um host persistente com TLS e configure a URL do gateway no carregador; o deploy web sozinho não torna a porta local 9000 acessível pela internet.
 
 ## Supabase e multiempresa
 
