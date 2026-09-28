@@ -1,10 +1,11 @@
 "use server";
 
+import { createHash, randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export type FormState = { error?: string; success?: string };
+export type FormState = { error?: string; success?: string; credential?: string; chargePointId?: string };
 
 export async function createOrganization(_previous: FormState, formData: FormData): Promise<FormState> {
   const name = String(formData.get("name") ?? "").trim();
@@ -62,6 +63,56 @@ export async function createSite(organizationId: string, _previous: FormState, f
 
   revalidatePath("/");
   return { success: "Local cadastrado." };
+}
+
+export async function registerCharger(organizationId: string, _previous: FormState, formData: FormData): Promise<FormState> {
+  const chargePointId = String(formData.get("charge_point_id") ?? "").trim();
+  const siteId = String(formData.get("site_id") ?? "").trim();
+  const vendor = String(formData.get("vendor") ?? "").trim() || null;
+  const model = String(formData.get("model") ?? "").trim() || null;
+  const rawPower = String(formData.get("max_power_kw") ?? "").trim();
+  const maxPower = rawPower ? Number(rawPower) : null;
+
+  if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !/^[0-9a-f-]{36}$/i.test(siteId)) return { error: "Selecione um local válido." };
+  if (!/^[A-Za-z0-9._-]{1,64}$/.test(chargePointId)) return { error: "Use de 1 a 64 letras, números, pontos, hífens ou sublinhados no ID OCPP." };
+  if (vendor && vendor.length > 50) return { error: "O fabricante deve ter no máximo 50 caracteres." };
+  if (model && model.length > 50) return { error: "O modelo deve ter no máximo 50 caracteres." };
+  if (maxPower !== null && (!Number.isFinite(maxPower) || maxPower <= 0)) return { error: "A potência precisa ser maior que zero." };
+
+  let supabase;
+  try { supabase = await createSupabaseServerClient(); }
+  catch { return { error: "Configure a conexão com o Supabase no arquivo apps/web/.env.local." }; }
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Sua sessão expirou. Entre novamente para continuar." };
+  const { data: membership } = await supabase.from("memberships").select("role")
+    .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
+  if (!membership || !["owner", "admin", "technician"].includes(membership.role)) {
+    return { error: "Seu perfil não pode cadastrar carregadores nesta organização." };
+  }
+
+  const { data: site } = await supabase.from("sites").select("id").eq("id", siteId).eq("organization_id", organizationId).maybeSingle();
+  if (!site) return { error: "O local selecionado não pertence a esta organização." };
+
+  const credential = randomBytes(32).toString("base64url");
+  const credentialHash = createHash("sha256").update(credential, "utf8").digest("hex");
+  const { error } = await supabase.from("chargers").insert({
+    organization_id: organizationId,
+    site_id: siteId,
+    charge_point_id: chargePointId,
+    vendor,
+    model,
+    max_power_kw: maxPower,
+    ocpp_credential_hash: credentialHash,
+  });
+  if (error) {
+    if (error.code === "23505") return { error: "Esse ID OCPP já está cadastrado. Cada carregador precisa de um ID globalmente único." };
+    if (error.code === "42703" || error.code === "PGRST204" || error.message.includes("ocpp_credential_hash")) return { error: "A migration de credenciais OCPP ainda precisa ser aplicada no Supabase." };
+    return { error: "Não foi possível cadastrar o carregador. Confira as permissões e os dados." };
+  }
+
+  revalidatePath("/");
+  return { success: "Carregador cadastrado.", credential, chargePointId };
 }
 
 export async function signOut() {
