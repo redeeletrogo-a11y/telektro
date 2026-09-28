@@ -65,5 +65,5 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   return <Dashboard email={user.email ?? ""} organizations={availableOrganizations} organization={activeOrganization}
     role={activeMembership?.role ?? "viewer"} sites={sites} chargers={chargers} capacityKw={capacityKw}
     totalChargers={chargersResult.count ?? 0} onlineChargers={onlineResult.count ?? 0} activeSessions={activeSessions.length}
-    sessionRows={activeSessions} meterReadings={meterReadings} commandRows={commandRows}/>;
+    sessionRows={activeSessions} meterReadings={meterReadings} commandRows={commandRows} dataLoadedAt={new Date().toISOString()}/>;
 }

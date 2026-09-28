@@ -7,7 +7,7 @@
 
 Entregar um site/app SaaS que o proprietário de um carregador residencial possa abrir no celular para acompanhar e controlar a recarga. O mesmo produto deve permitir que um condomínio acompanhe vários carregadores, suas sessões e a demanda elétrica do local.
 
-O início é gestão operacional. Não inclui cobrança do motorista por sessão, marketplace de recarga ou aplicativo nativo. O site será responsivo para uso no celular; PWA instalável pode vir depois.
+O início é gestão operacional. Não inclui cobrança do motorista por sessão, marketplace de recarga ou aplicativo nativo. O site é responsivo e já pode ser instalado como PWA no celular.
 
 ## Experiência que o MVP precisa provar
 
@@ -28,15 +28,15 @@ Autenticação, organizações, RLS, locais, cadastro de carregadores, gateway O
 
 **Evolução entregue nesta etapa:** o gateway persiste presença, estados, transações e `MeterValues`; o workspace mostra sessões ativas, duração e medições. Também há pedidos autenticados de início/parada, resposta OCPP confirmada, timeout e autorização temporária vinculada ao comando.
 
-### 1. MVP residencial — prioridade imediata
+### 1. MVP residencial — em evolução
 
-Fazer um proprietário operar um carregador de casa pelo navegador do celular: status, sessão, duração, potência/energia e comandos remotos compatíveis. A primeira versão dos comandos OCPP está implementada; falta atualização em tempo real, recuperação segura de comandos quando o gateway reinicia e validação com carregador real ou simulador OCPP fiel.
+Fazer um proprietário operar um carregador de casa pelo navegador do celular: status, sessão, duração, potência/energia e comandos remotos compatíveis. O painel atualiza os dados automaticamente enquanto está aberto; ainda falta recuperação segura de comandos quando o gateway reinicia e validação com carregador real ou simulador OCPP fiel.
 
 **Saída:** o usuário acompanha uma sessão real e consegue iniciar/parar quando o carregador suporta, vendo o resultado confirmado e o histórico correto.
 
-### 2. Gestão de condomínios
+### 2. Gestão de condomínios — primeira visão de demanda entregue
 
-Permitir vários carregadores por local, visão conjunta de disponibilidade/uso/sessões, consumo agregado dos carregadores, limite do local e alertas. Preparar papéis de síndico/operador e, depois, acesso de moradores.
+Permitir vários carregadores por local, visão conjunta de disponibilidade/uso/sessões, consumo agregado dos carregadores, limite do local e alertas. O workspace já agrega as leituras recentes de potência das sessões ativas por local e avisa quando a soma se aproxima ou passa do limite configurado. A medição tem cobertura explícita e exclui leituras com mais de cinco minutos. Preparar papéis de síndico/operador e, depois, acesso de moradores.
 
 **Saída:** o operador entende quais equipamentos estão em uso e quanto da capacidade de recarga está ocupada, sem confundir a soma dos carregadores com a medição elétrica total do prédio.
 
@@ -46,9 +46,9 @@ Adicionar integração de medidor geral para acompanhar a demanda total do local
 
 **Saída:** piloto demonstra que o sistema respeita um limite elétrico conhecido e explica as decisões do balanceamento.
 
-### 4. Uso móvel e operação compartilhada
+### 4. Uso móvel e operação compartilhada — PWA entregue
 
-Manter os fluxos principais responsivos desde o MVP. Em seguida, acrescentar PWA instalável, convites, papéis e fluxo de moradores/usuários do condomínio. Aplicativo nativo não é requisito inicial.
+Manter os fluxos principais responsivos desde o MVP; a PWA instalável está publicada e pode ser adicionada à tela inicial do celular. Ainda faltam convites e o fluxo de moradores/usuários do condomínio. Aplicativo nativo não é requisito inicial.
 
 ### 5. Pilotos e validação do produto
 
@@ -70,4 +70,4 @@ Somente após validar a gestão residencial e de condomínios: OCPP 2.0.1, solar
 
 ## Estado do projeto hoje
 
-Já existem autenticação, onboarding da organização, schema multiempresa, cadastro de locais/carregadores, provisionamento de credenciais OCPP, persistência de conexões/sessões/`MeterValues`, tela de recargas ativas e um ciclo inicial de comando remoto com confirmação/timeout. Atualização em tempo real, reconciliação robusta de comandos, medidor do local, load balancing, PWA e billing ainda precisam ser construídos. Teste de hardware está aguardando a disponibilidade de um carregador.
+Já existem autenticação, onboarding da organização, schema multiempresa, cadastro de locais/carregadores, provisionamento de credenciais OCPP, gateway público OCPP 1.6J hospedado no Fly.io, persistência de conexões/sessões/`MeterValues`, comandos remotos com confirmação/timeout, PWA publicada e atualização periódica do workspace. A visão de demanda por local soma leituras recentes das sessões e compara com o limite configurado; ela não representa o consumo total do imóvel. Ainda faltam reconciliação robusta de comandos, medidor geral, balanceamento de carga, convites/papéis para condomínios e validação com carregador ou simulador. Cobrança SaaS e por sessão ficam para etapas posteriores. O teste de hardware aguarda a disponibilidade do carregador físico.

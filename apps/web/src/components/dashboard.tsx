@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Activity, ArrowRight, Building2, Cable, Check, Clock3, Copy, LayoutDashboard, MapPin, Play, PlugZap, ShieldCheck, Square, Users, Zap } from "lucide-react";
 import { createSite, registerCharger, requestRemoteStart, requestRemoteStop, signOut, type FormState } from "@/app/workspace-actions";
 
@@ -63,7 +64,7 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
 }
 
 export function Dashboard({
-  email, organizations, organization, role, sites, chargers, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, meterReadings, commandRows,
+  email, organizations, organization, role, sites, chargers, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, meterReadings, commandRows, dataLoadedAt,
 }: {
   email: string;
   organizations: Organization[];
@@ -78,14 +79,28 @@ export function Dashboard({
   sessionRows: ActiveSession[];
   meterReadings: MeterReading[];
   commandRows: CommandRecord[];
+  dataLoadedAt: string;
 }) {
+  const router = useRouter();
   const [activeNav, setActiveNav] = useState("Visão geral");
   const [clockNow, setClockNow] = useState(0);
   useEffect(() => {
     const initialTick = window.setTimeout(() => setClockNow(Date.now()), 0);
-    const timer = window.setInterval(() => setClockNow(Date.now()), 30_000);
-    return () => { window.clearTimeout(initialTick); window.clearInterval(timer); };
-  }, []);
+    const clockTimer = window.setInterval(() => setClockNow(Date.now()), 5_000);
+    const refreshTimer = window.setInterval(() => {
+      if (document.visibilityState === "visible") router.refresh();
+    }, 20_000);
+    const refreshOnReturn = () => {
+      if (document.visibilityState === "visible") router.refresh();
+    };
+    document.addEventListener("visibilitychange", refreshOnReturn);
+    return () => {
+      window.clearTimeout(initialTick);
+      window.clearInterval(clockTimer);
+      window.clearInterval(refreshTimer);
+      document.removeEventListener("visibilitychange", refreshOnReturn);
+    };
+  }, [router]);
   const canManageSites = role === "owner" || role === "admin";
   const canManageChargers = role === "owner" || role === "admin" || role === "technician";
   const canControlChargers = role === "owner" || role === "admin" || role === "operator" || role === "technician";
@@ -106,7 +121,7 @@ export function Dashboard({
         <button className={`nav-item ${activeNav === "Locais" ? "active" : ""}`} onClick={() => setActiveNav("Locais")}><MapPin size={16}/>Locais<span className="nav-count">{sites.length}</span></button>
         <button className={`nav-item ${activeNav === "Carregadores" ? "active" : ""}`} onClick={() => setActiveNav("Carregadores")}><PlugZap size={16}/>Carregadores<span className="nav-count">{chargers.length}</span></button>
         <button className={`nav-item ${activeNav === "Sessões" ? "active" : ""}`} onClick={() => setActiveNav("Sessões")}><Activity size={16}/>Sessões<span className="nav-count">{activeSessions}</span></button>
-        <button className="nav-item nav-item-disabled" disabled title="Disponível após a integração OCPP"><Zap size={16}/>Energia</button>
+        <button className={`nav-item ${activeNav === "Energia" ? "active" : ""}`} onClick={() => setActiveNav("Energia")}><Zap size={16}/>Energia</button>
         <button className="nav-item nav-item-disabled" disabled title="Disponível em uma próxima etapa"><Users size={16}/>Usuários</button>
       </nav>
       <div className="sidebar-bottom"><div className="gateway-card"><div className="gateway-row"><i className="gateway-dot"/>{onlineChargers ? `${onlineChargers} carregador(es) online` : "Gateway aguardando conexão"}</div><div className="gateway-note">{chargers.length ? `${chargers.length} carregador(es) cadastrado(s); o estado de conexão vem do gateway OCPP.` : "Cadastre um carregador para preparar a conexão OCPP."}</div></div><div className="profile"><div className="avatar">{email.slice(0, 1).toUpperCase() || "T"}</div><div className="profile-copy"><div className="profile-name">{organization.name}</div><div className="profile-role">{role}</div></div></div></div>
@@ -134,6 +149,7 @@ export function Dashboard({
           <div className="workspace-stats" aria-label="Resumo da organização">
             {stats.map(({ label, value, detail, icon: Icon }) => <article className="panel workspace-stat" key={label}><div className="workspace-stat-top"><span>{label}</span><Icon size={16}/></div><strong>{value}</strong><small>{detail}</small></article>)}
           </div>
+          <SiteDemand sites={sites} chargers={chargers} sessions={sessionRows} meterReadings={meterReadings} now={clockNow}/>
           <section className="panel operation-empty">
             <div className="empty-symbol"><Cable size={21}/></div>
             <div><p className="eyebrow">PRÓXIMA ETAPA</p><h2>{totalChargers ? "Carregadores cadastrados" : "Cadastre locais antes de conectar carregadores"}</h2><p>{totalChargers ? `${totalChargers} carregador(es) cadastrado(s); ${onlineChargers} online no último estado recebido do gateway.` : "Os locais guardam endereço, fuso horário e limite elétrico. Depois deles, você poderá cadastrar e provisionar carregadores OCPP 1.6J."}</p></div>
@@ -141,7 +157,7 @@ export function Dashboard({
           </section>
           <div className="section-row"><div><h2 className="section-title">Locais da organização</h2><p className="section-subtitle">Capacidade e localização configuradas para esta operação.</p></div><button className="link-button" onClick={() => setActiveNav("Locais")}>Ver locais <ArrowRight size={13}/></button></div>
           <SiteList sites={sites}/>
-        </> : activeNav === "Locais" ? <div className="site-management">
+        </> : activeNav === "Energia" ? <SiteDemand sites={sites} chargers={chargers} sessions={sessionRows} meterReadings={meterReadings} now={clockNow} expanded/> : activeNav === "Locais" ? <div className="site-management">
           <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Locais cadastrados</h2><div className="panel-kicker">{sites.length} local(is) em {organization.name}</div></div><MapPin size={17}/></div><SiteList sites={sites}/></section>
           {canManageSites ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Adicionar local</h2><div className="panel-kicker">Cadastre os dados elétricos e de localização.</div></div></div><SiteForm organizationId={organization.id}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner ou admin para cadastrar locais nesta organização.</p></section>}
         </div> : activeNav === "Carregadores" ? <div className="site-management">
@@ -149,11 +165,70 @@ export function Dashboard({
           {canManageChargers ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Provisionar carregador</h2><div className="panel-kicker">Crie uma credencial individual para autenticação OCPP.</div></div></div><ChargerForm organizationId={organization.id} sites={sites}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner, admin ou technician para cadastrar carregadores.</p></section>}
         </div> : <SessionList sessions={sessionRows} meterReadings={meterReadings} chargers={chargers} siteNames={siteNames} now={clockNow}
           organizationId={organization.id} canControl={canControlChargers} commands={commandRows}/>}
-        <p className="footnote">Os indicadores refletem os registros atuais. Atualize a página para buscar os dados mais recentes.</p>
+        <p className="footnote">Dados atualizados automaticamente a cada 20 s enquanto a página está aberta. Última consulta: {clockNow ? new Date(dataLoadedAt).toLocaleTimeString("pt-BR") : "carregando"}. Leituras OCPP podem chegar com atraso.</p>
       </div>
     </main>
     <nav className="mobile-nav" aria-label="Navegação móvel"><button className={activeNav === "Visão geral" ? "active" : ""} onClick={() => setActiveNav("Visão geral")}><LayoutDashboard/>Início</button><button className={activeNav === "Locais" ? "active" : ""} onClick={() => setActiveNav("Locais")}><MapPin/>Locais</button><button className={activeNav === "Carregadores" ? "active" : ""} onClick={() => setActiveNav("Carregadores")}><PlugZap/>Carregadores</button><button className={activeNav === "Sessões" ? "active" : ""} onClick={() => setActiveNav("Sessões")}><Activity/>Sessões</button></nav>
   </div>;
+}
+
+function SiteDemand({ sites, chargers, sessions, meterReadings, now, expanded = false }: {
+  sites: Site[];
+  chargers: Charger[];
+  sessions: ActiveSession[];
+  meterReadings: MeterReading[];
+  now: number;
+  expanded?: boolean;
+}) {
+  const chargerById = new Map(chargers.map((charger) => [charger.id, charger]));
+  const latestPowerBySession = new Map<string, MeterReading>();
+  for (const reading of meterReadings) {
+    if (reading.session_id && reading.measurand === "Power.Active.Import" && !latestPowerBySession.has(reading.session_id)) {
+      latestPowerBySession.set(reading.session_id, reading);
+    }
+  }
+  const activeBySite = new Map<string, ActiveSession[]>();
+  for (const session of sessions) {
+    const siteId = chargerById.get(session.charger_id)?.site_id;
+    if (!siteId) continue;
+    activeBySite.set(siteId, [...(activeBySite.get(siteId) ?? []), session]);
+  }
+
+  return <section className={`panel demand-panel ${expanded ? "demand-panel-expanded" : ""}`}>
+    <div className="panel-heading"><div><h2 className="panel-title">Demanda das recargas por local</h2><div className="panel-kicker">Potência recebida das sessões ativas · leituras atualizadas automaticamente</div></div><Zap size={17}/></div>
+    {!sites.length ? <div className="session-empty-inline">Cadastre um local para acompanhar as medições das recargas.</div> : <div className="demand-list">{sites.map((site) => {
+      const siteSessions = activeBySite.get(site.id) ?? [];
+      let totalKw = 0;
+      let measuredCount = 0;
+      let newestAt = 0;
+      for (const session of siteSessions) {
+        const reading = latestPowerBySession.get(session.id);
+        const unit = reading?.unit?.toLowerCase();
+        const sampledAt = reading ? new Date(reading.sampled_at).getTime() : 0;
+        const ageMs = now - sampledAt;
+        const readingKw = reading && (unit === "w" || unit === "kw") ? Number(reading.value) * (unit === "w" ? 0.001 : 1) : null;
+        if (readingKw !== null && Number.isFinite(readingKw) && readingKw >= 0 && ageMs >= 0 && ageMs <= 5 * 60_000) {
+          totalKw += readingKw;
+          measuredCount += 1;
+          newestAt = Math.max(newestAt, sampledAt);
+        }
+      }
+      const limitKw = site.max_power_kw === null ? null : Number(site.max_power_kw);
+      const percent = limitKw && limitKw > 0 ? (totalKw / limitKw) * 100 : null;
+      const exceeded = percent !== null && percent > 100;
+      const nearLimit = percent !== null && percent >= 80 && !exceeded;
+      const incomplete = measuredCount < siteSessions.length;
+      const state = exceeded ? "exceeded" : nearLimit ? "near" : incomplete ? "incomplete" : "normal";
+      const status = exceeded ? "Acima do limite configurado" : nearLimit ? "Próximo do limite configurado" : incomplete ? "Aguardando medições recentes" : siteSessions.length ? "Medições atuais" : "Sem recargas ativas";
+      const shownKw = totalKw.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+      return <article className="demand-row" key={site.id}>
+        <div className="demand-row-top"><div><strong>{site.name}</strong><span>{siteSessions.length} recarga(s) ativa(s) · {measuredCount}/{siteSessions.length} com medição recente</span></div><div className="demand-reading"><strong>{shownKw} kW</strong><span>{limitKw ? `limite ${limitKw.toLocaleString("pt-BR")} kW` : "limite não configurado"}</span></div></div>
+        {limitKw !== null && limitKw > 0 && <div className="demand-meter" role="meter" aria-label={`Potência medida em relação ao limite configurado em ${site.name}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.max(0, percent ?? 0))}><span className={state} style={{ width: `${Math.min(100, Math.max(0, percent ?? 0))}%` }}/></div>}
+        <div className={`demand-status ${state}`}><i className="status-dot"/>{status}{percent !== null && <span>{percent.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}%</span>}{newestAt > 0 && <small>Leitura {new Date(newestAt).toLocaleTimeString("pt-BR")}</small>}</div>
+      </article>;
+    })}</div>}
+    <p className="demand-disclaimer">Este total soma somente a potência reportada pelos carregadores. Ele não mede outras cargas do imóvel e não substitui um medidor geral; limites e alertas são informativos e ainda não fazem balanceamento automático.</p>
+  </section>;
 }
 
 function SiteList({ sites }: { sites: Site[] }) {
