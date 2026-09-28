@@ -13,6 +13,7 @@ O dashboard nunca se conecta diretamente ao carregador. O gateway e a interface 
 - Dashboard e login inicial.
 - Sessão Supabase SSR com atualização de cookies no `proxy.ts`.
 - Esquema base para organizações, membership, locais, carregadores, conectores, sessões, medições, comandos e auditoria OCPP.
+- Entidades de aplicação para perfis, veículos, tarifas, cobranças, leituras de energia do local, alertas e auditoria administrativa.
 - RLS habilitado em todas as tabelas da primeira migration.
 - Servidor WebSocket com health check, validação e respostas para `BootNotification`, `Heartbeat` e `StatusNotification`.
 

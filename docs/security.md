@@ -5,6 +5,8 @@
 - As tabelas da migration inicial têm RLS. Consultas autenticadas são limitadas por membership à organização correspondente.
 - Apenas `owner`/`admin` administram locais; técnicos podem administrar carregadores; operadores/técnicos podem solicitar comandos conforme as policies iniciais.
 - A migration permite consultar memberships da própria organização, mas não autoriza alterações de memberships pelo browser; convites e mudanças de papel aguardam um fluxo server-side validado.
+- Perfis pessoais expõem apenas nome e avatar editáveis pelo próprio usuário; memberships e autenticação permanecem separados.
+- Tarifas são administradas por owner/admin; cobranças ficam restritas aos perfis financeiros. Alertas só permitem atualização dos campos de resolução por papéis operacionais.
 - Sessões, medições, confirmações de comandos e mensagens OCPP são gravadas por um serviço confiável, não diretamente pelo browser.
 - A migration armazena metadados de auditoria OCPP, não payloads completos, para evitar guardar credenciais ou dados sensíveis sem necessidade.
 - O listener OCPP recusa conexões por padrão. `OCPP_DEV_TOKEN` é um mecanismo provisório de ambiente local e não habilita autenticação em produção.
