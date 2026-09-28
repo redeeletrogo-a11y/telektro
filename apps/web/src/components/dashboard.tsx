@@ -1,14 +1,15 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { Activity, ArrowRight, Building2, Cable, Check, Clock3, Copy, LayoutDashboard, MapPin, PlugZap, ShieldCheck, Users, Zap } from "lucide-react";
-import { createSite, registerCharger, signOut, type FormState } from "@/app/workspace-actions";
+import { Activity, ArrowRight, Building2, Cable, Check, Clock3, Copy, LayoutDashboard, MapPin, Play, PlugZap, ShieldCheck, Square, Users, Zap } from "lucide-react";
+import { createSite, registerCharger, requestRemoteStart, requestRemoteStop, signOut, type FormState } from "@/app/workspace-actions";
 
 type Organization = { id: string; name: string; slug: string };
 type Site = { id: string; name: string; address: string | null; timezone: string; max_power_kw: number | null };
 type Charger = { id: string; site_id: string; charge_point_id: string; vendor: string | null; model: string | null; max_power_kw: number | null; status: string; online: boolean; last_heartbeat_at: string | null };
 type ActiveSession = { id: string; charger_id: string; connector_id: number | null; started_at: string | null; start_meter_wh: number | null; ocpp_transaction_id: number | null };
 type MeterReading = { session_id: string | null; measurand: string; value: number; unit: string | null; sampled_at: string };
+type CommandRecord = { id: string; charger_id: string; action: string; status: string; requested_at: string; completed_at: string | null };
 
 const initialState: FormState = {};
 
@@ -60,7 +61,7 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
 }
 
 export function Dashboard({
-  email, organizations, organization, role, sites, chargers, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, meterReadings,
+  email, organizations, organization, role, sites, chargers, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, meterReadings, commandRows,
 }: {
   email: string;
   organizations: Organization[];
@@ -74,16 +75,18 @@ export function Dashboard({
   activeSessions: number;
   sessionRows: ActiveSession[];
   meterReadings: MeterReading[];
+  commandRows: CommandRecord[];
 }) {
   const [activeNav, setActiveNav] = useState("Visão geral");
   const [clockNow, setClockNow] = useState(0);
   useEffect(() => {
-    setClockNow(Date.now());
+    const initialTick = window.setTimeout(() => setClockNow(Date.now()), 0);
     const timer = window.setInterval(() => setClockNow(Date.now()), 30_000);
-    return () => window.clearInterval(timer);
+    return () => { window.clearTimeout(initialTick); window.clearInterval(timer); };
   }, []);
   const canManageSites = role === "owner" || role === "admin";
   const canManageChargers = role === "owner" || role === "admin" || role === "technician";
+  const canControlChargers = role === "owner" || role === "admin" || role === "operator" || role === "technician";
   const siteNames = new Map(sites.map((site) => [site.id, site.name]));
   const stats = [
     { label: "Locais", value: sites.length, detail: "cadastrados na organização", icon: MapPin },
@@ -140,9 +143,10 @@ export function Dashboard({
           <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Locais cadastrados</h2><div className="panel-kicker">{sites.length} local(is) em {organization.name}</div></div><MapPin size={17}/></div><SiteList sites={sites}/></section>
           {canManageSites ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Adicionar local</h2><div className="panel-kicker">Cadastre os dados elétricos e de localização.</div></div></div><SiteForm organizationId={organization.id}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner ou admin para cadastrar locais nesta organização.</p></section>}
         </div> : activeNav === "Carregadores" ? <div className="site-management">
-          <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Carregadores cadastrados</h2><div className="panel-kicker">{chargers.length} equipamento(s) vinculados à organização</div></div><PlugZap size={17}/></div><ChargerList chargers={chargers} siteNames={siteNames}/></section>
+          <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Carregadores cadastrados</h2><div className="panel-kicker">{chargers.length} equipamento(s) vinculados à organização</div></div><PlugZap size={17}/></div><ChargerList chargers={chargers} siteNames={siteNames} organizationId={organization.id} canControl={canControlChargers}/></section>
           {canManageChargers ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Provisionar carregador</h2><div className="panel-kicker">Crie uma credencial individual para autenticação OCPP.</div></div></div><ChargerForm organizationId={organization.id} sites={sites}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner, admin ou technician para cadastrar carregadores.</p></section>}
-        </div> : <SessionList sessions={sessionRows} meterReadings={meterReadings} chargers={chargers} siteNames={siteNames} now={clockNow}/>}
+        </div> : <SessionList sessions={sessionRows} meterReadings={meterReadings} chargers={chargers} siteNames={siteNames} now={clockNow}
+          organizationId={organization.id} canControl={canControlChargers} commands={commandRows}/>}
         <p className="footnote">Os indicadores refletem os registros atuais. Atualize a página para buscar os dados mais recentes.</p>
       </div>
     </main>
@@ -155,17 +159,25 @@ function SiteList({ sites }: { sites: Site[] }) {
   return <div className="site-list">{sites.map((site) => <article className="panel site-row" key={site.id}><div className="site-row-icon"><MapPin size={16}/></div><div className="site-row-main"><strong>{site.name}</strong><span>{site.address || "Endereço não informado"}</span></div><div className="site-row-meta"><span>Capacidade</span><strong>{site.max_power_kw ? `${Number(site.max_power_kw).toLocaleString("pt-BR")} kW` : "Não definida"}</strong></div><div className="site-row-meta"><span>Fuso horário</span><strong>{site.timezone}</strong></div></article>)}</div>;
 }
 
-function ChargerList({ chargers, siteNames }: { chargers: Charger[]; siteNames: Map<string, string> }) {
+function ChargerList({ chargers, siteNames, organizationId, canControl }: { chargers: Charger[]; siteNames: Map<string, string>; organizationId: string; canControl: boolean }) {
   if (!chargers.length) return <div className="site-empty"><PlugZap size={17}/><strong>Nenhum carregador cadastrado</strong><span>Cadastre o equipamento para criar sua credencial de conexão OCPP.</span></div>;
-  return <div className="site-list">{chargers.map((charger) => <article className="panel site-row" key={charger.id}><div className="site-row-icon"><PlugZap size={16}/></div><div className="site-row-main"><strong>{charger.charge_point_id}</strong><span>{[charger.vendor, charger.model].filter(Boolean).join(" · ") || "Fabricante e modelo não informados"} · {siteNames.get(charger.site_id) ?? "Local indisponível"}</span></div><span className={`status-badge ${charger.online ? "active" : "available"}`}><i className="status-dot"/>{charger.online ? charger.status : "Offline"}</span><div className="site-row-meta"><span>Potência máx.</span><strong>{charger.max_power_kw ? `${Number(charger.max_power_kw).toLocaleString("pt-BR")} kW` : "Não definida"}</strong></div><div className="site-row-meta"><span>Último heartbeat</span><strong>{charger.last_heartbeat_at ? new Date(charger.last_heartbeat_at).toLocaleString("pt-BR") : "Ainda sem conexão"}</strong></div></article>)}</div>;
+  return <div className="site-list">{chargers.map((charger) => <article className="panel site-row" key={charger.id}><div className="site-row-icon"><PlugZap size={16}/></div><div className="site-row-main"><strong>{charger.charge_point_id}</strong><span>{[charger.vendor, charger.model].filter(Boolean).join(" · ") || "Fabricante e modelo não informados"} · {siteNames.get(charger.site_id) ?? "Local indisponível"}</span></div><span className={`status-badge ${charger.online ? "active" : "available"}`}><i className="status-dot"/>{charger.online ? charger.status : "Offline"}</span><div className="site-row-meta"><span>Potência máx.</span><strong>{charger.max_power_kw ? `${Number(charger.max_power_kw).toLocaleString("pt-BR")} kW` : "Não definida"}</strong></div><div className="site-row-meta"><span>Último heartbeat</span><strong>{charger.last_heartbeat_at ? new Date(charger.last_heartbeat_at).toLocaleString("pt-BR") : "Ainda sem conexão"}</strong></div>{canControl && <ChargerControl charger={charger} organizationId={organizationId}/>}</article>)}</div>;
 }
 
-function SessionList({ sessions, meterReadings, chargers, siteNames, now }: {
+function ChargerControl({ charger, organizationId }: { charger: Charger; organizationId: string }) {
+  const [state, action, pending] = useActionState(requestRemoteStart.bind(null, organizationId, charger.id), initialState);
+  return <div className="charger-control"><form action={action} onSubmit={(event) => { if (!window.confirm("Enviar ao carregador o pedido para iniciar uma recarga?")) event.preventDefault(); }}><button className="secondary-button command-button" type="submit" disabled={!charger.online || pending}><Play size={13}/>{pending ? "Enviando…" : "Solicitar início"}</button></form>{state.error && <small className="form-error" role="alert">{state.error}</small>}{state.success && <small className="form-success" role="status">{state.success}</small>}</div>;
+}
+
+function SessionList({ sessions, meterReadings, chargers, siteNames, now, organizationId, canControl, commands }: {
   sessions: ActiveSession[];
   meterReadings: MeterReading[];
   chargers: Charger[];
   siteNames: Map<string, string>;
   now: number;
+  organizationId: string;
+  canControl: boolean;
+  commands: CommandRecord[];
 }) {
   const chargerById = new Map(chargers.map((charger) => [charger.id, charger]));
   const latestBySession = new Map<string, Map<string, MeterReading>>();
@@ -179,10 +191,9 @@ function SessionList({ sessions, meterReadings, chargers, siteNames, now }: {
     if (!readingsByType.has(reading.measurand)) readingsByType.set(reading.measurand, reading);
   }
 
-  if (!sessions.length) return <section className="panel session-empty"><div className="empty-symbol"><Activity size={20}/></div><div><h2>Nenhuma recarga em andamento</h2><p>Quando um carregador conectado iniciar uma transação OCPP, ela aparecerá aqui com duração e medições recebidas.</p></div></section>;
-
   return <section className="panel session-panel">
-    <div className="panel-heading"><div><h2 className="panel-title">Recargas em andamento</h2><div className="panel-kicker">Duração atualizada a cada 30 segundos · medições do carregador</div></div><Activity size={17}/></div>
+    <div className="panel-heading"><div><h2 className="panel-title">Recargas em andamento</h2><div className="panel-kicker">A duração atualiza a cada 30 segundos · medições mais recentes recebidas pelo gateway</div></div><Activity size={17}/></div>
+    {!sessions.length ? <div className="session-empty-inline">Nenhuma recarga em andamento. Uma sessão aparecerá quando o carregador iniciar e reportar uma transação OCPP.</div> :
     <div className="session-list">{sessions.map((session) => {
       const charger = chargerById.get(session.charger_id);
       const readings = latestBySession.get(session.id) ?? new Map<string, MeterReading>();
@@ -202,7 +213,21 @@ function SessionList({ sessions, meterReadings, chargers, siteNames, now }: {
         <div className="session-metric"><span><Activity size={12}/>Potência agora</span><strong>{powerKw === null ? "Aguardando medição" : `${powerKw.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kW`}</strong></div>
         <div className="session-metric"><span><Zap size={12}/>Energia entregue</span><strong>{deliveredKwh === null ? "Aguardando medição" : `${deliveredKwh.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kWh`}</strong></div>
         <small className="session-updated">{energy || power ? `Última leitura: ${new Date(Math.max(energy ? new Date(energy.sampled_at).getTime() : 0, power ? new Date(power.sampled_at).getTime() : 0)).toLocaleString("pt-BR")}` : "Nenhuma medição recebida ainda"}</small>
+        {canControl && Number.isInteger(session.ocpp_transaction_id) && <SessionStopControl session={session} organizationId={organizationId} online={Boolean(charger?.online)}/>}
       </article>;
-    })}</div>
+    })}</div>}
+    <CommandHistory commands={commands} chargers={chargers}/>
   </section>;
+}
+
+function SessionStopControl({ session, organizationId, online }: { session: ActiveSession; organizationId: string; online: boolean }) {
+  const [state, action, pending] = useActionState(requestRemoteStop.bind(null, organizationId, session.id), initialState);
+  return <div className="session-stop-control"><form action={action} onSubmit={(event) => { if (!window.confirm("Pedir ao carregador que encerre esta recarga?")) event.preventDefault(); }}><button className="secondary-button command-button stop-command" type="submit" disabled={!online || pending}><Square size={12}/>{pending ? "Enviando…" : "Solicitar parada"}</button></form>{state.error && <small className="form-error" role="alert">{state.error}</small>}{state.success && <small className="form-success" role="status">{state.success}</small>}</div>;
+}
+
+function CommandHistory({ commands, chargers }: { commands: CommandRecord[]; chargers: Charger[] }) {
+  if (!commands.length) return null;
+  const chargerNames = new Map(chargers.map((charger) => [charger.id, charger.charge_point_id]));
+  const labels: Record<string, string> = { pending: "Na fila", sent: "Aguardando resposta", accepted: "Aceito pelo carregador", rejected: "Recusado pelo carregador", timeout: "Sem resposta", failed: "Falhou" };
+  return <div className="command-history"><h3>Pedidos recentes</h3>{commands.map((command) => <div className="command-history-row" key={command.id}><span>{command.action === "RemoteStartTransaction" ? "Iniciar recarga" : "Parar recarga"} · {chargerNames.get(command.charger_id) ?? "Carregador"}</span><strong className={`command-state command-${command.status}`}>{labels[command.status] ?? command.status}</strong><small>{new Date(command.requested_at).toLocaleString("pt-BR")}</small></div>)}</div>;
 }

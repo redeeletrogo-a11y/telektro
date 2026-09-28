@@ -58,6 +58,17 @@ export const MeterValuesSchema = z.object({
   }).passthrough()).min(1),
 }).passthrough();
 
+export const AuthorizeSchema = z.object({ idTag: z.string().min(1).max(20) }).passthrough();
+
+export const RemoteStartTransactionConfirmationSchema = z.object({ status: z.enum(["Accepted", "Rejected"]) }).passthrough();
+export const RemoteStopTransactionConfirmationSchema = z.object({ status: z.enum(["Accepted", "Rejected"]) }).passthrough();
+
+export const OcppMessageSchema = z.union([
+  OcppFrameSchema,
+  z.tuple([z.literal(3), z.string().min(1).max(64), z.record(z.string(), z.unknown())]),
+  z.tuple([z.literal(4), z.string().min(1).max(64), z.string().min(1).max(50), z.string().max(500), z.record(z.string(), z.unknown())]),
+]);
+
 export type OcppCall = z.infer<typeof OcppFrameSchema>;
 
 export function parseOcppCall(raw: string): OcppCall {
@@ -65,6 +76,13 @@ export function parseOcppCall(raw: string): OcppCall {
   try { value = JSON.parse(raw); }
   catch { throw new Error("Invalid JSON frame"); }
   return OcppFrameSchema.parse(value);
+}
+
+export function parseOcppMessage(raw: string) {
+  let value: unknown;
+  try { value = JSON.parse(raw); }
+  catch { throw new Error("Invalid JSON frame"); }
+  return OcppMessageSchema.parse(value);
 }
 
 export function responseFor(action: string, payload: Record<string, unknown>, now = new Date()): Record<string, unknown> {

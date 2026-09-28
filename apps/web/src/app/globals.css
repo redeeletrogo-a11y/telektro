@@ -269,6 +269,20 @@ tbody tr:last-child td { border-bottom: 0; }
 .session-empty { display: flex; align-items: center; gap: 14px; padding: 22px; }
 .session-empty h2 { margin: 0; color: #40515a; font-size: 12px; }
 .session-empty p { max-width: 620px; margin: 5px 0 0; color: #829097; font-size: 10px; line-height: 1.5; }
+.session-empty-inline { margin-top: 14px; border: 1px dashed #dce8e5; border-radius: 9px; padding: 18px; color: #829097; font-size: 10px; }
+.charger-control, .session-stop-control { display: grid; justify-items: start; gap: 5px; }
+.command-button { gap: 6px; min-height: 31px; padding: 0 10px; font-size: 9px; white-space: nowrap; }
+.command-button:disabled { cursor: not-allowed; opacity: .48; }
+.stop-command { grid-column: 2 / -1; }
+.command-history { display: grid; gap: 8px; margin-top: 19px; border-top: 1px solid #edf1f0; padding-top: 14px; }
+.command-history h3 { margin: 0 0 2px; color: #52626a; font-size: 10px; }
+.command-history-row { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 12px; color: #79878d; font-size: 9px; }
+.command-history-row small { color: #929da2; font-size: 8px; }
+.command-state { font-size: 9px; font-weight: 600; }
+.command-accepted { color: #25826e; }
+.command-rejected, .command-failed { color: #b34b4b; }
+.command-timeout { color: #a67936; }
+.command-pending, .command-sent { color: #7c8589; }
 .credential-reveal { display: grid; gap: 7px; border: 1px solid #cde7dd; border-radius: 7px; padding: 10px; color: #426b5e; background: #f0f8f4; font-size: 10px; overflow-wrap: anywhere; }
 .credential-reveal strong { color: #2e6455; font-size: 10px; }
 .credential-reveal code { color: #33444c; font-family: var(--font-technical); font-size: 9px; user-select: all; }
@@ -340,6 +354,10 @@ tbody tr:last-child td { border-bottom: 0; }
   .session-row-main { min-width: 0; }
   .session-metric { margin-left: 43px; }
   .session-updated { grid-column: 2; }
+  .charger-control { width: 100%; margin-left: 43px; }
+  .session-stop-control { grid-column: 2; margin-left: 43px; }
+  .command-history-row { grid-template-columns: minmax(0,1fr) auto; }
+  .command-history-row small { grid-column: 1 / -1; }
 }
 @media (max-width: 420px) {
   .page-heading { flex-direction: column; }

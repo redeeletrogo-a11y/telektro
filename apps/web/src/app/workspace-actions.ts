@@ -115,6 +115,80 @@ export async function registerCharger(organizationId: string, _previous: FormSta
   return { success: "Carregador cadastrado.", credential, chargePointId };
 }
 
+export async function requestRemoteStart(organizationId: string, chargerId: string, _previous: FormState, _formData: FormData): Promise<FormState> {
+  void _previous;
+  void _formData;
+  if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !/^[0-9a-f-]{36}$/i.test(chargerId)) return { error: "Organização ou carregador inválido." };
+  let supabase;
+  try { supabase = await createSupabaseServerClient(); }
+  catch { return { error: "Não foi possível conectar ao Supabase." }; }
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Sua sessão expirou. Entre novamente para continuar." };
+  const { data: membership } = await supabase.from("memberships").select("role")
+    .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
+  if (!membership || !["owner", "admin", "operator", "technician"].includes(membership.role)) {
+    return { error: "Seu perfil não pode controlar carregadores nesta organização." };
+  }
+  const { data: charger } = await supabase.from("chargers").select("id, online")
+    .eq("id", chargerId).eq("organization_id", organizationId).maybeSingle();
+  if (!charger) return { error: "Carregador não encontrado nesta organização." };
+  if (!charger.online) return { error: "O carregador está offline. Conecte-o ao gateway antes de pedir uma recarga." };
+  const { data: activeSession, error: sessionError } = await supabase.from("sessions").select("id")
+    .eq("charger_id", chargerId).is("ended_at", null).maybeSingle();
+  if (sessionError) return { error: "Não foi possível conferir as sessões deste carregador." };
+  if (activeSession) return { error: "Este carregador já tem uma recarga em andamento." };
+
+  const idTag = `TK${randomBytes(9).toString("hex")}`;
+  const { error } = await supabase.from("commands").insert({
+    organization_id: organizationId,
+    charger_id: chargerId,
+    action: "RemoteStartTransaction",
+    payload: { idTag },
+    requested_by: user.id,
+  });
+  if (error) return { error: "Não foi possível enfileirar o pedido. Atualize a página e tente novamente." };
+  revalidatePath("/");
+  return { success: "Pedido enviado à fila. A recarga aparecerá após a confirmação do carregador e o início da transação OCPP." };
+}
+
+export async function requestRemoteStop(organizationId: string, sessionId: string, _previous: FormState, _formData: FormData): Promise<FormState> {
+  void _previous;
+  void _formData;
+  if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !/^[0-9a-f-]{36}$/i.test(sessionId)) return { error: "Organização ou sessão inválida." };
+  let supabase;
+  try { supabase = await createSupabaseServerClient(); }
+  catch { return { error: "Não foi possível conectar ao Supabase." }; }
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Sua sessão expirou. Entre novamente para continuar." };
+  const { data: membership } = await supabase.from("memberships").select("role")
+    .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
+  if (!membership || !["owner", "admin", "operator", "technician"].includes(membership.role)) {
+    return { error: "Seu perfil não pode controlar carregadores nesta organização." };
+  }
+  const { data: session, error: sessionError } = await supabase.from("sessions")
+    .select("id, charger_id, ocpp_transaction_id").eq("id", sessionId).eq("organization_id", organizationId).is("ended_at", null).maybeSingle();
+  if (sessionError || !session) return { error: "Recarga ativa não encontrada." };
+  if (!Number.isInteger(Number(session.ocpp_transaction_id)) || Number(session.ocpp_transaction_id) < 1) {
+    return { error: "Esta recarga não tem um identificador OCPP válido para solicitar a parada." };
+  }
+  const { data: charger } = await supabase.from("chargers").select("online")
+    .eq("id", session.charger_id).eq("organization_id", organizationId).maybeSingle();
+  if (!charger?.online) return { error: "O carregador está offline; não é possível enviar o pedido de parada." };
+
+  const { error } = await supabase.from("commands").insert({
+    organization_id: organizationId,
+    charger_id: session.charger_id,
+    action: "RemoteStopTransaction",
+    payload: { transactionId: Number(session.ocpp_transaction_id) },
+    requested_by: user.id,
+  });
+  if (error) return { error: "Não foi possível enfileirar o pedido. Atualize a página e tente novamente." };
+  revalidatePath("/");
+  return { success: "Pedido enviado à fila. A recarga só será encerrada quando o carregador confirmar e enviar StopTransaction." };
+}
+
 export async function signOut() {
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();
