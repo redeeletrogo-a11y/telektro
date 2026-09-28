@@ -13,6 +13,8 @@
 - O gateway autentica carregadores provisionados com HTTP Basic (usuário igual ao `charge_point_id`) e comparação de hash em tempo constante. A consulta ao registro usa service role só no gateway.
 - `OCPP_DEV_TOKEN` é um mecanismo provisório de ambiente local. Ele é recusado em produção; nessa configuração só credenciais de carregadores provisionados autenticam.
 - Os pedidos remotos disponíveis são restritos aos papéis operacionais e exigem carregador online. Tags temporárias de início ficam vinculadas ao pedido e ao carregador; tags RFID sem autorização são recusadas.
-- Antes de aceitar tráfego público, ainda é necessário implantar com WSS/TLS, limites de conexão e payload, monitoramento, reconciliação de comandos após reinício e validação com hardware/simulador.
+- O gateway está publicado com WSS/TLS no Fly.io e health check. A migração `202609280005_command_recovery.sql` adiciona a correlação persistente das respostas e o estado `unknown`; aplique-a antes de atualizar o gateway para esta versão.
+- Comandos interrompidos nunca são reenviados automaticamente, pois `RemoteStartTransaction` e `RemoteStopTransaction` podem ter sido executados mesmo sem uma confirmação persistida. O resultado fica explicitamente desconhecido e pode ser corrigido por uma resposta tardia correlacionada ao carregador.
+- Limites operacionais de conexão/payload, monitoramento mais completo e validação com hardware/simulador ainda precisam ser avaliados antes de um piloto amplo.
 
-O fluxo de comando está implementado, mas ainda não foi validado com hardware. Mantenha o gateway local até concluir WSS/TLS e validar o comportamento com um carregador/simulador controlado.
+O fluxo de comando está implementado, mas ainda não foi validado com hardware. O gateway público está disponível para testes controlados; valide o comportamento com um carregador/simulador antes de depender dos comandos em operação.

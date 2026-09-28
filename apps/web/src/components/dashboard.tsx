@@ -305,6 +305,6 @@ function SessionStopControl({ session, organizationId, online }: { session: Acti
 function CommandHistory({ commands, chargers }: { commands: CommandRecord[]; chargers: Charger[] }) {
   if (!commands.length) return null;
   const chargerNames = new Map(chargers.map((charger) => [charger.id, charger.charge_point_id]));
-  const labels: Record<string, string> = { pending: "Na fila", sent: "Aguardando resposta", accepted: "Aceito pelo carregador", rejected: "Recusado pelo carregador", timeout: "Sem resposta", failed: "Falhou" };
+  const labels: Record<string, string> = { pending: "Na fila", sent: "Aguardando resposta", accepted: "Aceito pelo carregador", rejected: "Recusado pelo carregador", timeout: "Sem resposta", unknown: "Resultado desconhecido após reinício", failed: "Falhou" };
   return <div className="command-history"><h3>Pedidos recentes</h3>{commands.map((command) => <div className="command-history-row" key={command.id}><span>{command.action === "RemoteStartTransaction" ? "Iniciar recarga" : "Parar recarga"} · {chargerNames.get(command.charger_id) ?? "Carregador"}</span><strong className={`command-state command-${command.status}`}>{labels[command.status] ?? command.status}</strong><small>{new Date(command.requested_at).toLocaleString("pt-BR")}</small></div>)}</div>;
 }

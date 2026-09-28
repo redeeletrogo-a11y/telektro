@@ -30,7 +30,7 @@ Autenticação, organizações, RLS, locais, cadastro de carregadores, gateway O
 
 ### 1. MVP residencial — em evolução
 
-Fazer um proprietário operar um carregador de casa pelo navegador do celular: status, sessão, duração, potência/energia e comandos remotos compatíveis. O painel atualiza os dados automaticamente enquanto está aberto; ainda falta recuperação segura de comandos quando o gateway reinicia e validação com carregador real ou simulador OCPP fiel.
+Fazer um proprietário operar um carregador de casa pelo navegador do celular: status, sessão, duração, potência/energia e comandos remotos compatíveis. O painel atualiza os dados automaticamente enquanto está aberto. A recuperação segura de comandos está implementada no código e depende da migration `202609280005_command_recovery.sql` ser aplicada antes do deploy do gateway atualizado. A validação com carregador real ou simulador OCPP fiel continua pendente.
 
 **Saída:** o usuário acompanha uma sessão real e consegue iniciar/parar quando o carregador suporta, vendo o resultado confirmado e o histórico correto.
 
@@ -70,4 +70,4 @@ Somente após validar a gestão residencial e de condomínios: OCPP 2.0.1, solar
 
 ## Estado do projeto hoje
 
-Já existem autenticação, onboarding da organização, schema multiempresa, cadastro de locais/carregadores, provisionamento de credenciais OCPP, gateway público OCPP 1.6J hospedado no Fly.io, persistência de conexões/sessões/`MeterValues`, comandos remotos com confirmação/timeout, PWA publicada e atualização periódica do workspace. A visão de demanda por local soma leituras recentes das sessões e compara com o limite configurado; ela não representa o consumo total do imóvel. Ainda faltam reconciliação robusta de comandos, medidor geral, balanceamento de carga, convites/papéis para condomínios e validação com carregador ou simulador. Cobrança SaaS e por sessão ficam para etapas posteriores. O teste de hardware aguarda a disponibilidade do carregador físico.
+Já existem autenticação, onboarding da organização, schema multiempresa, cadastro de locais/carregadores, provisionamento de credenciais OCPP, gateway público OCPP 1.6J hospedado no Fly.io, persistência de conexões/sessões/`MeterValues`, comandos remotos com confirmação/timeout, PWA publicada e atualização periódica do workspace. A nova recuperação de comandos foi implementada no código; antes de publicá-la no gateway, é necessário aplicar `202609280005_command_recovery.sql` no Supabase. A visão de demanda por local soma leituras recentes das sessões e compara com o limite configurado; ela não representa o consumo total do imóvel. Ainda faltam medidor geral, balanceamento de carga, convites/papéis para condomínios e validação com carregador ou simulador. Cobrança SaaS e por sessão ficam para etapas posteriores. O teste de hardware aguarda a disponibilidade do carregador físico.

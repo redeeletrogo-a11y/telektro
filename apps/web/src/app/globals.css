@@ -309,7 +309,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .command-state { font-size: 9px; font-weight: 600; }
 .command-accepted { color: #25826e; }
 .command-rejected, .command-failed { color: #b34b4b; }
-.command-timeout { color: #a67936; }
+.command-timeout, .command-unknown { color: #a67936; }
 .command-pending, .command-sent { color: #7c8589; }
 .pwa-install-button { position: fixed; right: 18px; bottom: 18px; z-index: 45; display: inline-flex; align-items: center; gap: 8px; border: 1px solid #0f776c; border-radius: 999px; padding: 11px 15px; color: #fff; background: #0f776c; box-shadow: 0 8px 26px rgb(14 60 54 / 22%); font-size: 11px; font-weight: 650; }
 .pwa-install-button:hover { background: #0c655c; }
