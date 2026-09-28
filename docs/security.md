@@ -1,6 +1,6 @@
 # Base de segurança
 
-- `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` são as únicas chaves previstas para uso no dashboard.
+- `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` são as únicas chaves previstas para uso no dashboard.
 - `SUPABASE_SERVICE_ROLE_KEY` é exclusivamente server-side e ainda não é consumida pelo gateway.
 - As tabelas da migration inicial têm RLS. Consultas autenticadas são limitadas por membership à organização correspondente.
 - Apenas `owner`/`admin` administram locais; técnicos podem administrar carregadores; operadores/técnicos podem solicitar comandos conforme as policies iniciais.

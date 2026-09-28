@@ -1,5 +1,50 @@
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Dashboard } from "@/components/dashboard";
+import { OrganizationOnboarding } from "@/components/organization-onboarding";
 
-export default function Home() {
-  return <Dashboard />;
+type Organization = { id: string; name: string; slug: string };
+type Site = { id: string; name: string; address: string | null; timezone: string; max_power_kw: number | null };
+
+function SetupMessage({ title, message }: { title: string; message: string }) {
+  return <main className="login-page"><section className="login-card"><div className="login-brand"><span className="brand-mark">T</span><span>TELEKTRO</span></div><p className="eyebrow">CONFIGURAÇÃO</p><h1>{title}</h1><p className="login-description">{message}</p></section></main>;
+}
+
+export default async function Home({ searchParams }: { searchParams: Promise<{ org?: string }> }) {
+  let supabase;
+  try { supabase = await createSupabaseServerClient(); }
+  catch { return <SetupMessage title="Conecte o Supabase" message="Confira NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY em apps/web/.env.local e reinicie o dashboard."/>; }
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: memberships, error: membershipsError } = await supabase.from("memberships").select("organization_id, role").eq("user_id", user.id);
+  if (membershipsError) return <SetupMessage title="Não foi possível carregar seu workspace" message="Atualize a página. Se o problema continuar, confira as migrations e as permissões RLS do projeto."/>;
+  if (!memberships?.length) return <OrganizationOnboarding email={user.email ?? "Conta Telektro"}/>;
+
+  const organizationIds = memberships.map((membership) => membership.organization_id);
+  const { data: organizations, error: organizationsError } = await supabase.from("organizations").select("id, name, slug").in("id", organizationIds).order("name");
+  if (organizationsError || !organizations?.length) return <SetupMessage title="Organização indisponível" message="Não conseguimos carregar as organizações vinculadas à sua conta."/>;
+
+  const { org: requestedOrganizationId } = await searchParams;
+  const availableOrganizations = organizations as Organization[];
+  const activeOrganization = availableOrganizations.find((organization) => organization.id === requestedOrganizationId) ?? availableOrganizations[0];
+  const activeMembership = memberships.find((membership) => membership.organization_id === activeOrganization.id);
+
+  const [sitesResult, chargersResult, onlineResult, sessionsResult] = await Promise.all([
+    supabase.from("sites").select("id, name, address, timezone, max_power_kw").eq("organization_id", activeOrganization.id).order("name"),
+    supabase.from("chargers").select("id", { count: "exact", head: true }).eq("organization_id", activeOrganization.id),
+    supabase.from("chargers").select("id", { count: "exact", head: true }).eq("organization_id", activeOrganization.id).eq("online", true),
+    supabase.from("sessions").select("id", { count: "exact", head: true }).eq("organization_id", activeOrganization.id).is("ended_at", null),
+  ]);
+  if (sitesResult.error || chargersResult.error || onlineResult.error || sessionsResult.error) {
+    return <SetupMessage title="Falha ao consultar a operação" message="A sessão foi reconhecida, mas não conseguimos ler os dados protegidos do workspace. Confira as policies RLS."/>;
+  }
+
+  const sites = (sitesResult.data ?? []) as Site[];
+  const capacityKw = sites.reduce((total, site) => total + Number(site.max_power_kw ?? 0), 0);
+
+  return <Dashboard email={user.email ?? ""} organizations={availableOrganizations} organization={activeOrganization}
+    role={activeMembership?.role ?? "viewer"} sites={sites} capacityKw={capacityKw}
+    totalChargers={chargersResult.count ?? 0} onlineChargers={onlineResult.count ?? 0} activeSessions={sessionsResult.count ?? 0}/>;
 }

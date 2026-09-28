@@ -1,86 +1,113 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Activity, AlertTriangle, ArrowDownRight, ArrowRight, Bell, Building2, Cable,
-  ChartNoAxesCombined, ChevronDown, CircleHelp, Clock3, Download,
-  LayoutDashboard, MapPin, Menu, MoreHorizontal, PlugZap, Settings2,
-  ShieldCheck, SlidersHorizontal, Users, Zap,
-} from "lucide-react";
+import { useActionState, useState } from "react";
+import { Activity, ArrowRight, Building2, Cable, LayoutDashboard, MapPin, PlugZap, ShieldCheck, Users, Zap } from "lucide-react";
+import { createSite, signOut, type FormState } from "@/app/workspace-actions";
 
-const navItems = [
-  { label: "Visão geral", icon: LayoutDashboard },
-  { label: "Carregadores", icon: PlugZap, count: "12" },
-  { label: "Sessões", icon: Activity },
-  { label: "Energia", icon: Zap },
-  { label: "Locais", icon: MapPin },
-  { label: "Usuários", icon: Users },
-  { label: "Relatórios", icon: ChartNoAxesCombined },
-];
+type Organization = { id: string; name: string; slug: string };
+type Site = { id: string; name: string; address: string | null; timezone: string; max_power_kw: number | null };
 
-const chargers = [
-  { name: "Estação Norte 01", id: "TK-NT-001", status: "Carregando", type: "active", power: "11,4", energy: "23,7", fill: 72, time: "Conectado há 1h 08min" },
-  { name: "Estação Norte 02", id: "TK-NT-002", status: "Disponível", type: "available", power: "—", energy: "—", fill: 0, time: "Livre há 26min" },
-  { name: "Estação Sul 01", id: "TK-SL-001", status: "Carregando", type: "active", power: "7,2", energy: "12,4", fill: 45, time: "Conectado há 34min" },
-];
+const initialState: FormState = {};
 
 function Brand() {
-  return <div className="brand"><div className="brand-mark"><Zap size={19} strokeWidth={2.1} /></div><div><div className="brand-name">TELEKTRO</div><div className="brand-subtitle">Energy operations</div></div></div>;
+  return <div className="brand"><div className="brand-mark"><Zap size={19} strokeWidth={2.1}/></div><div><div className="brand-name">TELEKTRO</div><div className="brand-subtitle">Energy operations</div></div></div>;
 }
 
-function PowerChart() {
-  return <div className="chart-area" role="img" aria-label="Gráfico demonstrativo de potência nas últimas 24 horas. A linha pontilhada indica o limite de 60 quilowatts.">
-    <svg viewBox="0 0 700 210" preserveAspectRatio="none">
-      <defs><linearGradient id="powerArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#168e83" stopOpacity=".17"/><stop offset="100%" stopColor="#168e83" stopOpacity=".01"/></linearGradient></defs>
-      {[18, 61, 104, 147].map((y) => <line key={y} className="chart-grid" x1="40" x2="690" y1={y} y2={y} />)}
-      <text className="chart-axis" x="0" y="21">60</text><text className="chart-axis" x="0" y="64">40</text><text className="chart-axis" x="0" y="107">20</text><text className="chart-axis" x="7" y="150">0</text>
-      <line className="chart-limit" x1="40" x2="690" y1="45" y2="45" />
-      <path className="chart-fill" d="M40 136 C65 135 71 128 93 127 S130 130 148 121 S180 115 197 119 S223 126 244 112 S276 96 296 102 S323 116 347 108 S380 94 399 99 S433 107 451 88 S481 80 498 89 S528 94 546 71 S580 67 597 78 S620 89 638 76 S668 72 690 65 L690 150 L40 150 Z" />
-      <path className="chart-line" d="M40 136 C65 135 71 128 93 127 S130 130 148 121 S180 115 197 119 S223 126 244 112 S276 96 296 102 S323 116 347 108 S380 94 399 99 S433 107 451 88 S481 80 498 89 S528 94 546 71 S580 67 597 78 S620 89 638 76 S668 72 690 65" />
-      <circle cx="546" cy="71" r="4" fill="#fff" stroke="#138c81" strokeWidth="2" />
-      <text className="chart-axis" x="40" y="177">00:00</text><text className="chart-axis" x="195" y="177">06:00</text><text className="chart-axis" x="356" y="177">12:00</text><text className="chart-axis" x="515" y="177">18:00</text><text className="chart-axis" x="660" y="177">Agora</text>
-    </svg>
-  </div>;
+function SiteForm({ organizationId }: { organizationId: string }) {
+  const [state, action, pending] = useActionState(createSite.bind(null, organizationId), initialState);
+  return <form action={action} className="site-form">
+    <label htmlFor="site-name">Nome do local</label>
+    <input id="site-name" name="name" autoComplete="organization-title" placeholder="Ex.: Estação Centro" maxLength={120} required/>
+    <label htmlFor="site-address">Endereço <span>opcional</span></label>
+    <input id="site-address" name="address" autoComplete="street-address" placeholder="Rua, número e cidade"/>
+    <div className="site-form-row">
+      <div><label htmlFor="site-power">Capacidade elétrica <span>kW · opcional</span></label><input id="site-power" name="max_power_kw" type="number" min="0.001" step="0.001" placeholder="Ex.: 60"/></div>
+      <div><label htmlFor="site-timezone">Fuso horário</label><input id="site-timezone" name="timezone" defaultValue="America/Fortaleza" required/></div>
+    </div>
+    {state.error && <p className="form-error" role="alert">{state.error}</p>}
+    {state.success && <p className="form-success" role="status">{state.success}</p>}
+    <button className="primary-button" disabled={pending}>{pending ? "Salvando…" : "Cadastrar local"}<ArrowRight size={14}/></button>
+  </form>;
 }
 
-export function Dashboard() {
+export function Dashboard({
+  email, organizations, organization, role, sites, capacityKw, totalChargers, onlineChargers, activeSessions,
+}: {
+  email: string;
+  organizations: Organization[];
+  organization: Organization;
+  role: string;
+  sites: Site[];
+  capacityKw: number;
+  totalChargers: number;
+  onlineChargers: number;
+  activeSessions: number;
+}) {
   const [activeNav, setActiveNav] = useState("Visão geral");
-  const [notice, setNotice] = useState("");
-  const [period, setPeriod] = useState("Últimas 24 horas");
-  const chooseNav = (label: string) => {
-    setActiveNav(label);
-    if (label !== "Visão geral") setNotice(`${label}: a estrutura desta área está preparada para a próxima etapa.`);
-    else setNotice("");
-  };
+  const canManageSites = role === "owner" || role === "admin";
+  const stats = [
+    { label: "Locais", value: sites.length, detail: "cadastrados na organização", icon: MapPin },
+    { label: "Carregadores", value: totalChargers, detail: `${onlineChargers} online`, icon: PlugZap },
+    { label: "Sessões ativas", value: activeSessions, detail: "em andamento", icon: Activity },
+    { label: "Capacidade instalada", value: `${capacityKw.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} kW`, detail: "soma dos limites dos locais", icon: Zap },
+  ];
 
   return <div className="app-shell">
     <aside className="sidebar">
-      <Brand />
+      <Brand/>
       <div className="nav-label">Operação</div>
-      <nav className="nav-list" aria-label="Navegação principal">{navItems.map(({ label, icon: Icon, count }) => <button key={label} className={`nav-item ${activeNav === label ? "active" : ""}`} onClick={() => chooseNav(label)}><Icon size={16} strokeWidth={1.8}/>{label}{count && <span className="nav-count">{count}</span>}</button>)}</nav>
-      <div className="nav-label" style={{ marginTop: 19 }}>Administração</div>
-      <nav className="nav-list" aria-label="Administração"><button className="nav-item" onClick={() => setNotice("Configurações: módulo em preparação.")}><Settings2 size={16} strokeWidth={1.8}/>Configurações</button><button className="nav-item" onClick={() => setNotice("Ajuda: documentação em preparação.")}><CircleHelp size={16} strokeWidth={1.8}/>Ajuda e suporte</button></nav>
-      <div className="sidebar-bottom">
-        <div className="gateway-card"><div className="gateway-row"><i className="gateway-dot"/>Gateway aguardando setup</div><div className="gateway-note">Conexão OCPP disponível após configurar o ambiente.</div></div>
-        <div className="profile"><div className="avatar">TK</div><div><div className="profile-name">Workspace Telektro</div><div className="profile-role">Ambiente de demonstração</div></div><MoreHorizontal size={17} style={{ marginLeft: "auto", color: "#8da0a5" }}/></div>
-      </div>
+      <nav className="nav-list" aria-label="Navegação principal">
+        <button className={`nav-item ${activeNav === "Visão geral" ? "active" : ""}`} onClick={() => setActiveNav("Visão geral")}><LayoutDashboard size={16}/>Visão geral</button>
+        <button className={`nav-item ${activeNav === "Locais" ? "active" : ""}`} onClick={() => setActiveNav("Locais")}><MapPin size={16}/>Locais<span className="nav-count">{sites.length}</span></button>
+        <button className="nav-item nav-item-disabled" disabled title="Disponível em uma próxima etapa"><PlugZap size={16}/>Carregadores<span className="nav-count">Em breve</span></button>
+        <button className="nav-item nav-item-disabled" disabled title="Disponível após a integração OCPP"><Activity size={16}/>Sessões</button>
+        <button className="nav-item nav-item-disabled" disabled title="Disponível após a integração OCPP"><Zap size={16}/>Energia</button>
+        <button className="nav-item nav-item-disabled" disabled title="Disponível em uma próxima etapa"><Users size={16}/>Usuários</button>
+      </nav>
+      <div className="sidebar-bottom"><div className="gateway-card"><div className="gateway-row"><i className="gateway-dot"/>Gateway aguardando integração</div><div className="gateway-note">Nenhum carregador está conectado ao workspace.</div></div><div className="profile"><div className="avatar">{email.slice(0, 1).toUpperCase() || "T"}</div><div className="profile-copy"><div className="profile-name">{organization.name}</div><div className="profile-role">{role}</div></div></div></div>
     </aside>
+
     <main className="main-area">
-      <header className="topbar"><button className="mobile-menu" aria-label="Abrir menu" onClick={() => setNotice("Menu de navegação disponível pelos atalhos inferiores.")}><Menu size={16}/></button><div className="breadcrumb"><span>Workspace</span><span>/</span><strong>{activeNav}</strong></div><div className="topbar-actions"><button className="site-select" onClick={() => setNotice("Seletor de local: nenhum local real configurado ainda.")}><Building2 size={14}/>Todos os locais<ChevronDown size={13}/></button><button className="icon-button" aria-label="Notificações" onClick={() => setNotice("Você está em um ambiente de demonstração. Não há alertas em tempo real.")}><Bell size={15}/><i className="notification-dot"/></button><div className="avatar" title="Workspace Telektro">TK</div></div></header>
+      <header className="topbar">
+        <div className="breadcrumb"><span>Workspace</span><span>/</span><strong>{activeNav}</strong></div>
+        <div className="topbar-actions">
+          <form className="organization-switcher" action="/" method="get">
+            <Building2 size={14}/><label className="sr-only" htmlFor="active-organization">Organização ativa</label>
+            <select id="active-organization" name="org" defaultValue={organization.id} onChange={(event) => event.currentTarget.form?.requestSubmit()} aria-label="Organização ativa">
+              {organizations.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </form>
+          <span className="account-email" title={email}>{email}</span>
+          <form action={signOut}><button className="signout-button" type="submit">Sair</button></form>
+        </div>
+      </header>
+
       <div className="page-wrap">
-        <div className="page-heading"><div><p className="eyebrow">Operação · 28 set 2026</p><h1>Visão geral</h1><p className="page-description">Acompanhe a operação da sua infraestrutura de recarga.</p></div><div className="heading-actions"><button className="period-select" onClick={() => setPeriod(period === "Últimas 24 horas" ? "Últimos 7 dias" : "Últimas 24 horas")}><Clock3 size={13}/>{period}<ChevronDown size={12}/></button><button className="secondary-button" onClick={() => setNotice("Exportação disponível quando houver dados conectados.")}><Download size={13}/>Exportar</button><button className="primary-button" onClick={() => setNotice("Cadastro de carregadores será habilitado com a organização Supabase.")}><PlugZap size={14}/>Adicionar carregador</button></div></div>
-        <div className="demo-banner"><ShieldCheck size={15}/><strong>Ambiente de demonstração</strong><span>Os valores exibidos são ilustrativos. Nenhum carregador ou dado real está conectado.</span></div>
-        {notice && <div className="demo-banner" role="status" style={{ borderColor: "#d8e5e8", color: "#536b75", background: "#f3f8fa" }}><CircleHelp size={14}/><span>{notice}</span><button onClick={() => setNotice("")} style={{ marginLeft: "auto", border: 0, color: "inherit", background: "transparent" }} aria-label="Fechar">×</button></div>}
-        <section className="overview-grid" aria-label="Resumo de energia">
-          <article className="panel power-panel"><div className="panel-heading"><div><h2 className="panel-title">Potência em uso</h2><div className="panel-kicker">Consumo instantâneo do local</div></div><button className="tiny-action" onClick={() => setNotice("Dados de potência são ilustrativos até conectar um carregador.")}><MoreHorizontal size={16}/></button></div><div className="power-number">18,6<small>kW</small></div><div className="power-caption">Potência agregada dos carregadores ativos</div><div className="capacity-wrap"><div className="capacity-labels"><span>Limite do local</span><strong>60 kW</strong></div><div className="capacity-track"><div className="capacity-fill" style={{ width: "31%" }}><i className="capacity-marker"/></div></div><div className="capacity-bottom"><span>31% utilizado</span><strong>41,4 kW disponíveis</strong></div></div><div className="power-divider"/><div className="power-foot"><span>Smart Charging</span><span className="smart-indicator"><i className="smart-dot"/>Preparado para configuração</span></div></article>
-          <article className="panel chart-panel"><div className="chart-heading"><div><h2 className="panel-title">Demanda de potência</h2><div className="panel-kicker">Potência agregada · kW</div></div><div className="legend"><span className="legend-item"><i className="legend-line"/>Potência</span><span className="legend-item"><i className="legend-dash"/>Limite do local</span></div></div><PowerChart/><div className="chart-footer"><span>Atualizado agora <span aria-hidden="true">·</span> demonstração</span><span>Escala: 0–60 kW</span></div></article>
-        </section>
-        <div className="section-row"><div><h2 className="section-title">Carregadores</h2><p className="section-subtitle">Visão operacional dos equipamentos neste workspace.</p></div><button className="link-button" onClick={() => chooseNav("Carregadores")}>Ver todos <ArrowRight size={13}/></button></div>
-        <section className="charger-list" aria-label="Carregadores demonstrativos">{chargers.map((charger) => <article className="panel charger-card" key={charger.id}><div className="charger-top"><div className="charger-id"><div className="charger-icon"><Cable size={16}/></div><div><div className="charger-name">{charger.name}</div><div className="charger-site">{charger.id} · Local de demonstração</div></div></div><button className="tiny-action" aria-label={`Mais ações para ${charger.name}`} onClick={() => setNotice(`${charger.name}: ações remotas não estão disponíveis na demonstração.`)}><MoreHorizontal size={16}/></button></div><div style={{ marginTop: 12 }}><span className={`status-badge ${charger.type}`}><i className="status-dot"/>{charger.status}</span></div><div className="charger-metrics"><div><div className="metric-label">Potência atual</div><div className="metric-value">{charger.power}<small>kW</small></div></div><div><div className="metric-label">Energia da sessão</div><div className="metric-value">{charger.energy}<small>kWh</small></div></div></div>{charger.fill > 0 && <div className="mini-track"><div className="mini-fill" style={{ width: `${charger.fill}%` }}/></div>}<div className="charger-foot"><span>{charger.time}</span><span className="connection"><i className="status-dot"/>Conectado</span></div></article>)}</section>
-        <section className="lower-grid"><article className="panel sessions-panel"><div className="panel-heading"><div><h2 className="panel-title">Sessões em andamento</h2><div className="panel-kicker">Atividade atual dos carregadores</div></div><button className="link-button" onClick={() => chooseNav("Sessões")}>Histórico <ArrowRight size={13}/></button></div><div className="table-wrap"><table><thead><tr><th>MOTORISTA</th><th>CARREGADOR</th><th>INÍCIO</th><th>ENERGIA</th><th>STATUS</th></tr></thead><tbody><tr><td><span className="session-person"><i className="mini-avatar">AM</i>Alex M.</span></td><td>Estação Norte 01</td><td className="table-muted">09:18</td><td>23,7 kWh</td><td><span className="live-label"><i className="status-dot"/>Ativa</span></td></tr><tr><td><span className="session-person"><i className="mini-avatar">RC</i>Rafa C.</span></td><td>Estação Sul 01</td><td className="table-muted">09:52</td><td>12,4 kWh</td><td><span className="live-label"><i className="status-dot"/>Ativa</span></td></tr></tbody></table></div></article><article className="panel alerts-panel"><div className="panel-heading"><div><h2 className="panel-title">Atenção operacional</h2><div className="panel-kicker">Itens para acompanhamento</div></div><button className="tiny-action" onClick={() => setNotice("Sem alertas reais: estes itens são ilustrativos.")}><ArrowDownRight size={15}/></button></div><div className="alert-item"><div className="alert-icon"><AlertTriangle size={14}/></div><div className="alert-copy"><div className="alert-title">Gateway não configurado</div><div className="alert-detail">Configure as variáveis de ambiente para ativar a conexão OCPP.</div></div><span className="alert-time">Setup</span></div><div className="alert-item"><div className="alert-icon"><SlidersHorizontal size={14}/></div><div className="alert-copy"><div className="alert-title">Limite do site é demonstrativo</div><div className="alert-detail">Defina a capacidade elétrica antes de habilitar controle.</div></div><span className="alert-time">Setup</span></div></article></section>
-        <p className="footnote">Dados demonstrativos para pré-visualização · As ações remotas permanecem desabilitadas até integração com carregadores.</p>
+        <div className="page-heading"><div><p className="eyebrow">OPERAÇÃO · WORKSPACE REAL</p><h1>{activeNav === "Locais" ? "Locais" : "Visão geral"}</h1><p className="page-description">{organization.name} · dados carregados do Supabase com isolamento por organização.</p></div><div className="workspace-role"><ShieldCheck size={14}/>{role}</div></div>
+
+        {activeNav === "Visão geral" ? <>
+          <div className="workspace-stats" aria-label="Resumo da organização">
+            {stats.map(({ label, value, detail, icon: Icon }) => <article className="panel workspace-stat" key={label}><div className="workspace-stat-top"><span>{label}</span><Icon size={16}/></div><strong>{value}</strong><small>{detail}</small></article>)}
+          </div>
+          <section className="panel operation-empty">
+            <div className="empty-symbol"><Cable size={21}/></div>
+            <div><p className="eyebrow">PRÓXIMA ETAPA</p><h2>{totalChargers ? "Base operacional conectada" : "Cadastre locais antes de conectar carregadores"}</h2><p>{totalChargers ? `${totalChargers} carregador(es) cadastrado(s); ${onlineChargers} online. A operação OCPP será habilitada na próxima etapa.` : "Os locais guardam endereço, fuso horário e limite elétrico. Depois deles, você poderá associar carregadores OCPP 1.6J."}</p></div>
+            <button className="secondary-button" onClick={() => setActiveNav("Locais")}>{sites.length ? "Gerenciar locais" : "Cadastrar primeiro local"}<ArrowRight size={14}/></button>
+          </section>
+          <div className="section-row"><div><h2 className="section-title">Locais da organização</h2><p className="section-subtitle">Capacidade e localização configuradas para esta operação.</p></div><button className="link-button" onClick={() => setActiveNav("Locais")}>Ver locais <ArrowRight size={13}/></button></div>
+          <SiteList sites={sites}/>
+        </> : <div className="site-management">
+          <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Locais cadastrados</h2><div className="panel-kicker">{sites.length} local(is) em {organization.name}</div></div><MapPin size={17}/></div><SiteList sites={sites}/></section>
+          {canManageSites ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Adicionar local</h2><div className="panel-kicker">Cadastre os dados elétricos e de localização.</div></div></div><SiteForm organizationId={organization.id}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner ou admin para cadastrar locais nesta organização.</p></section>}
+        </div>}
+        <p className="footnote">Os indicadores refletem os registros atuais. Atualize a página para buscar os dados mais recentes.</p>
       </div>
     </main>
-    <nav className="mobile-nav" aria-label="Navegação móvel">{navItems.slice(0, 5).map(({ label, icon: Icon }) => <button key={label} className={activeNav === label ? "active" : ""} onClick={() => chooseNav(label)}><Icon/>{label === "Visão geral" ? "Início" : label}</button>)}</nav>
+    <nav className="mobile-nav" aria-label="Navegação móvel"><button className={activeNav === "Visão geral" ? "active" : ""} onClick={() => setActiveNav("Visão geral")}><LayoutDashboard/>Início</button><button className={activeNav === "Locais" ? "active" : ""} onClick={() => setActiveNav("Locais")}><MapPin/>Locais</button></nav>
   </div>;
+}
+
+function SiteList({ sites }: { sites: Site[] }) {
+  if (!sites.length) return <div className="site-empty"><MapPin size={17}/><strong>Nenhum local cadastrado</strong><span>Adicione um local para começar a organizar sua infraestrutura.</span></div>;
+  return <div className="site-list">{sites.map((site) => <article className="panel site-row" key={site.id}><div className="site-row-icon"><MapPin size={16}/></div><div className="site-row-main"><strong>{site.name}</strong><span>{site.address || "Endereço não informado"}</span></div><div className="site-row-meta"><span>Capacidade</span><strong>{site.max_power_kw ? `${Number(site.max_power_kw).toLocaleString("pt-BR")} kW` : "Não definida"}</strong></div><div className="site-row-meta"><span>Fuso horário</span><strong>{site.timezone}</strong></div></article>)}</div>;
 }
