@@ -2,6 +2,8 @@
 
 Plataforma de operação de infraestrutura de recarga. Este repositório contém o dashboard conectado ao Supabase, dados multiempresa com RLS e a base de autenticação/protocolo do gateway OCPP 1.6J.
 
+O [roadmap do produto](docs/roadmap.md) prioriza primeiro a gestão SaaS de carregadores residenciais e de condomínios. Cobrança por recarga pública fica para depois dos pilotos e da parceria com instaladores.
+
 ## Estrutura
 
 ```text
