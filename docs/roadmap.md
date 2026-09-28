@@ -26,11 +26,11 @@ O início é gestão operacional. Não inclui cobrança do motorista por sessão
 
 Autenticação, organizações, RLS, locais, cadastro de carregadores, gateway OCPP 1.6J e estrutura de migrations. A base do dashboard e o recebimento de `BootNotification`, `Heartbeat` e `StatusNotification` já existem.
 
-**Falta para completar a fundação operacional:** persistir sessões e `MeterValues`, atualizar o dashboard com estado confiável e concluir o ciclo de comando e confirmação OCPP.
+**Evolução entregue nesta etapa:** o gateway agora persiste presença, estados, transações e `MeterValues`; o workspace mostra sessões ativas, duração e as medições mais recentes armazenadas. O ciclo de comando remoto e confirmação OCPP ainda está pendente.
 
 ### 1. MVP residencial — prioridade imediata
 
-Fazer um proprietário operar um carregador de casa pelo navegador do celular: status, sessão, duração, potência/energia e comandos remotos compatíveis. Validar com carregador real ou simulador OCPP fiel.
+Fazer um proprietário operar um carregador de casa pelo navegador do celular: status, sessão, duração, potência/energia e comandos remotos compatíveis. As telas já mostram sessões e medições que chegam pelo OCPP; falta concluir comandos remotos e atualizar os dados sem recarregar a página. Validar com carregador real ou simulador OCPP fiel.
 
 **Saída:** o usuário acompanha uma sessão real e consegue iniciar/parar quando o carregador suporta, vendo o resultado confirmado e o histórico correto.
 
@@ -70,4 +70,4 @@ Somente após validar a gestão residencial e de condomínios: OCPP 2.0.1, solar
 
 ## Estado do projeto hoje
 
-Já existem autenticação, onboarding da organização, schema multiempresa, cadastro de locais/carregadores, provisionamento de credenciais OCPP e um gateway inicial. O ciclo persistente de sessões, `MeterValues`, comandos remotos, atualização em tempo real, medidor do local, load balancing, PWA e billing ainda precisam ser construídos. As telas devem refletir somente estados e comandos confirmados pelo equipamento.
+Já existem autenticação, onboarding da organização, schema multiempresa, cadastro de locais/carregadores, provisionamento de credenciais OCPP, persistência de conexões/sessões/`MeterValues` e tela de recargas ativas. Comandos remotos, atualização em tempo real, medidor do local, load balancing, PWA e billing ainda precisam ser construídos. As telas devem refletir somente estados e comandos confirmados pelo equipamento.

@@ -1,12 +1,14 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { Activity, ArrowRight, Building2, Cable, Check, Copy, LayoutDashboard, MapPin, PlugZap, ShieldCheck, Users, Zap } from "lucide-react";
+import { useActionState, useEffect, useState } from "react";
+import { Activity, ArrowRight, Building2, Cable, Check, Clock3, Copy, LayoutDashboard, MapPin, PlugZap, ShieldCheck, Users, Zap } from "lucide-react";
 import { createSite, registerCharger, signOut, type FormState } from "@/app/workspace-actions";
 
 type Organization = { id: string; name: string; slug: string };
 type Site = { id: string; name: string; address: string | null; timezone: string; max_power_kw: number | null };
 type Charger = { id: string; site_id: string; charge_point_id: string; vendor: string | null; model: string | null; max_power_kw: number | null; status: string; online: boolean; last_heartbeat_at: string | null };
+type ActiveSession = { id: string; charger_id: string; connector_id: number | null; started_at: string | null; start_meter_wh: number | null; ocpp_transaction_id: number | null };
+type MeterReading = { session_id: string | null; measurand: string; value: number; unit: string | null; sampled_at: string };
 
 const initialState: FormState = {};
 
@@ -58,7 +60,7 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
 }
 
 export function Dashboard({
-  email, organizations, organization, role, sites, chargers, capacityKw, totalChargers, onlineChargers, activeSessions,
+  email, organizations, organization, role, sites, chargers, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, meterReadings,
 }: {
   email: string;
   organizations: Organization[];
@@ -70,8 +72,16 @@ export function Dashboard({
   totalChargers: number;
   onlineChargers: number;
   activeSessions: number;
+  sessionRows: ActiveSession[];
+  meterReadings: MeterReading[];
 }) {
   const [activeNav, setActiveNav] = useState("Visão geral");
+  const [clockNow, setClockNow] = useState(0);
+  useEffect(() => {
+    setClockNow(Date.now());
+    const timer = window.setInterval(() => setClockNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const canManageSites = role === "owner" || role === "admin";
   const canManageChargers = role === "owner" || role === "admin" || role === "technician";
   const siteNames = new Map(sites.map((site) => [site.id, site.name]));
@@ -90,7 +100,7 @@ export function Dashboard({
         <button className={`nav-item ${activeNav === "Visão geral" ? "active" : ""}`} onClick={() => setActiveNav("Visão geral")}><LayoutDashboard size={16}/>Visão geral</button>
         <button className={`nav-item ${activeNav === "Locais" ? "active" : ""}`} onClick={() => setActiveNav("Locais")}><MapPin size={16}/>Locais<span className="nav-count">{sites.length}</span></button>
         <button className={`nav-item ${activeNav === "Carregadores" ? "active" : ""}`} onClick={() => setActiveNav("Carregadores")}><PlugZap size={16}/>Carregadores<span className="nav-count">{chargers.length}</span></button>
-        <button className="nav-item nav-item-disabled" disabled title="Disponível após a integração OCPP"><Activity size={16}/>Sessões</button>
+        <button className={`nav-item ${activeNav === "Sessões" ? "active" : ""}`} onClick={() => setActiveNav("Sessões")}><Activity size={16}/>Sessões<span className="nav-count">{activeSessions}</span></button>
         <button className="nav-item nav-item-disabled" disabled title="Disponível após a integração OCPP"><Zap size={16}/>Energia</button>
         <button className="nav-item nav-item-disabled" disabled title="Disponível em uma próxima etapa"><Users size={16}/>Usuários</button>
       </nav>
@@ -129,14 +139,14 @@ export function Dashboard({
         </> : activeNav === "Locais" ? <div className="site-management">
           <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Locais cadastrados</h2><div className="panel-kicker">{sites.length} local(is) em {organization.name}</div></div><MapPin size={17}/></div><SiteList sites={sites}/></section>
           {canManageSites ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Adicionar local</h2><div className="panel-kicker">Cadastre os dados elétricos e de localização.</div></div></div><SiteForm organizationId={organization.id}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner ou admin para cadastrar locais nesta organização.</p></section>}
-        </div> : <div className="site-management">
+        </div> : activeNav === "Carregadores" ? <div className="site-management">
           <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Carregadores cadastrados</h2><div className="panel-kicker">{chargers.length} equipamento(s) vinculados à organização</div></div><PlugZap size={17}/></div><ChargerList chargers={chargers} siteNames={siteNames}/></section>
           {canManageChargers ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Provisionar carregador</h2><div className="panel-kicker">Crie uma credencial individual para autenticação OCPP.</div></div></div><ChargerForm organizationId={organization.id} sites={sites}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner, admin ou technician para cadastrar carregadores.</p></section>}
-        </div>}
+        </div> : <SessionList sessions={sessionRows} meterReadings={meterReadings} chargers={chargers} siteNames={siteNames} now={clockNow}/>}
         <p className="footnote">Os indicadores refletem os registros atuais. Atualize a página para buscar os dados mais recentes.</p>
       </div>
     </main>
-    <nav className="mobile-nav" aria-label="Navegação móvel"><button className={activeNav === "Visão geral" ? "active" : ""} onClick={() => setActiveNav("Visão geral")}><LayoutDashboard/>Início</button><button className={activeNav === "Locais" ? "active" : ""} onClick={() => setActiveNav("Locais")}><MapPin/>Locais</button><button className={activeNav === "Carregadores" ? "active" : ""} onClick={() => setActiveNav("Carregadores")}><PlugZap/>Carregadores</button></nav>
+    <nav className="mobile-nav" aria-label="Navegação móvel"><button className={activeNav === "Visão geral" ? "active" : ""} onClick={() => setActiveNav("Visão geral")}><LayoutDashboard/>Início</button><button className={activeNav === "Locais" ? "active" : ""} onClick={() => setActiveNav("Locais")}><MapPin/>Locais</button><button className={activeNav === "Carregadores" ? "active" : ""} onClick={() => setActiveNav("Carregadores")}><PlugZap/>Carregadores</button><button className={activeNav === "Sessões" ? "active" : ""} onClick={() => setActiveNav("Sessões")}><Activity/>Sessões</button></nav>
   </div>;
 }
 
@@ -148,4 +158,51 @@ function SiteList({ sites }: { sites: Site[] }) {
 function ChargerList({ chargers, siteNames }: { chargers: Charger[]; siteNames: Map<string, string> }) {
   if (!chargers.length) return <div className="site-empty"><PlugZap size={17}/><strong>Nenhum carregador cadastrado</strong><span>Cadastre o equipamento para criar sua credencial de conexão OCPP.</span></div>;
   return <div className="site-list">{chargers.map((charger) => <article className="panel site-row" key={charger.id}><div className="site-row-icon"><PlugZap size={16}/></div><div className="site-row-main"><strong>{charger.charge_point_id}</strong><span>{[charger.vendor, charger.model].filter(Boolean).join(" · ") || "Fabricante e modelo não informados"} · {siteNames.get(charger.site_id) ?? "Local indisponível"}</span></div><span className={`status-badge ${charger.online ? "active" : "available"}`}><i className="status-dot"/>{charger.online ? charger.status : "Offline"}</span><div className="site-row-meta"><span>Potência máx.</span><strong>{charger.max_power_kw ? `${Number(charger.max_power_kw).toLocaleString("pt-BR")} kW` : "Não definida"}</strong></div><div className="site-row-meta"><span>Último heartbeat</span><strong>{charger.last_heartbeat_at ? new Date(charger.last_heartbeat_at).toLocaleString("pt-BR") : "Ainda sem conexão"}</strong></div></article>)}</div>;
+}
+
+function SessionList({ sessions, meterReadings, chargers, siteNames, now }: {
+  sessions: ActiveSession[];
+  meterReadings: MeterReading[];
+  chargers: Charger[];
+  siteNames: Map<string, string>;
+  now: number;
+}) {
+  const chargerById = new Map(chargers.map((charger) => [charger.id, charger]));
+  const latestBySession = new Map<string, Map<string, MeterReading>>();
+  for (const reading of meterReadings) {
+    if (!reading.session_id) continue;
+    let readingsByType = latestBySession.get(reading.session_id);
+    if (!readingsByType) {
+      readingsByType = new Map();
+      latestBySession.set(reading.session_id, readingsByType);
+    }
+    if (!readingsByType.has(reading.measurand)) readingsByType.set(reading.measurand, reading);
+  }
+
+  if (!sessions.length) return <section className="panel session-empty"><div className="empty-symbol"><Activity size={20}/></div><div><h2>Nenhuma recarga em andamento</h2><p>Quando um carregador conectado iniciar uma transação OCPP, ela aparecerá aqui com duração e medições recebidas.</p></div></section>;
+
+  return <section className="panel session-panel">
+    <div className="panel-heading"><div><h2 className="panel-title">Recargas em andamento</h2><div className="panel-kicker">Duração atualizada a cada 30 segundos · medições do carregador</div></div><Activity size={17}/></div>
+    <div className="session-list">{sessions.map((session) => {
+      const charger = chargerById.get(session.charger_id);
+      const readings = latestBySession.get(session.id) ?? new Map<string, MeterReading>();
+      const energy = [...readings.values()].find((reading) => reading.measurand === "Energy.Active.Import.Register");
+      const power = readings.get("Power.Active.Import");
+      const energyUnit = energy?.unit?.toLowerCase();
+      const energyWh = energy && (energyUnit === "wh" || energyUnit === "kwh") ? Number(energy.value) * (energyUnit === "kwh" ? 1000 : 1) : null;
+      const deliveredKwh = energyWh !== null && session.start_meter_wh !== null ? Math.max(0, energyWh - Number(session.start_meter_wh)) / 1000 : null;
+      const powerUnit = power?.unit?.toLowerCase();
+      const powerKw = power && (powerUnit === "w" || powerUnit === "kw") ? Number(power.value) * (powerUnit === "w" ? 0.001 : 1) : null;
+      const elapsedSeconds = session.started_at ? Math.max(0, Math.floor((now - new Date(session.started_at).getTime()) / 1000)) : null;
+      const elapsed = elapsedSeconds === null ? "Aguardando horário" : `${Math.floor(elapsedSeconds / 3600).toString().padStart(2, "0")}:${Math.floor((elapsedSeconds % 3600) / 60).toString().padStart(2, "0")}:${(elapsedSeconds % 60).toString().padStart(2, "0")}`;
+      return <article className="session-row" key={session.id}>
+        <div className="site-row-icon"><PlugZap size={16}/></div>
+        <div className="session-row-main"><strong>{charger?.charge_point_id ?? "Carregador"}</strong><span>{siteNames.get(charger?.site_id ?? "") ?? "Local indisponível"} · Conector {session.connector_id ?? "—"}</span></div>
+        <div className="session-metric"><span><Clock3 size={12}/>Tempo</span><strong>{elapsed}</strong></div>
+        <div className="session-metric"><span><Activity size={12}/>Potência agora</span><strong>{powerKw === null ? "Aguardando medição" : `${powerKw.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kW`}</strong></div>
+        <div className="session-metric"><span><Zap size={12}/>Energia entregue</span><strong>{deliveredKwh === null ? "Aguardando medição" : `${deliveredKwh.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kWh`}</strong></div>
+        <small className="session-updated">{energy || power ? `Última leitura: ${new Date(Math.max(energy ? new Date(energy.sampled_at).getTime() : 0, power ? new Date(power.sampled_at).getTime() : 0)).toLocaleString("pt-BR")}` : "Nenhuma medição recebida ainda"}</small>
+      </article>;
+    })}</div>
+  </section>;
 }

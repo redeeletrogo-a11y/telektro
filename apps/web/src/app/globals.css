@@ -256,6 +256,19 @@ tbody tr:last-child td { border-bottom: 0; }
 .site-row-meta { display: grid; gap: 4px; min-width: 95px; }
 .site-row-meta span { color: #929da2; font-size: 8px; }
 .site-row-meta strong { color: #52626a; font-size: 9px; font-weight: 600; }
+.session-panel { padding: 17px; }
+.session-list { display: grid; gap: 9px; margin-top: 13px; }
+.session-row { display: grid; grid-template-columns: 32px minmax(130px,1fr) repeat(3,minmax(110px,auto)); align-items: center; gap: 12px; padding: 13px; border: 1px solid #e7eeec; border-radius: 10px; background: #fff; }
+.session-row-main { display: grid; gap: 4px; min-width: 0; }
+.session-row-main strong { overflow: hidden; color: #40515a; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.session-row-main span { overflow: hidden; color: #8c989d; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.session-metric { display: grid; gap: 5px; }
+.session-metric span { display: flex; align-items: center; gap: 4px; color: #929da2; font-size: 8px; }
+.session-metric strong { color: #52626a; font-size: 10px; font-weight: 600; }
+.session-updated { grid-column: 2 / -1; color: #8c989d; font-size: 8px; }
+.session-empty { display: flex; align-items: center; gap: 14px; padding: 22px; }
+.session-empty h2 { margin: 0; color: #40515a; font-size: 12px; }
+.session-empty p { max-width: 620px; margin: 5px 0 0; color: #829097; font-size: 10px; line-height: 1.5; }
 .credential-reveal { display: grid; gap: 7px; border: 1px solid #cde7dd; border-radius: 7px; padding: 10px; color: #426b5e; background: #f0f8f4; font-size: 10px; overflow-wrap: anywhere; }
 .credential-reveal strong { color: #2e6455; font-size: 10px; }
 .credential-reveal code { color: #33444c; font-family: var(--font-technical); font-size: 9px; user-select: all; }
@@ -323,6 +336,10 @@ tbody tr:last-child td { border-bottom: 0; }
   .site-row { flex-wrap: wrap; }
   .site-row-main { flex-basis: calc(100% - 48px); }
   .site-row-meta { margin-left: 43px; }
+  .session-row { grid-template-columns: 32px minmax(0,1fr); gap: 9px; }
+  .session-row-main { min-width: 0; }
+  .session-metric { margin-left: 43px; }
+  .session-updated { grid-column: 2; }
 }
 @media (max-width: 420px) {
   .page-heading { flex-direction: column; }

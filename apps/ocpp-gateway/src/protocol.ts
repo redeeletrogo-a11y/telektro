@@ -21,9 +21,41 @@ export const StatusNotificationSchema = z.object({
   errorCode: z.string().min(1).max(50),
   status: z.enum([
     "Available", "Preparing", "Charging", "SuspendedEVSE", "SuspendedEV",
-    "Finishing", "Reserved", "Unavailable", "Faulted",
+    "Finishing", "Reserved", "Unavailable", "Faulted", "Unknown",
   ]),
   timestamp: z.string().datetime({ offset: true }).optional(),
+}).passthrough();
+
+export const StartTransactionSchema = z.object({
+  connectorId: z.number().int().positive(),
+  idTag: z.string().min(1).max(20),
+  meterStart: z.number().int().nonnegative(),
+  timestamp: z.string().datetime({ offset: true }),
+}).passthrough();
+
+export const StopTransactionSchema = z.object({
+  transactionId: z.number().int().positive(),
+  meterStop: z.number().int().nonnegative(),
+  timestamp: z.string().datetime({ offset: true }),
+  reason: z.string().max(50).optional(),
+  idTag: z.string().max(20).optional(),
+}).passthrough();
+
+const SampledValueSchema = z.object({
+  value: z.string().min(1).max(100),
+  context: z.string().max(50).optional(),
+  measurand: z.string().max(100).optional(),
+  phase: z.string().max(20).optional(),
+  unit: z.string().max(20).optional(),
+}).passthrough();
+
+export const MeterValuesSchema = z.object({
+  connectorId: z.number().int().nonnegative(),
+  transactionId: z.number().int().positive().optional(),
+  meterValue: z.array(z.object({
+    timestamp: z.string().datetime({ offset: true }),
+    sampledValue: z.array(SampledValueSchema).min(1),
+  }).passthrough()).min(1),
 }).passthrough();
 
 export type OcppCall = z.infer<typeof OcppFrameSchema>;
