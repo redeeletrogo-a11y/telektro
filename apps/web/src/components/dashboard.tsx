@@ -37,6 +37,8 @@ function SiteForm({ organizationId }: { organizationId: string }) {
 function ChargerForm({ organizationId, sites }: { organizationId: string; sites: Site[] }) {
   const [state, action, pending] = useActionState(registerCharger.bind(null, organizationId), initialState);
   const [copyFeedback, setCopyFeedback] = useState("");
+  const gatewayBaseUrl = (process.env.NEXT_PUBLIC_OCPP_GATEWAY_BASE_URL ?? (process.env.NODE_ENV === "production" ? "wss://telektro-ocpp-gateway.fly.dev" : "ws://localhost:9000")).replace(/\/+$/, "");
+  const connectionUrl = gatewayBaseUrl && state.chargePointId ? `${gatewayBaseUrl}/ocpp/${state.chargePointId}` : null;
   async function copyCredential(value: string, label: string) {
     try { await navigator.clipboard.writeText(value); setCopyFeedback(`${label} copiado para a área de transferência.`); }
     catch { setCopyFeedback("Selecione e copie a credencial manualmente."); }
@@ -55,7 +57,7 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
     <label htmlFor="charger-power">Potência máxima <span>kW · opcional</span></label>
     <input id="charger-power" name="max_power_kw" type="number" min="0.001" step="0.001" placeholder="Ex.: 22"/>
     {state.error && <p className="form-error" role="alert">{state.error}</p>}
-    {state.credential && <div className="credential-reveal"><strong>Credencial criada — copie agora</strong><span>Usuário: <code>{state.chargePointId}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(state.chargePointId ?? "", "Usuário")}>{copyFeedback.startsWith("Usuário") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span><span>Senha: <code>{state.credential}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(state.credential ?? "", "Senha")}>{copyFeedback.startsWith("Senha") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span>{copyFeedback && <small role="status">{copyFeedback}</small>}<small>O Telektro guarda somente o hash. Esta senha não será exibida novamente.</small></div>}
+    {state.credential && <div className="credential-reveal"><strong>Credencial criada — copie agora</strong>{connectionUrl ? <span>URL OCPP: <code>{connectionUrl}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(connectionUrl, "URL OCPP")}>{copyFeedback.startsWith("URL OCPP") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span> : <small>O endereço público do gateway OCPP ainda não foi configurado neste ambiente.</small>}<span>Usuário: <code>{state.chargePointId}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(state.chargePointId ?? "", "Usuário")}>{copyFeedback.startsWith("Usuário") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span><span>Senha: <code>{state.credential}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(state.credential ?? "", "Senha")}>{copyFeedback.startsWith("Senha") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span>{copyFeedback && <small role="status">{copyFeedback}</small>}<small>Configure o carregador com OCPP 1.6J e segurança TLS. O Telektro guarda somente o hash da senha; esta senha não será exibida novamente.</small></div>}
     <button className="primary-button" disabled={pending}>{pending ? "Cadastrando…" : "Cadastrar carregador"}<ArrowRight size={14}/></button>
   </form>;
 }

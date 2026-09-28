@@ -40,7 +40,9 @@ Para desenvolvimento local, `OCPP_DEV_TOKEN` habilita a autenticação temporár
 
 O dashboard pode ser instalado como PWA pela opção **Instalar Telektro**. No Android, aceite a instalação do navegador; no iPhone, abra o site no Safari e use **Compartilhar → Adicionar à Tela de Início**. A instalação usa o site HTTPS publicado e não gera um pacote para App Store/Google Play nem habilita uso offline.
 
-Na Vercel, configure a raiz do projeto como `apps/web` e defina `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. O gateway OCPP permanece um serviço separado: publique-o em um host persistente com TLS e configure a URL do gateway no carregador; o deploy web sozinho não torna a porta local 9000 acessível pela internet.
+Na Vercel, configure a raiz do projeto como `apps/web` e defina `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` e `NEXT_PUBLIC_OCPP_GATEWAY_BASE_URL` (URL `wss://` da aplicação Fly). O gateway OCPP permanece um serviço separado: publique-o em um host persistente com TLS e configure a URL exibida ao provisionar o carregador; o deploy web sozinho não torna a porta local 9000 acessível pela internet.
+
+O `fly.toml` e `apps/ocpp-gateway/Dockerfile` publicam o gateway persistente na região de São Paulo. Configure `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` como secrets do app Fly e publique com `fly deploy`. A máquina permanece ativa para manter sessões WebSocket dos carregadores; o custo depende do tamanho e da região da máquina.
 
 ## Supabase e multiempresa
 
