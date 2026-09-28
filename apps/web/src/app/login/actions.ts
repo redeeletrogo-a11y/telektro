@@ -19,6 +19,24 @@ export async function signIn(_previousState: LoginState, formData: FormData): Pr
   redirect("/");
 }
 
+export async function resendConfirmation(_previousState: LoginState, formData: FormData): Promise<LoginState> {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!/^\S+@\S+\.\S+$/.test(email)) return { error: "Informe um e-mail válido." };
+
+  let supabase;
+  try { supabase = await createSupabaseServerClient(); }
+  catch { return { error: "O acesso ainda não está configurado. Confira as credenciais do Supabase." }; }
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: { emailRedirectTo: `${siteUrl}/auth/callback` },
+  });
+  if (error) return { error: "Não foi possível solicitar o link agora. Aguarde alguns minutos e tente novamente." };
+  return { message: "Se esta conta aguarda confirmação, um novo link será enviado. Confira sua caixa de entrada e o spam." };
+}
+
 export async function signInWithGoogle() {
   let supabase;
   try { supabase = await createSupabaseServerClient(); }
