@@ -70,13 +70,42 @@ export async function registerCharger(organizationId: string, _previous: FormSta
   const siteId = String(formData.get("site_id") ?? "").trim();
   const vendor = String(formData.get("vendor") ?? "").trim() || null;
   const model = String(formData.get("model") ?? "").trim() || null;
+  const modelCode = String(formData.get("model_code") ?? "").trim() || null;
+  const catalogCode = String(formData.get("catalog_code") ?? "").trim() || null;
+  const serialNumber = String(formData.get("serial_number") ?? "").trim() || null;
+  const connectorType = String(formData.get("connector_type") ?? "").trim() || null;
+  const rawConnectorCount = String(formData.get("connector_count") ?? "").trim();
+  const connectorCount = rawConnectorCount ? Number(rawConnectorCount) : null;
+  const rawInstallationPower = String(formData.get("installation_power_kw") ?? "").trim();
+  const installationPower = rawInstallationPower ? Number(rawInstallationPower) : null;
+  const ocppVersion = String(formData.get("ocpp_version") ?? "").trim() || null;
+  const nominalVoltage = String(formData.get("nominal_voltage") ?? "").trim() || null;
+  const electricalPhases = String(formData.get("electrical_phases") ?? "").trim() || null;
+  const otherNetworks = String(formData.get("other_network_interfaces") ?? "").split(",").map((item) => item.trim()).filter(Boolean);
+  const networkInterfaces = [...formData.getAll("network_interfaces").map(String), ...otherNetworks];
+  const hasRfid = String(formData.get("has_rfid") ?? "");
+  const hasEnergyMeter = String(formData.get("has_energy_meter") ?? "");
+  const hasDisplay = String(formData.get("has_display") ?? "");
+  const authorizationMode = String(formData.get("authorization_mode") ?? "").trim() || null;
   const rawPower = String(formData.get("max_power_kw") ?? "").trim();
   const maxPower = rawPower ? Number(rawPower) : null;
 
   if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !/^[0-9a-f-]{36}$/i.test(siteId)) return { error: "Selecione um local válido." };
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(chargePointId)) return { error: "Use de 1 a 64 letras, números, pontos, hífens ou sublinhados no ID OCPP." };
   if (vendor && vendor.length > 50) return { error: "O fabricante deve ter no máximo 50 caracteres." };
-  if (model && model.length > 50) return { error: "O modelo deve ter no máximo 50 caracteres." };
+  if (model && model.length > 80) return { error: "O modelo deve ter no máximo 80 caracteres." };
+  if (modelCode && modelCode.length > 80) return { error: "O código do modelo deve ter no máximo 80 caracteres." };
+  if (catalogCode && catalogCode.length > 80) return { error: "O código do produto deve ter no máximo 80 caracteres." };
+  if (serialNumber && serialNumber.length > 100) return { error: "O número de série deve ter no máximo 100 caracteres." };
+  if (connectorType && connectorType.length > 80) return { error: "O tipo de conector deve ter no máximo 80 caracteres." };
+  if (connectorCount !== null && (!Number.isInteger(connectorCount) || connectorCount < 1 || connectorCount > 64)) return { error: "A quantidade de conectores deve ser um número entre 1 e 64." };
+  if (installationPower !== null && (!Number.isFinite(installationPower) || installationPower <= 0)) return { error: "O limite configurado na instalação precisa ser maior que zero." };
+  if (ocppVersion && !["1.6J", "2.0.1", "other", "unknown"].includes(ocppVersion)) return { error: "Selecione uma versão OCPP válida." };
+  if (nominalVoltage && nominalVoltage.length > 120) return { error: "A tensão de alimentação deve ter no máximo 120 caracteres." };
+  if (electricalPhases && electricalPhases.length > 80) return { error: "O tipo de alimentação deve ter no máximo 80 caracteres." };
+  if (networkInterfaces.length > 12 || networkInterfaces.some((item) => item.length > 40 || /[\u0000-\u001f]/.test(item))) return { error: "Informe até 12 interfaces de rede com no máximo 40 caracteres cada." };
+  if (!["", "yes", "no"].includes(hasRfid) || !["", "yes", "no"].includes(hasEnergyMeter) || !["", "yes", "no"].includes(hasDisplay)) return { error: "Selecione uma opção válida para os recursos do carregador." };
+  if (authorizationMode && !["ocpp_server", "local_list", "always_authorized", "other"].includes(authorizationMode)) return { error: "Selecione um método de autorização válido." };
   if (maxPower !== null && (!Number.isFinite(maxPower) || maxPower <= 0)) return { error: "A potência precisa ser maior que zero." };
 
   let supabase;
@@ -94,7 +123,7 @@ export async function registerCharger(organizationId: string, _previous: FormSta
   const { data: site } = await supabase.from("sites").select("id").eq("id", siteId).eq("organization_id", organizationId).maybeSingle();
   if (!site) return { error: "O local selecionado não pertence a esta organização." };
 
-  const credential = randomBytes(32).toString("base64url");
+  const credential = randomBytes(20).toString("hex");
   const credentialHash = createHash("sha256").update(credential, "utf8").digest("hex");
   const { error } = await supabase.from("chargers").insert({
     organization_id: organizationId,
@@ -102,12 +131,28 @@ export async function registerCharger(organizationId: string, _previous: FormSta
     charge_point_id: chargePointId,
     vendor,
     model,
+    model_code: modelCode,
+    serial_number: serialNumber,
+    connector_type: connectorType,
+    connector_count: connectorCount,
     max_power_kw: maxPower,
+    installation_power_kw: installationPower,
+    ocpp_version: ocppVersion,
+    technical_specs: {
+      catalog_code: catalogCode,
+      nominal_voltage: nominalVoltage,
+      electrical_phases: electricalPhases,
+      network_interfaces: [...new Set(networkInterfaces)],
+      has_rfid: hasRfid === "" ? null : hasRfid === "yes",
+      has_energy_meter: hasEnergyMeter === "" ? null : hasEnergyMeter === "yes",
+      has_display: hasDisplay === "" ? null : hasDisplay === "yes",
+      authorization_mode: authorizationMode,
+    },
     ocpp_credential_hash: credentialHash,
   });
   if (error) {
     if (error.code === "23505") return { error: "Esse ID OCPP já está cadastrado. Cada carregador precisa de um ID globalmente único." };
-    if (error.code === "42703" || error.code === "PGRST204" || error.message.includes("ocpp_credential_hash")) return { error: "A migration de credenciais OCPP ainda precisa ser aplicada no Supabase." };
+    if (error.code === "42703" || error.code === "PGRST204" || error.message.includes("ocpp_credential_hash")) return { error: "A migration 006 de perfis de carregadores ainda precisa ser aplicada no Supabase." };
     return { error: "Não foi possível cadastrar o carregador. Confira as permissões e os dados." };
   }
 

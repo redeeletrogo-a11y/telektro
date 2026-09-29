@@ -270,6 +270,14 @@ tbody tr:last-child td { border-bottom: 0; }
 .site-form input:focus, .site-form select:focus { border-color: #64aaa0; box-shadow: 0 0 0 3px #e4f3f0; }
 .site-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .site-form-row > div { display: grid; gap: 8px; min-width: 0; }
+.form-help { margin: -2px 0 4px; color: #89969b; font-size: 9px; line-height: 1.45; }
+.profile-note { border-left: 2px solid #d7a34d; border-radius: 0 5px 5px 0; padding: 8px 10px; color: #79663f; background: #fbf7ed; }
+.charger-options { display: grid; gap: 9px; min-width: 0; margin: 6px 0 2px; border: 1px solid #e4ebeb; border-radius: 7px; padding: 10px; }
+.charger-options legend { padding: 0 5px; color: #45555e; font-size: 10px; font-weight: 600; }
+.charger-options legend span { color: #95a0a5; font-size: 9px; font-weight: 400; }
+.charger-network-options { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+.charger-network-options label { display: inline-flex; align-items: center; gap: 5px; margin: 0; color: #607078; font-size: 9px; font-weight: 500; }
+.site-form .charger-network-options input[type="checkbox"] { width: 13px; height: 13px; margin: 0; accent-color: #4f9388; }
 .site-form .primary-button { justify-self: start; margin-top: 5px; }
 .site-empty { display: grid; justify-items: center; gap: 7px; border: 1px dashed #dce6e7; border-radius: 8px; padding: 28px 16px; color: #829097; text-align: center; }
 .site-empty svg { color: #609a90; }
@@ -281,6 +289,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .site-row-main { display: grid; flex: 1; gap: 4px; min-width: 0; }
 .site-row-main strong { overflow: hidden; color: #40515a; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .site-row-main span { overflow: hidden; color: #8c989d; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.site-row-main .charger-profile-details { color: #829097; font-size: 8px; line-height: 1.45; white-space: normal; }
 .site-row-meta { display: grid; gap: 4px; min-width: 95px; }
 .site-row-meta span { color: #929da2; font-size: 8px; }
 .site-row-meta strong { color: #52626a; font-size: 9px; font-weight: 600; }

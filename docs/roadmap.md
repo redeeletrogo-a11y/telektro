@@ -28,6 +28,8 @@ Autenticação, organizações, RLS, locais, cadastro de carregadores, gateway O
 
 **Evolução entregue nesta etapa:** o gateway persiste presença, estados, transações e `MeterValues`; o workspace mostra sessões ativas, duração e medições. Também há pedidos autenticados de início/parada, resposta OCPP confirmada, timeout e autorização temporária vinculada ao comando.
 
+**Cadastro de equipamentos em evolução:** o formulário aceita especificações de fabricantes diversos e oferece o WEG WEMOB-P-023-W-R-1T2 como preenchimento sugerido. Potência de placa e limite elétrico da instalação são campos separados; o protocolo e as interfaces são registrados para orientar a configuração, sem alegar compatibilidade operacional que o gateway ainda não tenha implementado. A migration `202609280006_charger_profiles.sql` precisa ser aplicada antes de publicar a interface.
+
 ### 1. MVP residencial — em evolução
 
 Fazer um proprietário operar um carregador de casa pelo navegador do celular: status, sessão, duração, potência/energia e comandos remotos compatíveis. O painel atualiza os dados automaticamente enquanto está aberto. A recuperação segura de comandos e sua migration `202609280005_command_recovery.sql` já estão publicadas no gateway e no Supabase. A validação com carregador real ou simulador OCPP fiel continua pendente.

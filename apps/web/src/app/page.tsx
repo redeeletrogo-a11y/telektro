@@ -5,7 +5,7 @@ import { OrganizationOnboarding } from "@/components/organization-onboarding";
 
 type Organization = { id: string; name: string; slug: string };
 type Site = { id: string; name: string; address: string | null; timezone: string; max_power_kw: number | null };
-type Charger = { id: string; site_id: string; charge_point_id: string; vendor: string | null; model: string | null; max_power_kw: number | null; status: string; online: boolean; last_heartbeat_at: string | null };
+type Charger = { id: string; site_id: string; charge_point_id: string; vendor: string | null; model: string | null; model_code: string | null; serial_number: string | null; connector_type: string | null; connector_count: number | null; installation_power_kw: number | null; ocpp_version: string | null; technical_specs: Record<string, unknown>; max_power_kw: number | null; status: string; online: boolean; last_heartbeat_at: string | null };
 type ActiveSession = { id: string; charger_id: string; connector_id: number | null; started_at: string | null; start_meter_wh: number | null; ocpp_transaction_id: number | null };
 type MeterReading = { session_id: string | null; measurand: string; value: number; unit: string | null; sampled_at: string };
 type CommandRecord = { id: string; charger_id: string; action: string; status: string; requested_at: string; completed_at: string | null };
@@ -37,7 +37,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
 
   const [sitesResult, chargerListResult, chargersResult, onlineResult, sessionsResult, commandsResult] = await Promise.all([
     supabase.from("sites").select("id, name, address, timezone, max_power_kw").eq("organization_id", activeOrganization.id).order("name"),
-    supabase.from("chargers").select("id, site_id, charge_point_id, vendor, model, max_power_kw, status, online, last_heartbeat_at").eq("organization_id", activeOrganization.id).order("charge_point_id"),
+    supabase.from("chargers").select("id, site_id, charge_point_id, vendor, model, model_code, serial_number, connector_type, connector_count, installation_power_kw, ocpp_version, technical_specs, max_power_kw, status, online, last_heartbeat_at").eq("organization_id", activeOrganization.id).order("charge_point_id"),
     supabase.from("chargers").select("id", { count: "exact", head: true }).eq("organization_id", activeOrganization.id),
     supabase.from("chargers").select("id", { count: "exact", head: true }).eq("organization_id", activeOrganization.id).eq("online", true),
     supabase.from("sessions").select("id, charger_id, connector_id, started_at, start_meter_wh, ocpp_transaction_id").eq("organization_id", activeOrganization.id).is("ended_at", null).order("started_at", { ascending: false }),

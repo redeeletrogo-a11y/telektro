@@ -7,7 +7,7 @@ import { createSite, registerCharger, requestRemoteStart, requestRemoteStop, sig
 
 type Organization = { id: string; name: string; slug: string };
 type Site = { id: string; name: string; address: string | null; timezone: string; max_power_kw: number | null };
-type Charger = { id: string; site_id: string; charge_point_id: string; vendor: string | null; model: string | null; max_power_kw: number | null; status: string; online: boolean; last_heartbeat_at: string | null };
+type Charger = { id: string; site_id: string; charge_point_id: string; vendor: string | null; model: string | null; model_code: string | null; serial_number: string | null; connector_type: string | null; connector_count: number | null; installation_power_kw: number | null; ocpp_version: string | null; technical_specs: Record<string, unknown>; max_power_kw: number | null; status: string; online: boolean; last_heartbeat_at: string | null };
 type ActiveSession = { id: string; charger_id: string; connector_id: number | null; started_at: string | null; start_meter_wh: number | null; ocpp_transaction_id: number | null };
 type MeterReading = { session_id: string | null; measurand: string; value: number; unit: string | null; sampled_at: string };
 type CommandRecord = { id: string; charger_id: string; action: string; status: string; requested_at: string; completed_at: string | null };
@@ -38,8 +38,34 @@ function SiteForm({ organizationId }: { organizationId: string }) {
 function ChargerForm({ organizationId, sites }: { organizationId: string; sites: Site[] }) {
   const [state, action, pending] = useActionState(registerCharger.bind(null, organizationId), initialState);
   const [copyFeedback, setCopyFeedback] = useState("");
+  const [profile, setProfile] = useState("manual");
+  const [formValues, setFormValues] = useState({ vendor: "", model: "", modelCode: "", catalogCode: "", serialNumber: "", maxPower: "", installationPower: "", connectorType: "", connectorCount: "", ocppVersion: "1.6J", voltage: "", phases: "", networkInterfaces: [] as string[], otherNetwork: "", hasRfid: "", hasMeter: "", hasDisplay: "", authorizationMode: "" });
   const gatewayBaseUrl = (process.env.NEXT_PUBLIC_OCPP_GATEWAY_BASE_URL ?? (process.env.NODE_ENV === "production" ? "wss://telektro-ocpp-gateway.fly.dev" : "ws://localhost:9000")).replace(/\/+$/, "");
+  const serverUrl = gatewayBaseUrl ? `${gatewayBaseUrl}/ocpp` : null;
   const connectionUrl = gatewayBaseUrl && state.chargePointId ? `${gatewayBaseUrl}/ocpp/${state.chargePointId}` : null;
+  function chooseProfile(value: string) {
+    setProfile(value);
+    if (value === "weg-wemob-parking-g2") setFormValues((current) => ({
+      ...current,
+      vendor: "WEG",
+      model: "WEMOB PARKING Geração 2",
+      modelCode: "WEMOB-P-023-W-R-1T2",
+      catalogCode: "15846064",
+      connectorType: "Tipo 2 com cabo",
+      connectorCount: "1",
+      maxPower: "22",
+      ocppVersion: "1.6J",
+      voltage: "127/220 V ou 220/380 V",
+      phases: "Monofásica, bifásica ou trifásica",
+      networkInterfaces: ["Wi-Fi", "4G", "Ethernet"],
+      hasRfid: "yes",
+      hasMeter: "yes",
+      hasDisplay: "no",
+    }));
+  }
+  function setValue(key: "vendor" | "model" | "modelCode" | "catalogCode" | "serialNumber" | "maxPower" | "installationPower" | "connectorType" | "connectorCount" | "ocppVersion" | "voltage" | "phases" | "otherNetwork" | "hasRfid" | "hasMeter" | "hasDisplay" | "authorizationMode", value: string) {
+    setFormValues((current) => ({ ...current, [key]: value }));
+  }
   async function copyCredential(value: string, label: string) {
     try { await navigator.clipboard.writeText(value); setCopyFeedback(`${label} copiado para a área de transferência.`); }
     catch { setCopyFeedback("Selecione e copie a credencial manualmente."); }
@@ -47,18 +73,53 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
   if (!sites.length) return <div className="site-empty charger-form-empty"><MapPin size={17}/><strong>Cadastre um local primeiro</strong><span>O carregador precisa pertencer a um local da organização.</span></div>;
 
   return <form action={action} className="site-form">
-    <label htmlFor="charger-id">ID OCPP</label>
-    <input id="charger-id" name="charge_point_id" autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={64} placeholder="Ex.: TELEKTRO-EVSE-001" required/>
-    <label htmlFor="charger-site">Local</label>
-    <select id="charger-site" name="site_id" defaultValue="" required><option value="" disabled>Selecione um local</option>{sites.map((site) => <option value={site.id} key={site.id}>{site.name}</option>)}</select>
+    <label htmlFor="charger-profile">Modelo de referência <span>opcional · você pode cadastrar outras marcas</span></label>
+    <select id="charger-profile" value={profile} onChange={(event) => chooseProfile(event.currentTarget.value)}><option value="manual">Outro modelo — preencher dados</option><option value="weg-wemob-parking-g2">WEG WEMOB-P-023-W-R-1T2 · Parking Geração 2</option></select>
+    <p className="form-help">O perfil só preenche os campos conhecidos. O cadastro aceita qualquer fabricante; para conectar, o equipamento precisa usar OCPP 1.6J, compatível com o gateway atual.</p>
     <div className="site-form-row">
-      <div><label htmlFor="charger-vendor">Fabricante <span>opcional</span></label><input id="charger-vendor" name="vendor" maxLength={50} placeholder="Ex.: WEG"/></div>
-      <div><label htmlFor="charger-model">Modelo <span>opcional</span></label><input id="charger-model" name="model" maxLength={50} placeholder="Ex.: WEMOB"/></div>
+      <div><label htmlFor="charger-id">ID OCPP / Charge Box ID</label><input id="charger-id" name="charge_point_id" autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={64} placeholder="Copie o ID configurado no carregador" required/><small className="form-help">Use exatamente o mesmo ID, respeitando maiúsculas e minúsculas.</small></div>
+      <div><label htmlFor="charger-site">Local</label><select id="charger-site" name="site_id" defaultValue="" required><option value="" disabled>Selecione um local</option>{sites.map((site) => <option value={site.id} key={site.id}>{site.name}</option>)}</select></div>
     </div>
-    <label htmlFor="charger-power">Potência máxima <span>kW · opcional</span></label>
-    <input id="charger-power" name="max_power_kw" type="number" min="0.001" step="0.001" placeholder="Ex.: 22"/>
+    <div className="site-form-row">
+      <div><label htmlFor="charger-vendor">Fabricante <span>opcional</span></label><input id="charger-vendor" name="vendor" value={formValues.vendor} onChange={(event) => setValue("vendor", event.currentTarget.value)} maxLength={50} placeholder="Ex.: WEG, ABB, Schneider"/></div>
+      <div><label htmlFor="charger-model">Modelo comercial <span>opcional</span></label><input id="charger-model" name="model" value={formValues.model} onChange={(event) => setValue("model", event.currentTarget.value)} maxLength={80} placeholder="Nome da linha ou modelo"/></div>
+    </div>
+    <div className="site-form-row">
+      <div><label htmlFor="charger-model-code">Código do modelo <span>opcional</span></label><input id="charger-model-code" name="model_code" value={formValues.modelCode} onChange={(event) => setValue("modelCode", event.currentTarget.value)} maxLength={80} placeholder="Ex.: WEMOB-P-023-W-R-1T2"/></div>
+      <div><label htmlFor="charger-catalog-code">Código do produto <span>opcional</span></label><input id="charger-catalog-code" name="catalog_code" value={formValues.catalogCode} onChange={(event) => setValue("catalogCode", event.currentTarget.value)} maxLength={80} placeholder="Código comercial do fabricante"/></div>
+    </div>
+    <div className="site-form-row">
+      <div><label htmlFor="charger-serial">Número de série <span>opcional</span></label><input id="charger-serial" name="serial_number" value={formValues.serialNumber} onChange={(event) => setValue("serialNumber", event.currentTarget.value)} maxLength={100} placeholder="Identificação na etiqueta"/></div>
+      <div><label htmlFor="charger-protocol">Versão OCPP</label><select id="charger-protocol" name="ocpp_version" value={formValues.ocppVersion} onChange={(event) => setValue("ocppVersion", event.currentTarget.value)}><option value="1.6J">OCPP 1.6J / JSON</option><option value="2.0.1">OCPP 2.0.1</option><option value="other">Outra versão</option><option value="unknown">Não informado</option></select></div>
+    </div>
+    <div className="site-form-row">
+      <div><label htmlFor="charger-power">Potência máxima do modelo <span>kW · opcional</span></label><input id="charger-power" name="max_power_kw" value={formValues.maxPower} onChange={(event) => setValue("maxPower", event.currentTarget.value)} type="number" min="0.001" step="0.001" placeholder="Ex.: 22"/></div>
+      <div><label htmlFor="charger-installed-power">Limite configurado na instalação <span>kW · opcional</span></label><input id="charger-installed-power" name="installation_power_kw" value={formValues.installationPower} onChange={(event) => setValue("installationPower", event.currentTarget.value)} type="number" min="0.001" step="0.001" placeholder="Confirme a alimentação elétrica"/></div>
+    </div>
+    {profile === "weg-wemob-parking-g2" && <p className="form-help profile-note">Neste WEG, 22 kW é a potência máxima do modelo. A instalação pode entregar 4,06 kW (127 V), 7,04 kW (220 V mono/bifásico), 12,19 kW (220 V trifásico) ou 21,06 kW (380 V trifásico), conforme a rede local.</p>}
+    <div className="site-form-row">
+      <div><label htmlFor="charger-connector">Tipo de conector <span>opcional</span></label><input id="charger-connector" name="connector_type" value={formValues.connectorType} onChange={(event) => setValue("connectorType", event.currentTarget.value)} maxLength={80} placeholder="Ex.: Tipo 2, CCS2, NACS"/></div>
+      <div><label htmlFor="charger-connectors">Quantidade de conectores <span>opcional</span></label><input id="charger-connectors" name="connector_count" value={formValues.connectorCount} onChange={(event) => setValue("connectorCount", event.currentTarget.value)} type="number" min="1" max="64" step="1"/></div>
+    </div>
+    <div className="site-form-row">
+      <div><label htmlFor="charger-voltage">Tensão de alimentação <span>opcional · informativa</span></label><input id="charger-voltage" name="nominal_voltage" value={formValues.voltage} onChange={(event) => setValue("voltage", event.currentTarget.value)} maxLength={120} placeholder="Ex.: 220/380 V"/></div>
+      <div><label htmlFor="charger-phases">Tipo de alimentação <span>opcional</span></label><input id="charger-phases" name="electrical_phases" value={formValues.phases} onChange={(event) => setValue("phases", event.currentTarget.value)} maxLength={80} placeholder="Ex.: monofásica ou trifásica"/></div>
+    </div>
+    <fieldset className="charger-options"><legend>Recursos e conectividade <span>opcionais</span></legend>
+      <div className="charger-network-options">{["Wi-Fi", "4G", "Ethernet"].map((network) => <label key={network}><input type="checkbox" name="network_interfaces" value={network} checked={formValues.networkInterfaces.includes(network)} onChange={(event) => setFormValues((current) => ({ ...current, networkInterfaces: event.currentTarget.checked ? [...new Set([...current.networkInterfaces, network])] : current.networkInterfaces.filter((item) => item !== network) }))}/>{network}</label>)}</div>
+      <div><label htmlFor="charger-other-network">Outras interfaces <span>opcional · separe por vírgula</span></label><input id="charger-other-network" name="other_network_interfaces" value={formValues.otherNetwork} onChange={(event) => setValue("otherNetwork", event.currentTarget.value)} maxLength={160} placeholder="Ex.: LTE-M, Bluetooth, RS-485"/></div>
+      <div className="site-form-row">
+        <div><label htmlFor="charger-rfid">RFID integrado</label><select id="charger-rfid" name="has_rfid" value={formValues.hasRfid} onChange={(event) => setValue("hasRfid", event.currentTarget.value)}><option value="">Não informado</option><option value="yes">Sim</option><option value="no">Não</option></select></div>
+        <div><label htmlFor="charger-meter">Medição de energia</label><select id="charger-meter" name="has_energy_meter" value={formValues.hasMeter} onChange={(event) => setValue("hasMeter", event.currentTarget.value)}><option value="">Não informado</option><option value="yes">Sim</option><option value="no">Não</option></select></div>
+      </div>
+      <div className="site-form-row">
+        <div><label htmlFor="charger-display">Display</label><select id="charger-display" name="has_display" value={formValues.hasDisplay} onChange={(event) => setValue("hasDisplay", event.currentTarget.value)}><option value="">Não informado</option><option value="yes">Sim</option><option value="no">Não</option></select></div>
+        <div><label htmlFor="charger-auth-mode">Autorização configurada</label><select id="charger-auth-mode" name="authorization_mode" value={formValues.authorizationMode} onChange={(event) => setValue("authorizationMode", event.currentTarget.value)}><option value="">Não informado</option><option value="ocpp_server">Servidor OCPP</option><option value="local_list">Lista local/RFID</option><option value="always_authorized">Sempre autorizado</option><option value="other">Outra configuração</option></select></div>
+      </div>
+    </fieldset>
+    {(formValues.ocppVersion !== "1.6J" && formValues.ocppVersion !== "unknown") && <p className="form-help profile-note">O cadastro aceita esse equipamento para inventário, mas o gateway Telektro atual conecta somente carregadores OCPP 1.6J.</p>}
     {state.error && <p className="form-error" role="alert">{state.error}</p>}
-    {state.credential && <div className="credential-reveal"><strong>Credencial criada — copie agora</strong>{connectionUrl ? <span>URL OCPP: <code>{connectionUrl}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(connectionUrl, "URL OCPP")}>{copyFeedback.startsWith("URL OCPP") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span> : <small>O endereço público do gateway OCPP ainda não foi configurado neste ambiente.</small>}<span>Usuário: <code>{state.chargePointId}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(state.chargePointId ?? "", "Usuário")}>{copyFeedback.startsWith("Usuário") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span><span>Senha: <code>{state.credential}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(state.credential ?? "", "Senha")}>{copyFeedback.startsWith("Senha") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span>{copyFeedback && <small role="status">{copyFeedback}</small>}<small>Configure o carregador com OCPP 1.6J e segurança TLS. O Telektro guarda somente o hash da senha; esta senha não será exibida novamente.</small></div>}
+    {state.credential && <div className="credential-reveal"><strong>Credencial criada — copie agora</strong>{serverUrl && <span>Server URL base: <code>{serverUrl}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(serverUrl, "Server URL base")}>{copyFeedback.startsWith("Server URL base") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span>}{connectionUrl ? <span>Endpoint completo: <code>{connectionUrl}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(connectionUrl, "Endpoint completo")}>{copyFeedback.startsWith("Endpoint completo") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span> : <small>O endereço público do gateway OCPP ainda não foi configurado neste ambiente.</small>}<span>ID OCPP / usuário: <code>{state.chargePointId}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(state.chargePointId ?? "", "Usuário")}>{copyFeedback.startsWith("Usuário") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span><span>Senha: <code>{state.credential}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(state.credential ?? "", "Senha")}>{copyFeedback.startsWith("Senha") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span>{copyFeedback && <small role="status">{copyFeedback}</small>}<small>O WEMOB separa Server URL e Charge Box ID; outros equipamentos podem pedir o endpoint completo. Siga o formato do manual do modelo. A senha tem 40 caracteres hexadecimais. O Telektro guarda somente o hash e não a exibe novamente.</small></div>}
     <button className="primary-button" disabled={pending}>{pending ? "Cadastrando…" : "Cadastrar carregador"}<ArrowRight size={14}/></button>
   </form>;
 }
@@ -238,7 +299,29 @@ function SiteList({ sites }: { sites: Site[] }) {
 
 function ChargerList({ chargers, siteNames, organizationId, canControl }: { chargers: Charger[]; siteNames: Map<string, string>; organizationId: string; canControl: boolean }) {
   if (!chargers.length) return <div className="site-empty"><PlugZap size={17}/><strong>Nenhum carregador cadastrado</strong><span>Cadastre o equipamento para criar sua credencial de conexão OCPP.</span></div>;
-  return <div className="site-list">{chargers.map((charger) => <article className="panel site-row" key={charger.id}><div className="site-row-icon"><PlugZap size={16}/></div><div className="site-row-main"><strong>{charger.charge_point_id}</strong><span>{[charger.vendor, charger.model].filter(Boolean).join(" · ") || "Fabricante e modelo não informados"} · {siteNames.get(charger.site_id) ?? "Local indisponível"}</span></div><span className={`status-badge ${charger.online ? "active" : "available"}`}><i className="status-dot"/>{charger.online ? charger.status : "Offline"}</span><div className="site-row-meta"><span>Potência máx.</span><strong>{charger.max_power_kw ? `${Number(charger.max_power_kw).toLocaleString("pt-BR")} kW` : "Não definida"}</strong></div><div className="site-row-meta"><span>Último heartbeat</span><strong>{charger.last_heartbeat_at ? new Date(charger.last_heartbeat_at).toLocaleString("pt-BR") : "Ainda sem conexão"}</strong></div>{canControl && <ChargerControl charger={charger} organizationId={organizationId}/>}</article>)}</div>;
+  return <div className="site-list">{chargers.map((charger) => {
+    const specs = charger.technical_specs ?? {};
+    const networks = Array.isArray(specs.network_interfaces) ? specs.network_interfaces.filter((value): value is string => typeof value === "string") : [];
+    const profileDetails = [
+      charger.model_code ? `Código ${charger.model_code}` : null,
+      charger.connector_count ? `${charger.connector_count} conector(es)${charger.connector_type ? ` · ${charger.connector_type}` : ""}` : charger.connector_type,
+      charger.ocpp_version ? charger.ocpp_version === "unknown" ? "OCPP não informado" : `OCPP ${charger.ocpp_version}` : null,
+      networks.length ? networks.join(" / ") : null,
+      specs.has_rfid === true ? "RFID" : null,
+      specs.has_energy_meter === true ? "Medição de energia" : null,
+    ].filter(Boolean).join(" · ");
+    const compatibilityPending = Boolean(charger.ocpp_version && !["1.6J", "unknown"].includes(charger.ocpp_version));
+    return <article className="panel site-row" key={charger.id}>
+      <div className="site-row-icon"><PlugZap size={16}/></div>
+      <div className="site-row-main"><strong>{charger.charge_point_id}</strong><span>{[charger.vendor, charger.model].filter(Boolean).join(" · ") || "Fabricante e modelo não informados"}{charger.model_code ? ` · ${charger.model_code}` : ""} · {siteNames.get(charger.site_id) ?? "Local indisponível"}</span>{profileDetails && <small className="charger-profile-details">{profileDetails}</small>}</div>
+      <span className={`status-badge ${charger.online ? "active" : "available"}`}><i className="status-dot"/>{charger.online ? charger.status : "Offline"}</span>
+      {compatibilityPending && <span className="status-badge attention">Protocolo ainda não suportado</span>}
+      <div className="site-row-meta"><span>Potência máx. do modelo</span><strong>{charger.max_power_kw ? `${Number(charger.max_power_kw).toLocaleString("pt-BR")} kW` : "Não definida"}</strong></div>
+      <div className="site-row-meta"><span>Limite da instalação</span><strong>{charger.installation_power_kw ? `${Number(charger.installation_power_kw).toLocaleString("pt-BR")} kW` : "Não informado"}</strong></div>
+      <div className="site-row-meta"><span>Último heartbeat</span><strong>{charger.last_heartbeat_at ? new Date(charger.last_heartbeat_at).toLocaleString("pt-BR") : "Ainda sem conexão"}</strong></div>
+      {canControl && <ChargerControl charger={charger} organizationId={organizationId}/>}
+    </article>;
+  })}</div>;
 }
 
 function ChargerControl({ charger, organizationId }: { charger: Charger; organizationId: string }) {
