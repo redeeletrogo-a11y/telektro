@@ -2,12 +2,12 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Activity, ArrowRight, Building2, Cable, Check, Clock3, Copy, LayoutDashboard, MapPin, Play, PlugZap, ShieldCheck, Square, Users, Zap } from "lucide-react";
-import { createSite, registerCharger, registerRfidAuthorization, requestGetConfiguration, requestRemoteStart, requestRemoteStop, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
+import { Activity, ArrowRight, Building2, Cable, Check, Clock3, Copy, LayoutDashboard, MapPin, Play, PlugZap, RotateCcw, ShieldCheck, Square, Trash2, Users, Zap } from "lucide-react";
+import { createSite, registerCharger, registerRfidAuthorization, removeCharger, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
 
 type Organization = { id: string; name: string; slug: string };
 type Site = { id: string; name: string; address: string | null; timezone: string; max_power_kw: number | null };
-type Charger = { id: string; site_id: string; charge_point_id: string; vendor: string | null; model: string | null; firmware: string | null; model_code: string | null; serial_number: string | null; connector_type: string | null; connector_count: number | null; installation_power_kw: number | null; ocpp_version: string | null; technical_specs: Record<string, unknown>; capabilities: Record<string, unknown>; max_power_kw: number | null; status: string; online: boolean; last_heartbeat_at: string | null; last_boot_at: string | null; last_status_notification_at: string | null; last_transaction_at: string | null; last_transaction_id: number | null; last_ocpp_error: string | null };
+type Charger = { id: string; site_id: string; charge_point_id: string; vendor: string | null; model: string | null; firmware: string | null; model_code: string | null; serial_number: string | null; connector_type: string | null; connector_count: number | null; installation_power_kw: number | null; ocpp_version: string | null; technical_specs: Record<string, unknown>; capabilities: Record<string, unknown>; max_power_kw: number | null; status: string; online: boolean; last_heartbeat_at: string | null; last_boot_at: string | null; last_status_notification_at: string | null; last_transaction_at: string | null; last_transaction_id: number | null; last_ocpp_error: string | null; removed_at: string | null; removed_by: string | null };
 type ConnectorInfo = { id: string; organization_id: string; charger_id: string; connector_id: number; status: string; updated_at: string };
 type ChargerAuthorization = { id: string; charger_id: string; id_tag_hash: string; authorization_type: string; enabled: boolean; created_at: string };
 type ActiveSession = { id: string; charger_id: string; connector_id: number | null; started_at: string | null; start_meter_wh: number | null; ocpp_transaction_id: number | null; authorization_type: string | null; authorized_user_id: string | null };
@@ -147,7 +147,7 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
 }
 
 export function Dashboard({
-  email, organizations, organization, role, sites, chargers, connectors, authorizations, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, completedSessionRows, meterReadings, commandRows, dataLoadedAt,
+  email, organizations, organization, role, sites, chargers, removedChargers, connectors, authorizations, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, completedSessionRows, meterReadings, commandRows, dataLoadedAt,
 }: {
   email: string;
   organizations: Organization[];
@@ -155,6 +155,7 @@ export function Dashboard({
   role: string;
   sites: Site[];
   chargers: Charger[];
+  removedChargers: Charger[];
   connectors: ConnectorInfo[];
   authorizations: ChargerAuthorization[];
   capacityKw: number;
@@ -247,9 +248,9 @@ export function Dashboard({
           <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Locais cadastrados</h2><div className="panel-kicker">{sites.length} local(is) em {organization.name}</div></div><MapPin size={17}/></div><SiteList sites={sites}/></section>
           {canManageSites ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Adicionar local</h2><div className="panel-kicker">Cadastre os dados elétricos e de localização.</div></div></div><SiteForm organizationId={organization.id}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner ou admin para cadastrar locais nesta organização.</p></section>}
         </div> : activeNav === "Carregadores" ? <div className="site-management charger-management">
-          <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Carregadores cadastrados</h2><div className="panel-kicker">{chargers.length} equipamento(s) vinculados à organização</div></div><PlugZap size={17}/></div><ChargerList chargers={chargers} connectors={connectors} authorizations={authorizations} siteNames={siteNames} organizationId={organization.id} canControl={canControlChargers} canManage={canManageChargers}/></section>
+          <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Carregadores cadastrados</h2><div className="panel-kicker">{chargers.length} equipamento(s) ativos nesta organização</div></div><PlugZap size={17}/></div><ChargerList chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} siteNames={siteNames} organizationId={organization.id} canControl={canControlChargers} canManage={canManageChargers} isOwner={role === "owner"} activeSessionChargerIds={new Set(sessionRows.map((session) => session.charger_id))} now={clockNow}/></section>
           {canManageChargers ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Provisionar carregador</h2><div className="panel-kicker">Crie uma credencial individual para autenticação OCPP.</div></div></div><ChargerForm organizationId={organization.id} sites={sites}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner, admin ou technician para cadastrar carregadores.</p></section>}
-        </div> : <SessionList sessions={sessionRows} completedSessions={completedSessionRows} meterReadings={meterReadings} chargers={chargers} siteNames={siteNames} now={clockNow}
+        </div> : <SessionList sessions={sessionRows} completedSessions={completedSessionRows} meterReadings={meterReadings} chargers={[...chargers, ...removedChargers]} siteNames={siteNames} now={clockNow}
           organizationId={organization.id} canControl={canControlChargers} commands={commandRows}/>}
         <p className="footnote">Dados atualizados automaticamente a cada 20 s enquanto a página está aberta. Última consulta: {clockNow ? new Date(dataLoadedAt).toLocaleTimeString("pt-BR") : "carregando"}. Leituras OCPP podem chegar com atraso.</p>
       </div>
@@ -322,9 +323,12 @@ function SiteList({ sites }: { sites: Site[] }) {
   return <div className="site-list">{sites.map((site) => <article className="panel site-row" key={site.id}><div className="site-row-icon"><MapPin size={16}/></div><div className="site-row-main"><strong>{site.name}</strong><span>{site.address || "Endereço não informado"}</span></div><div className="site-row-meta"><span>Capacidade</span><strong>{site.max_power_kw ? `${Number(site.max_power_kw).toLocaleString("pt-BR")} kW` : "Não definida"}</strong></div><div className="site-row-meta"><span>Fuso horário</span><strong>{site.timezone}</strong></div></article>)}</div>;
 }
 
-function ChargerList({ chargers, connectors, authorizations, siteNames, organizationId, canControl, canManage }: { chargers: Charger[]; connectors: ConnectorInfo[]; authorizations: ChargerAuthorization[]; siteNames: Map<string, string>; organizationId: string; canControl: boolean; canManage: boolean }) {
-  if (!chargers.length) return <div className="site-empty"><PlugZap size={17}/><strong>Nenhum carregador cadastrado</strong><span>Cadastre o equipamento para criar sua credencial de conexão OCPP.</span></div>;
-  return <div className="site-list">{chargers.map((charger) => {
+function ChargerList({ chargers, removedChargers, connectors, authorizations, siteNames, organizationId, canControl, canManage, isOwner, activeSessionChargerIds, now }: { chargers: Charger[]; removedChargers: Charger[]; connectors: ConnectorInfo[]; authorizations: ChargerAuthorization[]; siteNames: Map<string, string>; organizationId: string; canControl: boolean; canManage: boolean; isOwner: boolean; activeSessionChargerIds: Set<string>; now: number }) {
+  const [showRemoved, setShowRemoved] = useState(false);
+  return <><div className="charger-tabs" role="tablist" aria-label="Situação dos carregadores">
+    <button type="button" role="tab" aria-selected={!showRemoved} className={!showRemoved ? "active" : ""} onClick={() => setShowRemoved(false)}>Ativos <span>{chargers.length}</span></button>
+    <button type="button" role="tab" aria-selected={showRemoved} className={showRemoved ? "active" : ""} onClick={() => setShowRemoved(true)}>Removidos <span>{removedChargers.length}</span></button>
+  </div>{showRemoved ? <RemovedChargerList chargers={removedChargers} siteNames={siteNames} organizationId={organizationId} isOwner={isOwner} now={now}/> : !chargers.length ? <div className="site-empty"><PlugZap size={17}/><strong>Nenhum carregador cadastrado</strong><span>Cadastre o equipamento para criar sua credencial de conexão OCPP.</span></div> : <div className="site-list">{chargers.map((charger) => {
     const specs = charger.technical_specs ?? {};
     const networks = Array.isArray(specs.network_interfaces) ? specs.network_interfaces.filter((value): value is string => typeof value === "string") : [];
     const profileDetails = [
@@ -361,6 +365,22 @@ function ChargerList({ chargers, connectors, authorizations, siteNames, organiza
       </div>
       {canControl && <ChargerControl charger={charger} connectors={chargerConnectors} organizationId={organizationId}/>}
       {canManage && <><ConfigurationControl charger={charger} organizationId={organizationId}/><RfidAuthorizationManager charger={charger} authorizations={authorizations.filter((item) => item.charger_id === charger.id)} organizationId={organizationId}/></>}
+      {isOwner && <ChargerRemovalControl charger={charger} organizationId={organizationId} hasActiveSession={activeSessionChargerIds.has(charger.id)}/>}
+    </article>;
+  })}</div>}</>;
+}
+
+function RemovedChargerList({ chargers, siteNames, organizationId, isOwner, now }: { chargers: Charger[]; siteNames: Map<string, string>; organizationId: string; isOwner: boolean; now: number }) {
+  if (!chargers.length) return <div className="site-empty"><Trash2 size={17}/><strong>Nenhum carregador removido</strong><span>Equipamentos removidos aparecerão aqui por histórico.</span></div>;
+  return <div className="site-list">{chargers.map((charger) => {
+    const removedAt = charger.removed_at ? new Date(charger.removed_at) : null;
+    const restoreAllowed = removedAt !== null && now > 0 && now - removedAt.getTime() <= 30 * 24 * 60 * 60 * 1000;
+    return <article className="panel site-row charger-row removed-charger-row" key={charger.id}>
+      <div className="site-row-icon removed-charger-icon"><Trash2 size={16}/></div>
+      <div className="site-row-main"><strong>{charger.charge_point_id}</strong><span>{[charger.vendor, charger.model].filter(Boolean).join(" · ") || "Fabricante e modelo não informados"} · {siteNames.get(charger.site_id) ?? "Local indisponível"}</span>
+        <small className="charger-profile-details">Carregador removido · {removedAt?.toLocaleString("pt-BR") ?? "data não informada"}{charger.removed_by ? ` · Conta ${charger.removed_by.slice(0, 8)}` : ""}</small>
+      </div>
+      {isOwner ? restoreAllowed ? <ChargerRestoreControl charger={charger} organizationId={organizationId} now={now}/> : <span className="restore-expired">{now > 0 ? "Prazo de restauração encerrado" : "Calculando prazo de restauração…"}</span> : <span className="restore-expired">Somente o dono pode restaurar</span>}
     </article>;
   })}</div>;
 }
@@ -385,6 +405,41 @@ function ChargerControl({ charger, connectors, organizationId }: { charger: Char
     <button className="secondary-button command-button" type="button" onClick={() => setConfirming(true)} disabled={!charger.online || pending || (connectors.length > 0 && usableConnectors.length === 0)}><Play size={13}/>{pending ? "Enviando…" : "Solicitar início"}</button>
     {confirming && <div className="command-confirm-backdrop"><section className="command-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="start-confirm-title" aria-describedby="start-confirm-description"><h2 id="start-confirm-title">Confirmar início da recarga?</h2><p id="start-confirm-description">O Telektro enviará um pedido ao carregador. A sessão só começa após a confirmação OCPP do equipamento.</p><div className="command-confirm-actions"><button className="secondary-button" type="button" autoFocus onClick={() => setConfirming(false)}>Cancelar</button><button className="primary-button" type="submit" disabled={pending}>{pending ? "Enviando…" : "Confirmar início"}</button></div></section></div>}
   </form>{state.error && <small className="form-error" role="alert">{state.error}</small>}{state.success && <small className="form-success" role="status">{state.success}</small>}</div>;
+}
+
+function ChargerRemovalControl({ charger, organizationId, hasActiveSession }: { charger: Charger; organizationId: string; hasActiveSession: boolean }) {
+  const [state, action, pending] = useActionState(removeCharger.bind(null, organizationId, charger.id), initialState);
+  const [confirming, setConfirming] = useState(false);
+  const [typedId, setTypedId] = useState("");
+  const displayName = [charger.vendor, charger.model].filter(Boolean).join(" · ") || "Carregador";
+  return <div className="charger-removal-control">
+    <button type="button" className="remove-charger-button" onClick={() => setConfirming(true)} disabled={hasActiveSession || pending}>
+      <Trash2 size={13}/>{pending ? "Removendo…" : "Remover"}
+    </button>
+    {hasActiveSession && <small className="remove-charger-blocked">Pare a recarga antes de remover</small>}
+    {confirming && <div className="command-confirm-backdrop"><form action={action} className="command-confirm-dialog remove-charger-dialog" role="alertdialog" aria-modal="true" aria-labelledby={`remove-charger-title-${charger.id}`} aria-describedby={`remove-charger-description-${charger.id}`}>
+      <h2 id={`remove-charger-title-${charger.id}`}>Remover {displayName} ({charger.charge_point_id})?</h2>
+      <p id={`remove-charger-description-${charger.id}`}>Isso desconecta e remove o equipamento. As sessões, medições e cobranças antigas serão preservadas.</p>
+      <label htmlFor={`remove-charger-id-${charger.id}`}>Digite o ID OCPP <strong>{charger.charge_point_id}</strong> para confirmar</label>
+      <input id={`remove-charger-id-${charger.id}`} name="confirm_charge_point_id" value={typedId} onChange={(event) => setTypedId(event.currentTarget.value)} autoComplete="off" autoFocus maxLength={64}/>
+      {hasActiveSession && <small className="remove-charger-blocked">Pare a recarga antes de remover</small>}
+      {state.error && <small className="form-error" role="alert">{state.error}</small>}
+      <div className="command-confirm-actions"><button className="secondary-button" type="button" onClick={() => { setConfirming(false); setTypedId(""); }}>Cancelar</button><button className="remove-charger-confirm" type="submit" disabled={pending || hasActiveSession || typedId.trim() !== charger.charge_point_id}>{pending ? "Removendo…" : "Remover carregador"}</button></div>
+    </form></div>}
+    {state.error && !confirming && <small className="form-error" role="alert">{state.error}</small>}
+  </div>;
+}
+
+function ChargerRestoreControl({ charger, organizationId, now }: { charger: Charger; organizationId: string; now: number }) {
+  const [state, action, pending] = useActionState(restoreCharger.bind(null, organizationId, charger.id), initialState);
+  const router = useRouter();
+  const removedAt = charger.removed_at ? new Date(charger.removed_at) : null;
+  const restoreAllowed = removedAt !== null && now > 0 && now - removedAt.getTime() <= 30 * 24 * 60 * 60 * 1000;
+  return <div className="charger-restore-control">
+    {!state.credential && <form action={action}><button type="submit" className="restore-charger-button" disabled={pending || !restoreAllowed}><RotateCcw size={13}/>{pending ? "Restaurando…" : "Restaurar"}</button></form>}
+    {state.error && <small className="form-error" role="alert">{state.error}</small>}
+    {state.credential && <div className="credential-reveal restore-credential"><strong>{state.success} Copie a nova senha agora.</strong><span>ID OCPP: <code>{state.chargePointId}</code></span><span>Nova senha: <code>{state.credential}</code></span><button type="button" className="secondary-button" onClick={() => router.refresh()}>Concluir</button></div>}
+  </div>;
 }
 
 function ConfigurationControl({ charger, organizationId }: { charger: Charger; organizationId: string }) {
@@ -454,7 +509,7 @@ function SessionList({ sessions, completedSessions, meterReadings, chargers, sit
       const elapsed = elapsedSeconds === null ? "Aguardando horário" : `${Math.floor(elapsedSeconds / 3600).toString().padStart(2, "0")}:${Math.floor((elapsedSeconds % 3600) / 60).toString().padStart(2, "0")}:${(elapsedSeconds % 60).toString().padStart(2, "0")}`;
       return <article className="session-row" key={session.id}>
         <div className="site-row-icon"><PlugZap size={16}/></div>
-        <div className="session-row-main"><strong>{charger?.charge_point_id ?? "Carregador"}</strong><span>{siteNames.get(charger?.site_id ?? "") ?? "Local indisponível"} · Conector {session.connector_id ?? "—"} · Autorização {session.authorization_type ?? "não identificada"}</span></div>
+        <div className="session-row-main"><strong>{charger?.charge_point_id ?? "Carregador"}</strong><span>{charger?.removed_at ? "Carregador removido" : siteNames.get(charger?.site_id ?? "") ?? "Local indisponível"} · Conector {session.connector_id ?? "—"} · Autorização {session.authorization_type ?? "não identificada"}</span></div>
         <div className="session-metric"><span><Clock3 size={12}/>Tempo</span><strong>{elapsed}</strong></div>
         <div className="session-metric"><span><Activity size={12}/>Potência agora</span><strong>{powerKw === null ? "Aguardando medição" : `${powerKw.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kW`}</strong></div>
         <div className="session-metric"><span><Zap size={12}/>Energia entregue</span><strong className={energyReadingInvalid ? "meter-reading-error" : undefined}>{energyReadingInvalid ? "Leitura inválida" : deliveredKwh === null ? "Aguardando medição" : `${deliveredKwh.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kWh`}</strong></div>
@@ -470,7 +525,7 @@ function SessionList({ sessions, completedSessions, meterReadings, chargers, sit
       const invalidMeters = startMeter !== null && endMeter !== null && endMeter < startMeter;
       const finalKwh = startMeter !== null && endMeter !== null && !invalidMeters ? (endMeter - startMeter) / 1000 : null;
       return <article className="session-history-row" key={session.id}>
-        <div><strong>{charger?.charge_point_id ?? "Carregador"} · Conector {session.connector_id ?? "—"}</strong><small>{new Date(session.ended_at ?? "").toLocaleString("pt-BR")} · {siteNames.get(charger?.site_id ?? "") ?? "Local indisponível"}</small></div>
+        <div><strong>{charger?.charge_point_id ?? "Carregador"} · Conector {session.connector_id ?? "—"}</strong><small>{new Date(session.ended_at ?? "").toLocaleString("pt-BR")} · {charger?.removed_at ? "Carregador removido" : siteNames.get(charger?.site_id ?? "") ?? "Local indisponível"}</small></div>
         <div><span>Medidor inicial</span><strong>{startMeter === null ? "Não informado" : `${startMeter.toLocaleString("pt-BR")} Wh`}</strong></div>
         <div><span>Medidor final</span><strong className={invalidMeters ? "meter-reading-error" : undefined}>{invalidMeters ? "Revisar medidor" : endMeter === null ? "Não informado" : `${endMeter.toLocaleString("pt-BR")} Wh`}</strong></div>
         <div><span>kWh final</span><strong className={invalidMeters ? "meter-reading-error" : undefined}>{invalidMeters ? "Revisar medidor" : finalKwh === null ? "Não informado" : `${finalKwh.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} kWh`}</strong></div>

@@ -182,7 +182,7 @@ export async function requestRemoteStart(organizationId: string, chargerId: stri
     return { error: "Seu perfil não pode controlar carregadores nesta organização." };
   }
   const { data: charger } = await supabase.from("chargers").select("id, online, status, connector_count, last_heartbeat_at")
-    .eq("id", chargerId).eq("organization_id", organizationId).maybeSingle();
+    .eq("id", chargerId).eq("organization_id", organizationId).is("removed_at", null).maybeSingle();
   if (!charger) return { error: "Carregador não encontrado nesta organização." };
   if (!charger.online || !chargerHasRecentHeartbeat(charger.last_heartbeat_at)) return { error: "O carregador está offline ou sem comunicação recente. Confira a conexão antes de pedir uma recarga." };
   const { data: connectors, error: connectorsError } = await supabase.from("connectors")
@@ -247,7 +247,7 @@ export async function requestGetConfiguration(organizationId: string, chargerId:
     .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
   if (!membership || !["owner", "admin", "technician"].includes(membership.role)) return { error: "Somente owners, admins e técnicos podem consultar configurações OCPP." };
   const { data: charger } = await supabase.from("chargers").select("id, online, last_heartbeat_at")
-    .eq("id", chargerId).eq("organization_id", organizationId).maybeSingle();
+    .eq("id", chargerId).eq("organization_id", organizationId).is("removed_at", null).maybeSingle();
   if (!charger) return { error: "Carregador não encontrado nesta organização." };
   if (!charger.online || !chargerHasRecentHeartbeat(charger.last_heartbeat_at)) return { error: "O carregador está offline ou sem comunicação recente." };
   const { error } = await supabase.from("commands").insert({
@@ -272,6 +272,9 @@ export async function registerRfidAuthorization(organizationId: string, chargerI
   const { data: membership } = await supabase.from("memberships").select("role")
     .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
   if (!membership || !["owner", "admin", "technician"].includes(membership.role)) return { error: "Seu perfil não pode autorizar cartões RFID nesta organização." };
+  const { data: activeCharger } = await supabase.from("chargers").select("id")
+    .eq("id", chargerId).eq("organization_id", organizationId).is("removed_at", null).maybeSingle();
+  if (!activeCharger) return { error: "Este carregador foi removido e não aceita novas autorizações." };
   const { error } = await supabase.from("charger_authorizations").insert({
     organization_id: organizationId, charger_id: chargerId, user_id: user.id,
     id_tag_hash: createHash("sha256").update(idTag, "utf8").digest("hex"), authorization_type: "RFID", created_by: user.id,
@@ -301,6 +304,70 @@ export async function revokeRfidAuthorization(organizationId: string, chargerId:
   return { success: "Autorização do cartão revogada." };
 }
 
+export async function removeCharger(organizationId: string, chargerId: string, _previous: FormState, formData: FormData): Promise<FormState> {
+  void _previous;
+  if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !/^[0-9a-f-]{36}$/i.test(chargerId)) return { error: "Organização ou carregador inválido." };
+  const confirmation = String(formData.get("confirm_charge_point_id") ?? "").trim();
+  if (!confirmation || confirmation.length > 64) return { error: "Digite o ID OCPP para confirmar a remoção." };
+
+  let supabase;
+  try { supabase = await createSupabaseServerClient(); }
+  catch { return { error: "Não foi possível conectar ao Supabase." }; }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Sua sessão expirou. Entre novamente para continuar." };
+  const { data: membership } = await supabase.from("memberships").select("role")
+    .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
+  if (membership?.role !== "owner") return { error: "Somente o dono da organização pode remover carregadores." };
+  const { data: charger, error: chargerError } = await supabase.from("chargers")
+    .select("id, charge_point_id, removed_at").eq("id", chargerId).eq("organization_id", organizationId).maybeSingle();
+  if (chargerError || !charger) return { error: "Carregador não encontrado nesta organização." };
+  if (charger.removed_at) return { error: "Este carregador já foi removido." };
+  if (confirmation !== charger.charge_point_id) return { error: "O ID digitado não corresponde ao carregador." };
+
+  const { error } = await supabase.rpc("remove_charger", { p_organization_id: organizationId, p_charger_id: chargerId });
+  if (error) {
+    if (error.message.includes("ACTIVE_SESSION")) return { error: "Pare a recarga antes de remover." };
+    if (error.message.includes("OWNER_REQUIRED")) return { error: "Somente o dono da organização pode remover carregadores." };
+    if (error.message.includes("CHARGER_NOT_FOUND")) return { error: "Carregador não encontrado nesta organização." };
+    if (error.code === "PGRST202" || error.message.includes("remove_charger")) return { error: "A migration de remoção e restauração de carregadores ainda precisa ser aplicada no Supabase." };
+    return { error: "Não foi possível remover o carregador. Atualize a página e tente novamente." };
+  }
+  revalidatePath("/");
+  return { success: "Carregador removido. As sessões e medições antigas foram preservadas." };
+}
+
+export async function restoreCharger(organizationId: string, chargerId: string, _previous: FormState, _formData: FormData): Promise<FormState> {
+  void _previous;
+  void _formData;
+  if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !/^[0-9a-f-]{36}$/i.test(chargerId)) return { error: "Organização ou carregador inválido." };
+  let supabase;
+  try { supabase = await createSupabaseServerClient(); }
+  catch { return { error: "Não foi possível conectar ao Supabase." }; }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Sua sessão expirou. Entre novamente para continuar." };
+  const { data: membership } = await supabase.from("memberships").select("role")
+    .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
+  if (membership?.role !== "owner") return { error: "Somente o dono da organização pode restaurar carregadores." };
+  const { data: charger, error: chargerError } = await supabase.from("chargers")
+    .select("id, charge_point_id, removed_at").eq("id", chargerId).eq("organization_id", organizationId).maybeSingle();
+  if (chargerError || !charger?.removed_at) return { error: "Carregador removido não encontrado nesta organização." };
+  if (Date.now() - new Date(charger.removed_at).getTime() > 30 * 24 * 60 * 60 * 1000) return { error: "O prazo de restauração de 30 dias expirou." };
+
+  const credential = randomBytes(20).toString("hex");
+  const credentialHash = createHash("sha256").update(credential, "utf8").digest("hex");
+  const { error } = await supabase.rpc("restore_charger", {
+    p_organization_id: organizationId, p_charger_id: chargerId, p_credential_hash: credentialHash,
+  });
+  if (error) {
+    if (error.code === "23505") return { error: "Já existe um carregador ativo com este ID OCPP. Remova-o antes de restaurar este cadastro." };
+    if (error.message.includes("RESTORE_WINDOW_EXPIRED")) return { error: "O prazo de restauração de 30 dias expirou." };
+    if (error.message.includes("OWNER_REQUIRED")) return { error: "Somente o dono da organização pode restaurar carregadores." };
+    if (error.code === "PGRST202" || error.message.includes("restore_charger")) return { error: "A migration de remoção e restauração de carregadores ainda precisa ser aplicada no Supabase." };
+    return { error: "Não foi possível restaurar o carregador. Atualize a página e tente novamente." };
+  }
+  return { success: "Carregador restaurado. A credencial anterior continua revogada.", credential, chargePointId: charger.charge_point_id };
+}
+
 export async function requestRemoteStop(organizationId: string, sessionId: string, _previous: FormState, _formData: FormData): Promise<FormState> {
   void _previous;
   void _formData;
@@ -323,7 +390,7 @@ export async function requestRemoteStop(organizationId: string, sessionId: strin
     return { error: "Esta recarga não tem um identificador OCPP válido para solicitar a parada." };
   }
   const { data: charger } = await supabase.from("chargers").select("online, last_heartbeat_at")
-    .eq("id", session.charger_id).eq("organization_id", organizationId).maybeSingle();
+    .eq("id", session.charger_id).eq("organization_id", organizationId).is("removed_at", null).maybeSingle();
   if (!charger?.online || !chargerHasRecentHeartbeat(charger.last_heartbeat_at)) return { error: "O carregador está offline ou sem comunicação recente; não é possível enviar o pedido de parada." };
 
   const { data: pendingStop, error: pendingStopError } = await supabase.from("commands").select("id")

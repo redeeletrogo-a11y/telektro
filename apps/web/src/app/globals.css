@@ -131,6 +131,26 @@ h1 { margin: 0; color: #1c2a33; font-size: 25px; font-weight: 650; letter-spacin
 .link-button { display: inline-flex; align-items: center; gap: 5px; border: 0; padding: 3px 0; color: #4b7e77; background: transparent; font-size: 10px; font-weight: 600; }
 .charger-list { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
 .charger-card { padding: 15px; }
+.charger-tabs { display: flex; gap: 7px; margin: 13px 0; border-bottom: 1px solid #e8eeed; }
+.charger-tabs button { display: inline-flex; align-items: center; gap: 6px; border: 0; border-bottom: 2px solid transparent; padding: 8px 10px; color: #849197; background: transparent; font: inherit; font-size: 10px; }
+.charger-tabs button.active { border-bottom-color: #398c80; color: #397e73; font-weight: 650; }
+.charger-tabs button span { min-width: 17px; border-radius: 9px; padding: 2px 5px; color: #72817f; background: #eff4f2; text-align: center; font-size: 8px; }
+.charger-removal-control { display: flex; flex-basis: 100%; align-items: center; gap: 9px; border-top: 1px solid #edf1f0; padding: 10px 0 0 43px; }
+.remove-charger-button { display: inline-flex; min-height: 29px; align-items: center; gap: 5px; border: 1px solid #f0dede; border-radius: 6px; padding: 0 9px; color: #a85050; background: #fffafa; font: inherit; font-size: 9px; }
+.remove-charger-button:hover:not(:disabled), .remove-charger-confirm:hover:not(:disabled) { border-color: #d99b9b; background: #fff3f3; }
+.remove-charger-button:disabled { cursor: not-allowed; opacity: .5; }
+.remove-charger-blocked { color: #a56a3c; font-size: 9px; }
+.remove-charger-dialog label { display: grid; gap: 5px; margin-top: 16px; color: #718087; font-size: 10px; }
+.remove-charger-dialog label strong { color: #40515a; font-family: var(--font-technical); }
+.remove-charger-dialog input { min-height: 37px; margin-top: 6px; border: 1px solid #dfe6e8; border-radius: 7px; padding: 0 10px; color: #33434c; font: inherit; font-size: 12px; }
+.remove-charger-confirm { display: inline-flex; min-height: 35px; align-items: center; border: 1px solid #b85656; border-radius: 7px; padding: 0 12px; color: #fff; background: #b85656; font: inherit; font-size: 11px; font-weight: 600; }
+.remove-charger-confirm:disabled { cursor: not-allowed; opacity: .45; }
+.removed-charger-icon { color: #a85a5a; background: #fff4f3; border-color: #f0e0df; }
+.restore-expired { color: #8b979d; font-size: 9px; }
+.charger-restore-control { display: grid; gap: 6px; margin-left: auto; }
+.restore-charger-button { display: inline-flex; min-height: 30px; align-items: center; gap: 6px; border: 1px solid #d7e8df; border-radius: 6px; padding: 0 9px; color: #397e67; background: #f5faf7; font: inherit; font-size: 9px; }
+.restore-charger-button:disabled { cursor: not-allowed; opacity: .5; }
+.restore-credential { min-width: 240px; }
 .charger-top { display: flex; justify-content: space-between; gap: 8px; }
 .charger-id { display: flex; align-items: center; gap: 9px; }
 .charger-icon { display: grid; width: 31px; height: 31px; place-items: center; border: 1px solid #e2edeb; border-radius: 8px; color: #398c80; background: #eff7f5; }

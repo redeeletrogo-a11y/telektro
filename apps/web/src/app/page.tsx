@@ -5,7 +5,7 @@ import { OrganizationOnboarding } from "@/components/organization-onboarding";
 
 type Organization = { id: string; name: string; slug: string };
 type Site = { id: string; name: string; address: string | null; timezone: string; max_power_kw: number | null };
-type Charger = { id: string; site_id: string; charge_point_id: string; vendor: string | null; model: string | null; firmware: string | null; model_code: string | null; serial_number: string | null; connector_type: string | null; connector_count: number | null; installation_power_kw: number | null; ocpp_version: string | null; technical_specs: Record<string, unknown>; capabilities: Record<string, unknown>; max_power_kw: number | null; status: string; online: boolean; last_heartbeat_at: string | null; last_boot_at: string | null; last_status_notification_at: string | null; last_transaction_at: string | null; last_transaction_id: number | null; last_ocpp_error: string | null };
+type Charger = { id: string; organization_id: string; site_id: string; charge_point_id: string; vendor: string | null; model: string | null; firmware: string | null; model_code: string | null; serial_number: string | null; connector_type: string | null; connector_count: number | null; installation_power_kw: number | null; ocpp_version: string | null; technical_specs: Record<string, unknown>; capabilities: Record<string, unknown>; max_power_kw: number | null; status: string; online: boolean; last_heartbeat_at: string | null; last_boot_at: string | null; last_status_notification_at: string | null; last_transaction_at: string | null; last_transaction_id: number | null; last_ocpp_error: string | null; removed_at: string | null; removed_by: string | null };
 type Connector = { id: string; organization_id: string; charger_id: string; connector_id: number; status: string; updated_at: string };
 type ChargerAuthorization = { id: string; charger_id: string; id_tag_hash: string; authorization_type: string; enabled: boolean; created_at: string };
 type ActiveSession = { id: string; charger_id: string; connector_id: number | null; started_at: string | null; start_meter_wh: number | null; ocpp_transaction_id: number | null; authorization_type: string | null; authorized_user_id: string | null };
@@ -38,23 +38,25 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   const activeOrganization = availableOrganizations.find((organization) => organization.id === requestedOrganizationId) ?? availableOrganizations[0];
   const activeMembership = memberships.find((membership) => membership.organization_id === activeOrganization.id);
 
-  const [sitesResult, chargerListResult, chargersResult, onlineResult, sessionsResult, historyResult, commandsResult, connectorResult, authorizationResult] = await Promise.all([
+  const [sitesResult, chargerListResult, removedChargersResult, chargersResult, onlineResult, sessionsResult, historyResult, commandsResult, connectorResult, authorizationResult] = await Promise.all([
     supabase.from("sites").select("id, name, address, timezone, max_power_kw").eq("organization_id", activeOrganization.id).order("name"),
-    supabase.from("chargers").select("id, site_id, charge_point_id, vendor, model, firmware, model_code, serial_number, connector_type, connector_count, installation_power_kw, ocpp_version, technical_specs, capabilities, max_power_kw, status, online, last_heartbeat_at, last_boot_at, last_status_notification_at, last_transaction_at, last_transaction_id, last_ocpp_error").eq("organization_id", activeOrganization.id).order("charge_point_id"),
-    supabase.from("chargers").select("id", { count: "exact", head: true }).eq("organization_id", activeOrganization.id),
-    supabase.from("chargers").select("id", { count: "exact", head: true }).eq("organization_id", activeOrganization.id).eq("online", true),
+    supabase.from("chargers").select("id, organization_id, site_id, charge_point_id, vendor, model, firmware, model_code, serial_number, connector_type, connector_count, installation_power_kw, ocpp_version, technical_specs, capabilities, max_power_kw, status, online, last_heartbeat_at, last_boot_at, last_status_notification_at, last_transaction_at, last_transaction_id, last_ocpp_error, removed_at, removed_by").eq("organization_id", activeOrganization.id).is("removed_at", null).order("charge_point_id"),
+    supabase.from("chargers").select("id, organization_id, site_id, charge_point_id, vendor, model, firmware, model_code, serial_number, connector_type, connector_count, installation_power_kw, ocpp_version, technical_specs, capabilities, max_power_kw, status, online, last_heartbeat_at, last_boot_at, last_status_notification_at, last_transaction_at, last_transaction_id, last_ocpp_error, removed_at, removed_by").eq("organization_id", activeOrganization.id).not("removed_at", "is", null).order("removed_at", { ascending: false }),
+    supabase.from("chargers").select("id", { count: "exact", head: true }).eq("organization_id", activeOrganization.id).is("removed_at", null),
+    supabase.from("chargers").select("id", { count: "exact", head: true }).eq("organization_id", activeOrganization.id).eq("online", true).is("removed_at", null),
     supabase.from("sessions").select("id, charger_id, connector_id, started_at, start_meter_wh, ocpp_transaction_id, authorization_type, authorized_user_id").eq("organization_id", activeOrganization.id).is("ended_at", null).order("started_at", { ascending: false }),
     supabase.from("sessions").select("id, charger_id, connector_id, started_at, start_meter_wh, ocpp_transaction_id, authorization_type, authorized_user_id, ended_at, end_meter_wh").eq("organization_id", activeOrganization.id).not("ended_at", "is", null).order("ended_at", { ascending: false }).limit(50),
     supabase.from("commands").select("id, charger_id, action, status, requested_at, completed_at, result").eq("organization_id", activeOrganization.id).order("requested_at", { ascending: false }).limit(20),
     supabase.from("connectors").select("id, organization_id, charger_id, connector_id, status, updated_at").eq("organization_id", activeOrganization.id).order("connector_id"),
     supabase.from("charger_authorizations").select("id, charger_id, id_tag_hash, authorization_type, enabled, created_at").eq("organization_id", activeOrganization.id).eq("authorization_type", "RFID").order("created_at", { ascending: false }),
   ]);
-  if (sitesResult.error || chargerListResult.error || chargersResult.error || onlineResult.error || sessionsResult.error || historyResult.error || commandsResult.error || connectorResult.error || authorizationResult.error) {
+  if (sitesResult.error || chargerListResult.error || removedChargersResult.error || chargersResult.error || onlineResult.error || sessionsResult.error || historyResult.error || commandsResult.error || connectorResult.error || authorizationResult.error) {
     return <SetupMessage title="Falha ao consultar a operação" message="A sessão foi reconhecida, mas não conseguimos ler os dados protegidos do workspace. Confira as policies RLS."/>;
   }
 
   const sites = (sitesResult.data ?? []) as Site[];
   const chargers = (chargerListResult.data ?? []) as Charger[];
+  const removedChargers = (removedChargersResult.data ?? []) as Charger[];
   const connectors = (connectorResult.data ?? []) as Connector[];
   const authorizations = (authorizationResult.data ?? []) as ChargerAuthorization[];
   const activeSessions = (sessionsResult.data ?? []) as ActiveSession[];
@@ -72,7 +74,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   const capacityKw = sites.reduce((total, site) => total + Number(site.max_power_kw ?? 0), 0);
 
   return <Dashboard email={user.email ?? ""} organizations={availableOrganizations} organization={activeOrganization}
-    role={activeMembership?.role ?? "viewer"} sites={sites} chargers={chargers} connectors={connectors} authorizations={authorizations} capacityKw={capacityKw}
+    role={activeMembership?.role ?? "viewer"} sites={sites} chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} capacityKw={capacityKw}
     totalChargers={chargersResult.count ?? 0} onlineChargers={onlineResult.count ?? 0} activeSessions={activeSessions.length}
     sessionRows={activeSessions} completedSessionRows={completedSessions} meterReadings={meterReadings} commandRows={commandRows} dataLoadedAt={new Date().toISOString()}/>;
 }

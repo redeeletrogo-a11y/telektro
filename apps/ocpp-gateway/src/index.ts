@@ -24,6 +24,7 @@ type ChargerRecord = {
   organization_id: string;
   site_id: string;
   ocpp_credential_hash: string | null;
+  removed_at?: string | null;
   connector_count?: number | null;
   capabilities?: Record<string, unknown> | null;
 };
@@ -70,8 +71,8 @@ server.on("upgrade", async (request, socket, head) => {
   if (chargePointId && registry) {
     try {
       const { data, error } = await registry.from("chargers")
-        .select("id, organization_id, site_id, ocpp_credential_hash, connector_count, capabilities")
-        .eq("charge_point_id", chargePointId).maybeSingle();
+        .select("id, organization_id, site_id, ocpp_credential_hash, connector_count, capabilities, removed_at")
+        .eq("charge_point_id", chargePointId).is("removed_at", null).maybeSingle();
       if (error) throw error;
       charger = data as ChargerRecord | null;
       const isDeviceAuth = Boolean(charger?.ocpp_credential_hash && request.headers.authorization &&
@@ -179,6 +180,13 @@ async function handleMessage(websocket: WebSocket, chargePointId: string, charge
 async function persistCall(charger: ChargerRecord | null, action: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
   if (!registry || !charger) return responseFor(action, payload);
   const now = new Date().toISOString();
+  const { data: currentCharger, error: currentChargerError } = await registry.from("chargers").select("removed_at")
+    .eq("id", charger.id).eq("organization_id", charger.organization_id).maybeSingle();
+  if (currentChargerError) throw currentChargerError;
+  if (!currentCharger || currentCharger.removed_at) {
+    if (action === "Authorize" || action === "StartTransaction") return { idTagInfo: { status: "Invalid" }, ...(action === "StartTransaction" ? { transactionId: 0 } : {}) };
+    throw new Error("CHARGER_REMOVED");
+  }
 
   if (action === "BootNotification") {
     const parsed = BootNotificationSchema.parse(payload);
@@ -518,13 +526,18 @@ async function expireAcceptedOperations() {
 async function getCharger(chargerId: string): Promise<ChargerRecord | null> {
   if (!registry) return null;
   const { data, error } = await registry.from("chargers")
-        .select("id, organization_id, site_id, ocpp_credential_hash, connector_count, capabilities").eq("id", chargerId).maybeSingle();
+        .select("id, organization_id, site_id, ocpp_credential_hash, connector_count, capabilities, removed_at").eq("id", chargerId).maybeSingle();
   if (error) throw error;
   return data as ChargerRecord | null;
 }
 
 async function dispatchCommand(command: { id: string; charger_id: string; action: string; payload: Record<string, unknown>; requested_by: string | null }) {
   if (!registry) return;
+  const currentCharger = await getCharger(command.charger_id);
+  if (!currentCharger || currentCharger.removed_at) {
+    await failPendingCommand(command.id, { error: "charger_removed" });
+    return;
+  }
   if (!(["RemoteStartTransaction", "RemoteStopTransaction", "GetConfiguration"] as string[]).includes(command.action)) {
     await failPendingCommand(command.id, { error: "unsupported_action" });
     return;
@@ -801,6 +814,7 @@ async function recoverInterruptedCommands() {
 }
 
 setInterval(() => { void pollPendingCommands(); }, 1_500).unref();
+setInterval(() => { void disconnectRemovedChargerConnections(); }, 5_000).unref();
 setInterval(() => {
   const now = Date.now();
   for (const [idTag, grant] of idTagGrants) if (grant.expiresAt <= now) idTagGrants.delete(idTag);
@@ -809,6 +823,25 @@ setInterval(() => {
 function reportPersistenceFailure(action: string, chargePointId: string, error: unknown) {
   const reason = error instanceof Error ? error.message : "database write failed";
   console.error(JSON.stringify({ event: "ocpp.persistence_failed", action, chargePointId, reason }));
+}
+
+async function disconnectRemovedChargerConnections() {
+  if (!registry || chargerConnections.size === 0) return;
+  const chargerIds = [...chargerConnections.keys()];
+  const { data, error } = await registry.from("chargers").select("id")
+    .in("id", chargerIds).not("removed_at", "is", null);
+  if (error) {
+    reportPersistenceFailure("removed_charger_disconnect_check", "gateway", error);
+    return;
+  }
+  for (const row of data ?? []) {
+    const connection = chargerConnections.get(row.id);
+    if (!connection) continue;
+    chargerConnections.delete(row.id);
+    if (connections.get(connection.chargePointId) === connection.websocket) connections.delete(connection.chargePointId);
+    for (const [idTag, grant] of idTagGrants) if (grant.chargerId === row.id) idTagGrants.delete(idTag);
+    if (connection.websocket.readyState === WebSocket.OPEN) connection.websocket.close(4001, "Charger removed");
+  }
 }
 
 function safeEqual(left: string, right: string): boolean {
