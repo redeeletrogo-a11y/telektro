@@ -6,6 +6,7 @@ import { ZodError } from "zod";
 import { verifyOcppBasicAuth } from "./authentication.js";
 import { capabilityFromCommandResult, mergeCapability, readAuthorizeRemoteTxRequests } from "./capabilities.js";
 import { commandStatusForResult, operationConfirmationTimeoutStatus, operationEventStatus } from "./operation-state.js";
+import { isRegisteredConnector, meterReadingError, meterTransactionError } from "./validation.js";
 import {
   AuthorizeSchema,
   BootNotificationSchema,
@@ -220,10 +221,6 @@ async function persistCall(charger: ChargerRecord | null, action: string, payloa
     if (connectorError) throw connectorError;
     const chargerUpdate: Record<string, unknown> = { online: true, last_heartbeat_at: now, last_status_notification_at: statusAt };
     if (parsed.connectorId <= 1) chargerUpdate.status = parsed.status;
-    if (parsed.connectorId > 0 && (!charger.connector_count || parsed.connectorId > charger.connector_count)) {
-      chargerUpdate.connector_count = parsed.connectorId;
-      charger.connector_count = parsed.connectorId;
-    }
     const { error } = await registry.from("chargers").update(chargerUpdate).eq("id", charger.id);
     if (error) throw error;
     return {};
@@ -231,6 +228,14 @@ async function persistCall(charger: ChargerRecord | null, action: string, payloa
 
   if (action === "StartTransaction") {
     const parsed = StartTransactionSchema.parse(payload);
+    const { data: connectorRows, error: connectorError } = await registry.from("connectors")
+      .select("connector_id").eq("charger_id", charger.id);
+    if (connectorError) throw connectorError;
+    const registeredConnectorIds = (connectorRows ?? []).map((connector) => connector.connector_id);
+    if (!isRegisteredConnector(parsed.connectorId, registeredConnectorIds, charger.connector_count)) {
+      await setLastOcppError(charger, `StartTransaction rejected: connector ${parsed.connectorId} is not registered`);
+      return { transactionId: 0, idTagInfo: { status: "Invalid" } };
+    }
     const grant = await resolveIdTagGrant(charger, parsed.idTag);
     if (!grant || grant.chargerId !== charger.id || !grant.authorized || grant.expiresAt <= Date.now()) {
       await setLastOcppError(charger, "StartTransaction rejected: no active authorization for idTag");
@@ -275,10 +280,13 @@ async function persistCall(charger: ChargerRecord | null, action: string, payloa
 
   if (action === "StopTransaction") {
     const parsed = StopTransactionSchema.parse(payload);
-    const { data: session, error: findError } = await registry.from("sessions").select("id")
+    const { data: session, error: findError } = await registry.from("sessions").select("id, start_meter_wh")
       .eq("charger_id", charger.id).eq("ocpp_transaction_id", parsed.transactionId).is("ended_at", null).maybeSingle();
     if (findError) throw findError;
     if (!session) return { idTagInfo: { status: "Invalid" } };
+    if (session.start_meter_wh !== null && parsed.meterStop < Number(session.start_meter_wh)) {
+      throw new Error("Invalid StopTransaction: meterStop is lower than StartTransaction meterStart");
+    }
     const { error } = await registry.from("sessions").update({
       ended_at: parsed.timestamp,
       end_meter_wh: parsed.meterStop,
@@ -295,17 +303,26 @@ async function persistCall(charger: ChargerRecord | null, action: string, payloa
   if (action === "MeterValues") {
     const parsed = MeterValuesSchema.parse(payload);
     let sessionId: string | null = null;
+    let startMeterWh: number | null = null;
     if (parsed.transactionId !== undefined) {
-      const { data: session, error } = await registry.from("sessions").select("id")
-        .eq("charger_id", charger.id).eq("ocpp_transaction_id", parsed.transactionId).is("ended_at", null).maybeSingle();
+      const { data: session, error } = await registry.from("sessions").select("id, connector_id, start_meter_wh")
+        .eq("charger_id", charger.id).eq("ocpp_transaction_id", parsed.transactionId)
+        .order("started_at", { ascending: false }).limit(1).maybeSingle();
       if (error) throw error;
-      sessionId = session?.id ?? null;
+      if (!session) throw new Error(`Invalid MeterValues: ${meterTransactionError(null, parsed.transactionId, parsed.connectorId)}`);
+      const transactionError = meterTransactionError(session, parsed.transactionId, parsed.connectorId);
+      if (transactionError) throw new Error(`Invalid MeterValues: ${transactionError}`);
+      sessionId = session.id;
+      startMeterWh = session.start_meter_wh === null ? null : Number(session.start_meter_wh);
     }
-    const readings = parsed.meterValue.flatMap((sample) => sample.sampledValue.flatMap((reading) => {
+    const readings = parsed.meterValue.flatMap((sample) => sample.sampledValue.map((reading) => {
       const value = Number(reading.value);
-      if (!Number.isFinite(value)) return [];
+      if (!Number.isFinite(value)) throw new Error("Invalid MeterValues: meter value is not numeric");
       const measurand = reading.measurand ?? "Energy.Active.Import.Register";
-      return [{
+      const unit = reading.unit ?? (measurand.startsWith("Energy.") ? "Wh" : measurand.startsWith("Power.") ? "W" : null);
+      const readingError = meterReadingError(measurand, value, unit ?? "", startMeterWh);
+      if (readingError) throw new Error(`Invalid MeterValues: ${readingError}`);
+      return {
         organization_id: charger.organization_id,
         session_id: sessionId,
         charger_id: charger.id,
@@ -313,12 +330,12 @@ async function persistCall(charger: ChargerRecord | null, action: string, payloa
         sampled_at: sample.timestamp,
         measurand,
         value,
-        unit: reading.unit ?? (measurand.startsWith("Energy.") ? "Wh" : measurand.startsWith("Power.") ? "W" : null),
+        unit,
         phase: reading.phase ?? null,
         context: reading.context ?? null,
-      }];
+      };
     }));
-    if (!readings.length) throw new Error("Invalid MeterValues: no numeric readings");
+    if (!readings.length) throw new Error("Invalid MeterValues: no readings");
     const { error } = await registry.from("meter_values").insert(readings);
     if (error) throw error;
     return {};

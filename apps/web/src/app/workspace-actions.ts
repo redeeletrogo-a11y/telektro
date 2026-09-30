@@ -4,6 +4,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isSupportedTimeZone } from "@/lib/time-zone";
 
 export type FormState = { error?: string; success?: string; credential?: string; chargePointId?: string };
 const chargerStaleAfterMs = Math.max(60, Number(process.env.OCPP_CHARGER_STALE_AFTER_SECONDS ?? 180)) * 1000;
@@ -48,7 +49,7 @@ export async function createSite(organizationId: string, _previous: FormState, f
 
   if (!/^[0-9a-f-]{36}$/i.test(organizationId)) return { error: "Organização inválida." };
   if (name.length < 1 || name.length > 120) return { error: "O nome do local deve ter entre 1 e 120 caracteres." };
-  if (timezone.length < 1 || timezone.length > 100) return { error: "Informe um fuso horário válido." };
+  if (!isSupportedTimeZone(timezone)) return { error: "Informe um fuso horário IANA válido, como America/Fortaleza." };
   if (maxPower !== null && (!Number.isFinite(maxPower) || maxPower <= 0)) return { error: "A capacidade precisa ser maior que zero." };
 
   let supabase;

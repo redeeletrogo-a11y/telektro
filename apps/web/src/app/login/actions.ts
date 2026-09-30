@@ -1,13 +1,33 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type LoginState = { error?: string; message?: string };
 
-function getSiteUrl() {
+async function getSiteUrl() {
   const configured = process.env.NEXT_PUBLIC_SITE_URL;
   const isLocalUrl = configured ? /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/.test(configured) : false;
+  const requestOrigin = (await headers()).get("origin");
+  if (requestOrigin) {
+    try {
+      const requestedUrl = new URL(requestOrigin);
+      const configuredHostname = configured ? new URL(configured).hostname.toLowerCase() : "";
+      const productionHostname = process.env.VERCEL_PROJECT_PRODUCTION_URL?.toLowerCase() ?? "";
+      const projectSlug = productionHostname.split(".")[0]?.split("-")[0] ?? "telektro";
+      const isLocalOrigin = ["localhost", "127.0.0.1"].includes(requestedUrl.hostname);
+      const isConfiguredOrigin = requestedUrl.hostname.toLowerCase() === configuredHostname;
+      const isProjectVercelAlias = Boolean(process.env.VERCEL) && requestedUrl.protocol === "https:" &&
+        requestedUrl.hostname.toLowerCase().endsWith(".vercel.app") &&
+        (requestedUrl.hostname.toLowerCase() === productionHostname || requestedUrl.hostname.toLowerCase().startsWith(`${projectSlug}-`));
+      if (requestedUrl.protocol.match(/^https?:$/) && (isLocalOrigin || isConfiguredOrigin || isProjectVercelAlias)) {
+        return requestedUrl.origin;
+      }
+    } catch {
+      // Fall back to the configured deployment URL for malformed or untrusted Origin values.
+    }
+  }
   const deploymentUrl = process.env.VERCEL_ENV === "preview"
     ? process.env.VERCEL_URL
     : process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
@@ -27,7 +47,7 @@ export async function signIn(_previousState: LoginState, formData: FormData): Pr
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { error: "Não foi possível entrar. Confira suas credenciais e tente novamente." };
-  redirect(getSiteUrl());
+  redirect(await getSiteUrl());
 }
 
 export async function resendConfirmation(_previousState: LoginState, formData: FormData): Promise<LoginState> {
@@ -38,7 +58,7 @@ export async function resendConfirmation(_previousState: LoginState, formData: F
   try { supabase = await createSupabaseServerClient(); }
   catch { return { error: "O acesso ainda não está configurado. Confira as credenciais do Supabase." }; }
 
-  const siteUrl = getSiteUrl();
+  const siteUrl = await getSiteUrl();
   const { error } = await supabase.auth.resend({
     type: "signup",
     email,
@@ -53,7 +73,7 @@ export async function signInWithGoogle() {
   try { supabase = await createSupabaseServerClient(); }
   catch { redirect("/login?error=configuration"); }
 
-  const siteUrl = getSiteUrl();
+  const siteUrl = await getSiteUrl();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: { redirectTo: `${siteUrl}/auth/callback` },
@@ -72,13 +92,13 @@ export async function signUp(_previousState: LoginState, formData: FormData): Pr
   try { supabase = await createSupabaseServerClient(); }
   catch { return { error: "O cadastro ainda não está configurado. Confira as credenciais do Supabase." }; }
 
-  const siteUrl = getSiteUrl();
+  const siteUrl = await getSiteUrl();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: { emailRedirectTo: `${siteUrl}/auth/callback` },
   });
   if (error) return { error: "Não foi possível criar a conta. Confira os dados e tente novamente." };
-  if (data.session) redirect(getSiteUrl());
+  if (data.session) redirect(await getSiteUrl());
   return { message: "Cadastro iniciado. Confira seu e-mail para confirmar a conta e continuar." };
 }
