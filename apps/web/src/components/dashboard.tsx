@@ -11,7 +11,8 @@ type Charger = { id: string; site_id: string; charge_point_id: string; vendor: s
 type ConnectorInfo = { id: string; organization_id: string; charger_id: string; connector_id: number; status: string; updated_at: string };
 type ChargerAuthorization = { id: string; charger_id: string; id_tag_hash: string; authorization_type: string; enabled: boolean; created_at: string };
 type ActiveSession = { id: string; charger_id: string; connector_id: number | null; started_at: string | null; start_meter_wh: number | null; ocpp_transaction_id: number | null; authorization_type: string | null; authorized_user_id: string | null };
-type MeterReading = { session_id: string | null; measurand: string; value: number; unit: string | null; sampled_at: string };
+type CompletedSession = ActiveSession & { ended_at: string | null; end_meter_wh: number | null };
+type MeterReading = { session_id: string | null; measurand: string; value: number; unit: string | null; sampled_at: string; requires_review: boolean; review_reason: string | null };
 type CommandRecord = { id: string; charger_id: string; action: string; status: string; requested_at: string; completed_at: string | null; result: Record<string, unknown> | null };
 
 const initialState: FormState = {};
@@ -146,7 +147,7 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
 }
 
 export function Dashboard({
-  email, organizations, organization, role, sites, chargers, connectors, authorizations, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, meterReadings, commandRows, dataLoadedAt,
+  email, organizations, organization, role, sites, chargers, connectors, authorizations, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, completedSessionRows, meterReadings, commandRows, dataLoadedAt,
 }: {
   email: string;
   organizations: Organization[];
@@ -161,6 +162,7 @@ export function Dashboard({
   onlineChargers: number;
   activeSessions: number;
   sessionRows: ActiveSession[];
+  completedSessionRows: CompletedSession[];
   meterReadings: MeterReading[];
   commandRows: CommandRecord[];
   dataLoadedAt: string;
@@ -247,7 +249,7 @@ export function Dashboard({
         </div> : activeNav === "Carregadores" ? <div className="site-management charger-management">
           <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Carregadores cadastrados</h2><div className="panel-kicker">{chargers.length} equipamento(s) vinculados à organização</div></div><PlugZap size={17}/></div><ChargerList chargers={chargers} connectors={connectors} authorizations={authorizations} siteNames={siteNames} organizationId={organization.id} canControl={canControlChargers} canManage={canManageChargers}/></section>
           {canManageChargers ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Provisionar carregador</h2><div className="panel-kicker">Crie uma credencial individual para autenticação OCPP.</div></div></div><ChargerForm organizationId={organization.id} sites={sites}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner, admin ou technician para cadastrar carregadores.</p></section>}
-        </div> : <SessionList sessions={sessionRows} meterReadings={meterReadings} chargers={chargers} siteNames={siteNames} now={clockNow}
+        </div> : <SessionList sessions={sessionRows} completedSessions={completedSessionRows} meterReadings={meterReadings} chargers={chargers} siteNames={siteNames} now={clockNow}
           organizationId={organization.id} canControl={canControlChargers} commands={commandRows}/>}
         <p className="footnote">Dados atualizados automaticamente a cada 20 s enquanto a página está aberta. Última consulta: {clockNow ? new Date(dataLoadedAt).toLocaleTimeString("pt-BR") : "carregando"}. Leituras OCPP podem chegar com atraso.</p>
       </div>
@@ -405,8 +407,9 @@ function RfidAuthorizationRow({ authorization, organizationId, chargerId }: { au
   return <div className="rfid-row"><span>{authorization.authorization_type} · impressão digital {authorization.id_tag_hash.slice(0, 10)} · {authorization.enabled ? "ativo" : "revogado"}</span>{authorization.enabled && <form action={action}><button type="submit" className="credential-copy" disabled={pending}>{pending ? "Revogando…" : "Revogar"}</button></form>}{state.error && <small className="form-error">{state.error}</small>}{state.success && <small className="form-success">{state.success}</small>}</div>;
 }
 
-function SessionList({ sessions, meterReadings, chargers, siteNames, now, organizationId, canControl, commands }: {
+function SessionList({ sessions, completedSessions, meterReadings, chargers, siteNames, now, organizationId, canControl, commands }: {
   sessions: ActiveSession[];
+  completedSessions: CompletedSession[];
   meterReadings: MeterReading[];
   chargers: Charger[];
   siteNames: Map<string, string>;
@@ -417,8 +420,13 @@ function SessionList({ sessions, meterReadings, chargers, siteNames, now, organi
 }) {
   const chargerById = new Map(chargers.map((charger) => [charger.id, charger]));
   const latestBySession = new Map<string, Map<string, MeterReading>>();
+  const reviewBySession = new Map<string, string>();
   for (const reading of meterReadings) {
     if (!reading.session_id) continue;
+    if (reading.requires_review) {
+      if (reading.review_reason && !reviewBySession.has(reading.session_id)) reviewBySession.set(reading.session_id, reading.review_reason);
+      continue;
+    }
     let readingsByType = latestBySession.get(reading.session_id);
     if (!readingsByType) {
       readingsByType = new Map();
@@ -435,6 +443,7 @@ function SessionList({ sessions, meterReadings, chargers, siteNames, now, organi
       const readings = latestBySession.get(session.id) ?? new Map<string, MeterReading>();
       const energy = [...readings.values()].find((reading) => reading.measurand === "Energy.Active.Import.Register");
       const power = readings.get("Power.Active.Import");
+      const soc = readings.get("SoC");
       const energyUnit = energy?.unit?.toLowerCase();
       const energyWh = energy && (energyUnit === "wh" || energyUnit === "kwh") ? Number(energy.value) * (energyUnit === "kwh" ? 1000 : 1) : null;
       const energyReadingInvalid = energyWh !== null && (energyWh < 0 || (session.start_meter_wh !== null && energyWh < Number(session.start_meter_wh)));
@@ -449,10 +458,24 @@ function SessionList({ sessions, meterReadings, chargers, siteNames, now, organi
         <div className="session-metric"><span><Clock3 size={12}/>Tempo</span><strong>{elapsed}</strong></div>
         <div className="session-metric"><span><Activity size={12}/>Potência agora</span><strong>{powerKw === null ? "Aguardando medição" : `${powerKw.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kW`}</strong></div>
         <div className="session-metric"><span><Zap size={12}/>Energia entregue</span><strong className={energyReadingInvalid ? "meter-reading-error" : undefined}>{energyReadingInvalid ? "Leitura inválida" : deliveredKwh === null ? "Aguardando medição" : `${deliveredKwh.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kWh`}</strong></div>
-        <small className="session-updated">{energy || power ? `Última leitura: ${new Date(Math.max(energy ? new Date(energy.sampled_at).getTime() : 0, power ? new Date(power.sampled_at).getTime() : 0)).toLocaleString("pt-BR")}` : "Nenhuma medição recebida ainda"}</small>
+        <div className="session-metric"><span><Activity size={12}/>Bateria (SoC)</span><strong>{soc ? `${Number(soc.value).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}%` : "Não informado"}</strong></div>
+        <small className="session-updated">{reviewBySession.has(session.id) ? `Leitura do medidor marcada para revisão: ${reviewBySession.get(session.id)}` : energy || power ? `Última leitura: ${new Date(Math.max(energy ? new Date(energy.sampled_at).getTime() : 0, power ? new Date(power.sampled_at).getTime() : 0)).toLocaleString("pt-BR")}` : "Nenhuma medição recebida ainda"}</small>
         {canControl && Number.isInteger(session.ocpp_transaction_id) && <SessionStopControl session={session} organizationId={organizationId} online={Boolean(charger?.online)}/>}
       </article>;
     })}</div>}
+    <div className="session-history"><h3>Histórico de sessões encerradas</h3>{!completedSessions.length ? <p className="session-empty-inline">Ainda não há sessões encerradas registradas.</p> : <div className="session-history-list">{completedSessions.map((session) => {
+      const charger = chargerById.get(session.charger_id);
+      const startMeter = session.start_meter_wh === null ? null : Number(session.start_meter_wh);
+      const endMeter = session.end_meter_wh === null ? null : Number(session.end_meter_wh);
+      const invalidMeters = startMeter !== null && endMeter !== null && endMeter < startMeter;
+      const finalKwh = startMeter !== null && endMeter !== null && !invalidMeters ? (endMeter - startMeter) / 1000 : null;
+      return <article className="session-history-row" key={session.id}>
+        <div><strong>{charger?.charge_point_id ?? "Carregador"} · Conector {session.connector_id ?? "—"}</strong><small>{new Date(session.ended_at ?? "").toLocaleString("pt-BR")} · {siteNames.get(charger?.site_id ?? "") ?? "Local indisponível"}</small></div>
+        <div><span>Medidor inicial</span><strong>{startMeter === null ? "Não informado" : `${startMeter.toLocaleString("pt-BR")} Wh`}</strong></div>
+        <div><span>Medidor final</span><strong className={invalidMeters ? "meter-reading-error" : undefined}>{invalidMeters ? "Revisar medidor" : endMeter === null ? "Não informado" : `${endMeter.toLocaleString("pt-BR")} Wh`}</strong></div>
+        <div><span>kWh final</span><strong className={invalidMeters ? "meter-reading-error" : undefined}>{invalidMeters ? "Revisar medidor" : finalKwh === null ? "Não informado" : `${finalKwh.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} kWh`}</strong></div>
+      </article>;
+    })}</div>}</div>
     <CommandHistory commands={commands} chargers={chargers}/>
   </section>;
 }

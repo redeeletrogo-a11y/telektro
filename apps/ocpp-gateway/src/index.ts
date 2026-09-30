@@ -6,7 +6,7 @@ import { ZodError } from "zod";
 import { verifyOcppBasicAuth } from "./authentication.js";
 import { capabilityFromCommandResult, mergeCapability, readAuthorizeRemoteTxRequests } from "./capabilities.js";
 import { commandStatusForResult, operationConfirmationTimeoutStatus, operationEventStatus } from "./operation-state.js";
-import { isRegisteredConnector, meterReadingError, meterTransactionError } from "./validation.js";
+import { energyRegisterRegressionError, energyRegisterWh, isRegisteredConnector, meterReadingError, meterTransactionError } from "./validation.js";
 import {
   AuthorizeSchema,
   BootNotificationSchema,
@@ -34,6 +34,7 @@ type IdTagGrant = { chargerId: string; expiresAt: number; authorized: boolean; a
 const port = Number(process.env.OCPP_GATEWAY_PORT ?? 9000);
 const developmentToken = process.env.OCPP_DEV_TOKEN;
 const connections = new Map<string, WebSocket>();
+const inboundMessageQueues = new Map<string, Promise<void>>();
 const socketChargers = new WeakMap<WebSocket, ChargerRecord | null>();
 const chargerConnections = new Map<string, { chargePointId: string; websocket: WebSocket }>();
 const pendingCommands = new Map<string, PendingCommand>();
@@ -106,7 +107,13 @@ sockets.on("connection", (websocket: WebSocket, request) => {
   console.info(JSON.stringify({ event: "ocpp.connected", chargePointId }));
 
   websocket.on("message", (data) => {
-    void handleMessage(websocket, chargePointId, charger, data.toString());
+    const queueKey = charger?.id ?? chargePointId;
+    const previous = inboundMessageQueues.get(queueKey) ?? Promise.resolve();
+    const next = previous.catch(() => undefined).then(() => handleMessage(websocket, chargePointId, charger, data.toString()));
+    const tail = next.catch((error) => reportPersistenceFailure("inbound_message_queue", chargePointId, error)).finally(() => {
+      if (inboundMessageQueues.get(queueKey) === tail) inboundMessageQueues.delete(queueKey);
+    });
+    inboundMessageQueues.set(queueKey, tail);
   });
 
   websocket.on("close", () => {
@@ -304,6 +311,7 @@ async function persistCall(charger: ChargerRecord | null, action: string, payloa
     const parsed = MeterValuesSchema.parse(payload);
     let sessionId: string | null = null;
     let startMeterWh: number | null = null;
+    let previousRegisterWh: number | null = null;
     if (parsed.transactionId !== undefined) {
       const { data: session, error } = await registry.from("sessions").select("id, connector_id, start_meter_wh")
         .eq("charger_id", charger.id).eq("ocpp_transaction_id", parsed.transactionId)
@@ -314,27 +322,52 @@ async function persistCall(charger: ChargerRecord | null, action: string, payloa
       if (transactionError) throw new Error(`Invalid MeterValues: ${transactionError}`);
       sessionId = session.id;
       startMeterWh = session.start_meter_wh === null ? null : Number(session.start_meter_wh);
+      const { data: latestRegister, error: latestRegisterError } = await registry.from("meter_values")
+        .select("value, unit")
+        .eq("session_id", session.id)
+        .eq("measurand", "Energy.Active.Import.Register")
+        .eq("requires_review", false)
+        .order("sampled_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (latestRegisterError) throw latestRegisterError;
+      if (latestRegister) previousRegisterWh = energyRegisterWh(Number(latestRegister.value), latestRegister.unit);
     }
-    const readings = parsed.meterValue.flatMap((sample) => sample.sampledValue.map((reading) => {
-      const value = Number(reading.value);
-      if (!Number.isFinite(value)) throw new Error("Invalid MeterValues: meter value is not numeric");
-      const measurand = reading.measurand ?? "Energy.Active.Import.Register";
-      const unit = reading.unit ?? (measurand.startsWith("Energy.") ? "Wh" : measurand.startsWith("Power.") ? "W" : null);
-      const readingError = meterReadingError(measurand, value, unit ?? "", startMeterWh);
-      if (readingError) throw new Error(`Invalid MeterValues: ${readingError}`);
-      return {
-        organization_id: charger.organization_id,
-        session_id: sessionId,
-        charger_id: charger.id,
-        connector_id: parsed.connectorId,
-        sampled_at: sample.timestamp,
-        measurand,
-        value,
-        unit,
-        phase: reading.phase ?? null,
-        context: reading.context ?? null,
-      };
-    }));
+    const readings: Record<string, unknown>[] = [];
+    const orderedMeterValues = [...parsed.meterValue].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    for (const sample of orderedMeterValues) {
+      for (const reading of sample.sampledValue) {
+        const value = Number(reading.value);
+        if (!Number.isFinite(value)) throw new Error("Invalid MeterValues: meter value is not numeric");
+        const measurand = reading.measurand ?? "Energy.Active.Import.Register";
+        const unit = reading.unit ?? (measurand.startsWith("Energy.") ? "Wh" : measurand.startsWith("Power.") ? "W" : null);
+        const readingError = meterReadingError(measurand, value, unit ?? "", startMeterWh);
+        if (readingError) throw new Error(`Invalid MeterValues: ${readingError}`);
+        let requiresReview = false;
+        let reviewReason: string | null = null;
+        if (measurand === "Energy.Active.Import.Register") {
+          const valueWh = energyRegisterWh(value, unit);
+          if (valueWh === null) throw new Error("Invalid MeterValues: energy register unit must be Wh or kWh");
+          reviewReason = energyRegisterRegressionError(valueWh, previousRegisterWh);
+          requiresReview = reviewReason !== null;
+          if (!requiresReview) previousRegisterWh = valueWh;
+        }
+        readings.push({
+          organization_id: charger.organization_id,
+          session_id: sessionId,
+          charger_id: charger.id,
+          connector_id: parsed.connectorId,
+          sampled_at: sample.timestamp,
+          measurand,
+          value,
+          unit,
+          phase: reading.phase ?? null,
+          context: reading.context ?? null,
+          requires_review: requiresReview,
+          review_reason: reviewReason,
+        });
+      }
+    }
     if (!readings.length) throw new Error("Invalid MeterValues: no readings");
     const { error } = await registry.from("meter_values").insert(readings);
     if (error) throw error;
