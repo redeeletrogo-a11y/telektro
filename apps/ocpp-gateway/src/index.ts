@@ -1,17 +1,17 @@
 import { createServer } from "node:http";
-import { randomInt, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { WebSocket, WebSocketServer } from "ws";
 import { createClient } from "@supabase/supabase-js";
 import { ZodError } from "zod";
 import { verifyOcppBasicAuth } from "./authentication.js";
+import { capabilityFromCommandResult, mergeCapability, readAuthorizeRemoteTxRequests } from "./capabilities.js";
+import { commandStatusForResult, operationConfirmationTimeoutStatus, operationEventStatus } from "./operation-state.js";
 import {
   AuthorizeSchema,
   BootNotificationSchema,
   HeartbeatSchema,
   MeterValuesSchema,
   parseOcppMessage,
-  RemoteStartTransactionConfirmationSchema,
-  RemoteStopTransactionConfirmationSchema,
   responseFor,
   StartTransactionSchema,
   StatusNotificationSchema,
@@ -23,10 +23,12 @@ type ChargerRecord = {
   organization_id: string;
   site_id: string;
   ocpp_credential_hash: string | null;
+  connector_count?: number | null;
+  capabilities?: Record<string, unknown> | null;
 };
 
-type PendingCommand = { charger: ChargerRecord; commandId: string; action: string; idTag?: string; timeout: NodeJS.Timeout };
-type IdTagGrant = { chargerId: string; expiresAt: number; authorized: boolean };
+type PendingCommand = { charger: ChargerRecord; commandId: string; action: string; idTag?: string; userId: string | null; timeout: NodeJS.Timeout };
+type IdTagGrant = { chargerId: string; expiresAt: number; authorized: boolean; authorizationType: "RFID" | "REMOTE" | "APP" | "QR"; userId: string | null };
 
 const port = Number(process.env.OCPP_GATEWAY_PORT ?? 9000);
 const developmentToken = process.env.OCPP_DEV_TOKEN;
@@ -36,6 +38,7 @@ const chargerConnections = new Map<string, { chargePointId: string; websocket: W
 const pendingCommands = new Map<string, PendingCommand>();
 const idTagGrants = new Map<string, IdTagGrant>();
 const heartbeatSeconds = Number(process.env.OCPP_HEARTBEAT_INTERVAL_SECONDS ?? 60);
+const operationConfirmationSeconds = Math.max(30, Number(process.env.OCPP_OPERATION_CONFIRMATION_SECONDS ?? 300));
 const supabaseUrl = process.env.SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const registry = supabaseUrl && serviceRoleKey
@@ -65,7 +68,7 @@ server.on("upgrade", async (request, socket, head) => {
   if (chargePointId && registry) {
     try {
       const { data, error } = await registry.from("chargers")
-        .select("id, organization_id, site_id, ocpp_credential_hash")
+        .select("id, organization_id, site_id, ocpp_credential_hash, connector_count, capabilities")
         .eq("charge_point_id", chargePointId).maybeSingle();
       if (error) throw error;
       charger = data as ChargerRecord | null;
@@ -119,6 +122,7 @@ async function handleMessage(websocket: WebSocket, chargePointId: string, charge
   let messageId = "unknown";
   let action = "unknown";
   let isCall = false;
+  let payload: Record<string, unknown> = {};
   try {
     const frame = parseOcppMessage(raw);
     const messageType = frame[0];
@@ -128,11 +132,13 @@ async function handleMessage(websocket: WebSocket, chargePointId: string, charge
       return;
     }
     if (messageType === 4) {
-      const [, id, code, description, details] = frame;
-      await completePendingCommand(id, { code, description, details }, "failed", charger);
+      const [, id, code] = frame;
+      await completePendingCommand(id, { code, error: `Charger returned OCPP ${code}` }, "failed", charger);
+      if (charger) await setLastOcppError(charger, `OCPP CALLERROR ${code}`);
       return;
     }
-    const [, id, receivedAction, payload] = frame;
+    const [, id, receivedAction, receivedPayload] = frame;
+    payload = receivedPayload;
     messageId = id;
     action = receivedAction;
     isCall = true;
@@ -140,17 +146,24 @@ async function handleMessage(websocket: WebSocket, chargePointId: string, charge
     const result = await persistCall(charger, action, payload);
     if (action === "BootNotification") result.interval = heartbeatSeconds;
     if (websocket.readyState === WebSocket.OPEN) websocket.send(JSON.stringify([3, messageId, result]));
-    void logCall(charger, messageId, action, "accepted");
+    const inboundOutcome = action === "Authorize" || action === "StartTransaction"
+      ? (result.idTagInfo as { status?: string } | undefined)?.status === "Accepted" ? "authorization_accepted" : "authorization_rejected"
+      : "accepted";
+    const metadata = await safeCallMetadata(charger, action, payload);
+    const authorizationStatus = (result.idTagInfo as { status?: string } | undefined)?.status;
+    if (authorizationStatus && authorizationStatus !== "Accepted") metadata.reason = `idTagInfo ${authorizationStatus}`;
+    void logCall(charger, messageId, action, inboundOutcome, "inbound", metadata);
     console.info(JSON.stringify({ event: "ocpp.call_handled", chargePointId, action, messageId }));
   } catch (error) {
-    const description = error instanceof Error ? error.message : "Invalid OCPP message";
+    const description = error instanceof ZodError ? `Invalid ${action} payload` : error instanceof Error ? error.message : "Invalid OCPP message";
     if (!isCall) {
       reportPersistenceFailure("command_confirmation", chargePointId, error);
       return;
     }
     const code = description.startsWith("Unsupported action") ? "NotSupported" : error instanceof ZodError || description.startsWith("Invalid") ? "FormationViolation" : "InternalError";
     if (websocket.readyState === WebSocket.OPEN) websocket.send(JSON.stringify([4, messageId, code, description, {}]));
-    void logCall(charger, messageId, action, "rejected");
+    if (charger) void setLastOcppError(charger, `${action}: ${description}`).catch((metadataError) => reportPersistenceFailure("ocpp_error_state", charger.id, metadataError));
+    void safeCallMetadata(charger, action, payload).then((metadata) => logCall(charger, messageId, action, "rejected", "inbound", { ...metadata, reason: description }));
     console.warn(JSON.stringify({ event: "ocpp.call_rejected", chargePointId, action, messageId, reason: description }));
   }
 }
@@ -164,9 +177,12 @@ async function persistCall(charger: ChargerRecord | null, action: string, payloa
     const { error } = await registry.from("chargers").update({
       vendor: parsed.chargePointVendor,
       model: parsed.chargePointModel,
-      firmware: parsed.firmwareVersion ?? null,
+      ...(parsed.firmwareVersion ? { firmware: parsed.firmwareVersion } : {}),
+      ...(parsed.chargePointSerialNumber ? { serial_number: parsed.chargePointSerialNumber } : {}),
+      ocpp_version: "1.6J",
       online: true,
       last_heartbeat_at: now,
+      last_boot_at: now,
     }).eq("id", charger.id);
     if (error) throw error;
     return { status: "Accepted", currentTime: now, interval: heartbeatSeconds };
@@ -181,11 +197,13 @@ async function persistCall(charger: ChargerRecord | null, action: string, payloa
 
   if (action === "Authorize") {
     const parsed = AuthorizeSchema.parse(payload);
-    const grant = idTagGrants.get(parsed.idTag) ?? await restoreIdTagGrant(charger, parsed.idTag);
+    const grant = await resolveIdTagGrant(charger, parsed.idTag);
     if (!grant || grant.chargerId !== charger.id || grant.expiresAt <= Date.now()) {
+      await setLastOcppError(charger, "Authorize rejected: unknown or revoked idTag");
       return { idTagInfo: { status: "Invalid" } };
     }
     grant.authorized = true;
+    if (grant.authorizationType === "RFID") await updateCapabilities(charger, "rfid", { state: "SUPPORTED", evidence: "Accepted physical idTag Authorize", observedAt: now });
     return { idTagInfo: { status: "Accepted", expiryDate: new Date(grant.expiresAt).toISOString() } };
   }
 
@@ -200,8 +218,12 @@ async function persistCall(charger: ChargerRecord | null, action: string, payloa
       updated_at: statusAt,
     }, { onConflict: "charger_id,connector_id" });
     if (connectorError) throw connectorError;
-    const chargerUpdate: Record<string, unknown> = { online: true, last_heartbeat_at: now };
+    const chargerUpdate: Record<string, unknown> = { online: true, last_heartbeat_at: now, last_status_notification_at: statusAt };
     if (parsed.connectorId <= 1) chargerUpdate.status = parsed.status;
+    if (parsed.connectorId > 0 && (!charger.connector_count || parsed.connectorId > charger.connector_count)) {
+      chargerUpdate.connector_count = parsed.connectorId;
+      charger.connector_count = parsed.connectorId;
+    }
     const { error } = await registry.from("chargers").update(chargerUpdate).eq("id", charger.id);
     if (error) throw error;
     return {};
@@ -209,8 +231,9 @@ async function persistCall(charger: ChargerRecord | null, action: string, payloa
 
   if (action === "StartTransaction") {
     const parsed = StartTransactionSchema.parse(payload);
-    const grant = idTagGrants.get(parsed.idTag) ?? await restoreIdTagGrant(charger, parsed.idTag);
+    const grant = await resolveIdTagGrant(charger, parsed.idTag);
     if (!grant || grant.chargerId !== charger.id || !grant.authorized || grant.expiresAt <= Date.now()) {
+      await setLastOcppError(charger, "StartTransaction rejected: no active authorization for idTag");
       return { transactionId: 0, idTagInfo: { status: "Invalid" } };
     }
     const { data: active, error: activeError } = await registry.from("sessions").select("id")
@@ -218,6 +241,7 @@ async function persistCall(charger: ChargerRecord | null, action: string, payloa
     if (activeError) throw activeError;
     if (active) {
       idTagGrants.delete(parsed.idTag);
+      await setLastOcppError(charger, "StartTransaction rejected: connector already has an active transaction");
       return { transactionId: 0, idTagInfo: { status: "ConcurrentTx" } };
     }
 
@@ -227,12 +251,22 @@ async function persistCall(charger: ChargerRecord | null, action: string, payloa
       site_id: charger.site_id,
       charger_id: charger.id,
       connector_id: parsed.connectorId,
+      gateway_guarded: true,
       ocpp_transaction_id: transactionId,
-      id_tag: parsed.idTag,
+      id_tag: grant.authorizationType === "RFID" ? hashIdTag(parsed.idTag) : parsed.idTag,
+      authorization_type: grant.authorizationType,
+      authorized_user_id: grant.userId,
       started_at: parsed.timestamp,
       start_meter_wh: parsed.meterStart,
     });
+    if (error?.code === "23505") {
+      idTagGrants.delete(parsed.idTag);
+      return { transactionId: 0, idTagInfo: { status: "ConcurrentTx" } };
+    }
     if (error) throw error;
+    if (grant.authorizationType === "RFID") await updateCapabilities(charger, "rfid", { state: "SUPPORTED", evidence: "Accepted allowlisted physical idTag StartTransaction", observedAt: now });
+    const { error: diagnosticsError } = await registry.from("chargers").update({ last_transaction_at: parsed.timestamp, last_transaction_id: transactionId }).eq("id", charger.id);
+    if (diagnosticsError) reportPersistenceFailure("start_transaction_diagnostics", charger.id, diagnosticsError);
     try { await reconcileCommandFromOperation(charger, "RemoteStartTransaction", "idTag", parsed.idTag, "StartTransaction"); }
     catch (error) { reportPersistenceFailure("start_command_reconciliation", charger.id, error); }
     idTagGrants.delete(parsed.idTag);
@@ -251,6 +285,8 @@ async function persistCall(charger: ChargerRecord | null, action: string, payloa
       stop_reason: parsed.reason ?? null,
     }).eq("id", session.id);
     if (error) throw error;
+    const { error: diagnosticsError } = await registry.from("chargers").update({ last_transaction_at: parsed.timestamp, last_transaction_id: parsed.transactionId }).eq("id", charger.id);
+    if (diagnosticsError) reportPersistenceFailure("stop_transaction_diagnostics", charger.id, diagnosticsError);
     try { await reconcileCommandFromOperation(charger, "RemoteStopTransaction", "transactionId", String(parsed.transactionId), "StopTransaction"); }
     catch (error) { reportPersistenceFailure("stop_command_reconciliation", charger.id, error); }
     return { idTagInfo: { status: "Accepted" } };
@@ -294,11 +330,11 @@ async function persistCall(charger: ChargerRecord | null, action: string, payloa
 async function restoreIdTagGrant(charger: ChargerRecord, idTag: string): Promise<IdTagGrant | null> {
   if (!registry) return null;
   const { data, error } = await registry.from("commands")
-    .select("requested_at")
+    .select("requested_at, requested_by, payload")
     .eq("charger_id", charger.id)
     .eq("action", "RemoteStartTransaction")
     .filter("payload->>idTag", "eq", idTag)
-    .in("status", ["sent", "accepted", "unknown"])
+    .in("status", ["sent", "accepted", "unknown", "operation_timeout"])
     .gte("requested_at", new Date(Date.now() - 10 * 60_000).toISOString())
     .order("requested_at", { ascending: false })
     .limit(1)
@@ -308,9 +344,36 @@ async function restoreIdTagGrant(charger: ChargerRecord, idTag: string): Promise
 
   const expiresAt = new Date(data.requested_at).getTime() + 10 * 60_000;
   if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) return null;
-  const grant = { chargerId: charger.id, expiresAt, authorized: true };
+  const grant = { chargerId: charger.id, expiresAt, authorized: true, authorizationType: "REMOTE" as const, userId: data.requested_by as string | null };
   idTagGrants.set(idTag, grant);
   return grant;
+}
+
+async function resolveIdTagGrant(charger: ChargerRecord, idTag: string): Promise<IdTagGrant | null> {
+  const cached = idTagGrants.get(idTag);
+  const remote = cached?.authorizationType === "REMOTE" ? cached : await restoreIdTagGrant(charger, idTag);
+  if (remote && remote.chargerId === charger.id && remote.expiresAt > Date.now()) return remote;
+  if (!registry) return null;
+  const { data, error } = await registry.from("charger_authorizations")
+    .select("user_id, authorization_type, expires_at")
+    .eq("charger_id", charger.id).eq("id_tag_hash", hashIdTag(idTag)).eq("enabled", true).maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const expiresAt = data.expires_at ? new Date(data.expires_at).getTime() : Date.now() + 10 * 60_000;
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) return null;
+  const grant: IdTagGrant = {
+    chargerId: charger.id,
+    expiresAt,
+    authorized: true,
+    authorizationType: data.authorization_type === "QR" ? "QR" : data.authorization_type === "APP" ? "APP" : "RFID",
+    userId: data.user_id,
+  };
+  idTagGrants.set(idTag, grant);
+  return grant;
+}
+
+function hashIdTag(idTag: string) {
+  return createHash("sha256").update(idTag, "utf8").digest("hex");
 }
 
 async function setOnline(charger: ChargerRecord | null, online: boolean) {
@@ -325,7 +388,14 @@ async function setOffline(charger: ChargerRecord | null) {
   await setOnline(charger, false);
 }
 
-async function logCall(charger: ChargerRecord | null, messageId: string, action: string, outcome: string, direction: "inbound" | "outbound" = "inbound") {
+async function logCall(
+  charger: ChargerRecord | null,
+  messageId: string,
+  action: string,
+  outcome: string,
+  direction: "inbound" | "outbound" = "inbound",
+  metadata: { requestId?: string; userId?: string | null; connectorId?: number; transactionId?: number; reason?: string } = {},
+) {
   if (!registry || !charger) return;
   const { error } = await registry.from("ocpp_messages").insert({
     organization_id: charger.organization_id,
@@ -334,6 +404,11 @@ async function logCall(charger: ChargerRecord | null, messageId: string, action:
     action,
     direction,
     outcome,
+    request_id: metadata.requestId ?? messageId,
+    user_id: metadata.userId ?? null,
+    connector_id: metadata.connectorId ?? null,
+    transaction_id: metadata.transactionId ?? null,
+    reason: metadata.reason ?? null,
   });
   if (error) reportPersistenceFailure("message_log", charger.id, error);
 }
@@ -354,7 +429,8 @@ async function pollPendingCommands() {
   if (!registry || !startupRecoveryComplete || pollingCommands) return;
   pollingCommands = true;
   try {
-    const { data, error } = await registry.from("commands").select("id, charger_id, action, payload")
+    await expireAcceptedOperations();
+    const { data, error } = await registry.from("commands").select("id, charger_id, action, payload, requested_by")
       .eq("status", "pending").order("requested_at", { ascending: true }).limit(25);
     if (error) throw error;
     for (const command of data ?? []) await dispatchCommand(command);
@@ -365,9 +441,41 @@ async function pollPendingCommands() {
   }
 }
 
-async function dispatchCommand(command: { id: string; charger_id: string; action: string; payload: Record<string, unknown> }) {
+async function expireAcceptedOperations() {
   if (!registry) return;
-  if (command.action !== "RemoteStartTransaction" && command.action !== "RemoteStopTransaction") {
+  const cutoff = new Date(Date.now() - operationConfirmationSeconds * 1000).toISOString();
+  const { data, error } = await registry.from("commands")
+    .select("id, charger_id, action, payload, ocpp_message_id")
+    .eq("status", "accepted").in("action", ["RemoteStartTransaction", "RemoteStopTransaction"])
+    .lte("completed_at", cutoff).limit(50);
+  if (error) throw error;
+  for (const command of data ?? []) {
+    const result = { error: "transaction_confirmation_timeout", timeout_seconds: operationConfirmationSeconds };
+    const { data: updated, error: updateError } = await registry.from("commands")
+      .update({ status: operationConfirmationTimeoutStatus(), result, completed_at: new Date().toISOString() })
+      .eq("id", command.id).eq("status", "accepted").select("id").maybeSingle();
+    if (updateError) throw updateError;
+    if (updated && command.ocpp_message_id) {
+      const charger = await getCharger(command.charger_id);
+      await logCall(charger, command.ocpp_message_id, command.action, "operation_timeout", "outbound", {
+        requestId: command.id,
+        reason: "transaction_confirmation_timeout",
+      });
+    }
+  }
+}
+
+async function getCharger(chargerId: string): Promise<ChargerRecord | null> {
+  if (!registry) return null;
+  const { data, error } = await registry.from("chargers")
+        .select("id, organization_id, site_id, ocpp_credential_hash, connector_count, capabilities").eq("id", chargerId).maybeSingle();
+  if (error) throw error;
+  return data as ChargerRecord | null;
+}
+
+async function dispatchCommand(command: { id: string; charger_id: string; action: string; payload: Record<string, unknown>; requested_by: string | null }) {
+  if (!registry) return;
+  if (!(["RemoteStartTransaction", "RemoteStopTransaction", "GetConfiguration"] as string[]).includes(command.action)) {
     await failPendingCommand(command.id, { error: "unsupported_action" });
     return;
   }
@@ -381,8 +489,17 @@ async function dispatchCommand(command: { id: string; charger_id: string; action
     await failPendingCommand(command.id, { error: "invalid_id_tag" });
     return;
   }
+  if (command.action === "RemoteStartTransaction" && command.payload.connectorId !== undefined &&
+    (typeof command.payload.connectorId !== "number" || !Number.isInteger(command.payload.connectorId) || command.payload.connectorId < 1)) {
+    await failPendingCommand(command.id, { error: "invalid_connector_id" });
+    return;
+  }
   if (command.action === "RemoteStopTransaction" && (typeof command.payload.transactionId !== "number" || !Number.isInteger(command.payload.transactionId))) {
     await failPendingCommand(command.id, { error: "invalid_transaction_id" });
+    return;
+  }
+  if (command.action === "GetConfiguration" && (!Array.isArray(command.payload.key) || command.payload.key.length > 20 || command.payload.key.some((key) => typeof key !== "string"))) {
+    await failPendingCommand(command.id, { error: "invalid_configuration_keys" });
     return;
   }
 
@@ -397,18 +514,18 @@ async function dispatchCommand(command: { id: string; charger_id: string; action
   if (!claimed) return;
 
   const idTag = command.action === "RemoteStartTransaction" ? String(command.payload.idTag) : undefined;
-  if (idTag) idTagGrants.set(idTag, { chargerId: charger.id, expiresAt: Date.now() + 10 * 60_000, authorized: true });
+  if (idTag) idTagGrants.set(idTag, { chargerId: charger.id, expiresAt: Date.now() + 10 * 60_000, authorized: true, authorizationType: "REMOTE", userId: command.requested_by });
   const timeout = setTimeout(() => {
     void completePendingCommand(messageId, { error: "charger_response_timeout" }, "timeout")
       .catch((error) => reportPersistenceFailure("command_timeout", command.charger_id, error));
   }, 20_000);
-  pendingCommands.set(messageId, { charger, commandId: command.id, action: command.action, idTag, timeout });
+  pendingCommands.set(messageId, { charger, commandId: command.id, action: command.action, idTag, userId: command.requested_by, timeout });
   try {
     connection.websocket.send(JSON.stringify([2, messageId, command.action, command.payload]), (error) => {
       if (error) void completePendingCommand(messageId, { error: "send_failed" }, "failed", charger)
         .catch((completionError) => reportPersistenceFailure("command_send", command.charger_id, completionError));
     });
-    void logCall(charger, messageId, command.action, "sent", "outbound");
+    void logCall(charger, messageId, command.action, "sent", "outbound", { requestId: command.id, userId: command.requested_by });
   } catch (error) {
     await completePendingCommand(messageId, { error: error instanceof Error ? error.message : "send_failed" }, "failed", charger);
   }
@@ -426,8 +543,10 @@ async function completePendingCommand(
     await reconcileDelayedCommand(messageId, result, responseCharger);
     return;
   }
-  const status = commandResultStatus(pending.action, result, forcedStatus);
-  const updated = await updateCommand(pending.commandId, messageId, status, result, ["sent"]);
+  const status = commandStatusForResult(pending.action, result, forcedStatus);
+  const safeResult = pending.action === "GetConfiguration" ? sanitizeConfigurationResult(result) : result;
+  const storedResult = status === "accepted" ? { ...safeResult, accepted_at: new Date().toISOString() } : safeResult;
+  const updated = await updateCommand(pending.commandId, messageId, status, storedResult, ["sent"]);
   if (!updated) {
     clearTimeout(pending.timeout);
     pendingCommands.delete(messageId);
@@ -437,34 +556,43 @@ async function completePendingCommand(
   clearTimeout(pending.timeout);
   pendingCommands.delete(messageId);
   if (status !== "accepted" && pending.idTag) idTagGrants.delete(pending.idTag);
-  await logCall(pending.charger, messageId, pending.action, status, "outbound");
-}
-
-function commandResultStatus(action: string, result: Record<string, unknown>, forcedStatus?: "failed" | "timeout" | "unknown") {
-  if (forcedStatus) return forcedStatus;
-  const confirmation = action === "RemoteStartTransaction"
-    ? RemoteStartTransactionConfirmationSchema.safeParse(result)
-    : RemoteStopTransactionConfirmationSchema.safeParse(result);
-  if (!confirmation.success) return "failed" as const;
-  return confirmation.data.status === "Accepted" ? "accepted" as const : "rejected" as const;
+  if (pending.action === "RemoteStartTransaction" || pending.action === "RemoteStopTransaction") {
+    const capabilityKey = pending.action === "RemoteStartTransaction" ? "remoteStart" : "remoteStop";
+    await updateCommandCapability(pending.charger, capabilityKey, result);
+  }
+  if (pending.action === "GetConfiguration") await persistConfigurationCapability(pending.charger, safeResult);
+  if (status !== "accepted" && status !== "confirmed") await setLastOcppError(pending.charger, typeof safeResult.error === "string" ? safeResult.error : typeof safeResult.code === "string" ? `OCPP ${safeResult.code}` : status === "rejected" ? `${pending.action} rejected by charger` : status);
+  await logCall(pending.charger, messageId, pending.action, status, "outbound", {
+    requestId: pending.commandId,
+    userId: pending.userId,
+    reason: typeof safeResult.error === "string" ? safeResult.error : typeof safeResult.code === "string" ? `OCPP ${safeResult.code}` : safeResult.status === "Rejected" ? `${pending.action} rejected by charger` : undefined,
+    connectorId: typeof result.connectorId === "number" ? result.connectorId : undefined,
+    transactionId: typeof result.transactionId === "number" ? result.transactionId : undefined,
+  });
 }
 
 async function reconcileDelayedCommand(messageId: string, result: Record<string, unknown>, charger: ChargerRecord) {
   if (!registry) return;
   const { data: command, error: lookupError } = await registry.from("commands")
-    .select("id, action, payload")
+    .select("id, action, payload, requested_by")
     .eq("charger_id", charger.id)
     .eq("ocpp_message_id", messageId)
-    .in("status", ["sent", "timeout", "unknown"])
+    .in("status", ["sent", "timeout", "unknown", "operation_timeout"])
     .maybeSingle();
   if (lookupError) throw lookupError;
   if (!command) return;
 
-  const status = commandResultStatus(command.action, result);
-  const updated = await updateCommand(command.id, messageId, status, result, ["sent", "timeout", "unknown"]);
+  const status = commandStatusForResult(command.action, result);
+  const safeResult = command.action === "GetConfiguration" ? sanitizeConfigurationResult(result) : result;
+  const updated = await updateCommand(command.id, messageId, status, safeResult, ["sent", "timeout", "unknown", "operation_timeout"]);
   if (updated) {
     if (status !== "accepted" && typeof command.payload.idTag === "string") idTagGrants.delete(command.payload.idTag);
-    await logCall(charger, messageId, command.action, status, "outbound");
+    if (command.action === "RemoteStartTransaction" || command.action === "RemoteStopTransaction") {
+      const capabilityKey = command.action === "RemoteStartTransaction" ? "remoteStart" : "remoteStop";
+      await updateCommandCapability(charger, capabilityKey, result);
+    }
+    if (command.action === "GetConfiguration") await persistConfigurationCapability(charger, safeResult);
+    await logCall(charger, messageId, command.action, status, "outbound", { requestId: command.id, userId: command.requested_by, reason: typeof safeResult.error === "string" ? safeResult.error : typeof safeResult.code === "string" ? `OCPP ${safeResult.code}` : undefined });
   }
 }
 
@@ -477,11 +605,11 @@ async function reconcileCommandFromOperation(
 ) {
   if (!registry) return;
   const { data: command, error: lookupError } = await registry.from("commands")
-    .select("id, ocpp_message_id, status")
+    .select("id, ocpp_message_id, status, requested_by")
     .eq("charger_id", charger.id)
     .eq("action", action)
     .filter(`payload->>${payloadKey}`, "eq", value)
-    .in("status", ["sent", "timeout", "unknown"])
+    .in("status", ["sent", "accepted", "timeout", "unknown", "operation_timeout"])
     .gte("requested_at", new Date(Date.now() - 10 * 60_000).toISOString())
     .order("requested_at", { ascending: false })
     .limit(1)
@@ -489,19 +617,104 @@ async function reconcileCommandFromOperation(
   if (lookupError) throw lookupError;
   if (!command) return;
 
+  const confirmedStatus = operationEventStatus(action, operation);
+  if (!confirmedStatus) return;
+
   const { data, error } = await registry.from("commands").update({
-    status: "accepted",
+    status: confirmedStatus,
     result: { status: "Accepted", confirmed_by: operation },
     completed_at: new Date().toISOString(),
   }).eq("id", command.id).eq("status", command.status).select("id").maybeSingle();
   if (error) throw error;
-  if (data && command.ocpp_message_id) await logCall(charger, command.ocpp_message_id, action, `confirmed_by_${operation}`, "outbound");
+  if (data && command.ocpp_message_id) await logCall(charger, command.ocpp_message_id, action, `confirmed_by_${operation}`, "outbound", { requestId: command.id, userId: command.requested_by });
+}
+
+async function updateCapabilities(charger: ChargerRecord, key: string, value: unknown) {
+  if (!registry) return;
+  const { data, error: readError } = await registry.from("chargers").select("capabilities").eq("id", charger.id).maybeSingle();
+  if (readError) throw readError;
+  const capabilities = mergeCapability(data?.capabilities as Record<string, unknown> | null, key, value);
+  const { error } = await registry.from("chargers").update({ capabilities }).eq("id", charger.id);
+  if (error) throw error;
+  charger.capabilities = capabilities;
+}
+
+async function persistConfigurationCapability(charger: ChargerRecord, result: Record<string, unknown>) {
+  if (!registry) return;
+  const now = new Date().toISOString();
+  if (result.code === "NotSupported") {
+    await updateCapabilities(charger, "authorizeRemoteTxRequests", { state: "UNSUPPORTED", value: null, observedAt: now, evidence: "GetConfiguration CALLERROR NotSupported" });
+    return;
+  }
+  const value = readAuthorizeRemoteTxRequests(result);
+  const unknownKeys = Array.isArray(result.unknownKey) ? result.unknownKey : [];
+  const wasUnknown = unknownKeys.includes("AuthorizeRemoteTxRequests");
+  await updateCapabilities(charger, "authorizeRemoteTxRequests", {
+    state: value === null ? wasUnknown ? "UNSUPPORTED" : "UNKNOWN" : "SUPPORTED",
+    value: value === null ? null : String(value),
+    observedAt: now,
+    evidence: value === null ? "GetConfiguration did not report the key" : "GetConfiguration response",
+  });
+  if (wasUnknown) await setLastOcppError(charger, "GetConfiguration: AuthorizeRemoteTxRequests indisponível neste carregador");
+}
+
+function sanitizeConfigurationResult(result: Record<string, unknown>): Record<string, unknown> {
+  const configurationKey = Array.isArray(result.configurationKey)
+    ? result.configurationKey.filter((item) => item && typeof item === "object" && (item as Record<string, unknown>).key === "AuthorizeRemoteTxRequests")
+    : [];
+  const unknownKey = Array.isArray(result.unknownKey)
+    ? result.unknownKey.filter((item) => item === "AuthorizeRemoteTxRequests")
+    : [];
+  return {
+    ...(configurationKey.length ? { configurationKey } : {}),
+    ...(unknownKey.length ? { unknownKey } : {}),
+    ...(typeof result.code === "string" ? { code: result.code } : {}),
+    ...(typeof result.error === "string" ? { error: result.error.slice(0, 120) } : {}),
+  };
+}
+
+async function updateCommandCapability(charger: ChargerRecord, key: "remoteStart" | "remoteStop", result: Record<string, unknown>) {
+  const observed = capabilityFromCommandResult(result);
+  const prior = charger.capabilities?.[key] as { state?: string } | undefined;
+  if (observed.state === "UNKNOWN" && prior && prior.state !== "UNKNOWN") return;
+  await updateCapabilities(charger, key, { ...observed, observedAt: new Date().toISOString() });
+}
+
+async function setLastOcppError(charger: ChargerRecord, reason: string) {
+  if (!registry) return;
+  const { error } = await registry.from("chargers").update({ last_ocpp_error: reason.slice(0, 500) }).eq("id", charger.id);
+  if (error) throw error;
+}
+
+async function callMetadata(charger: ChargerRecord | null, action: string, payload: Record<string, unknown>) {
+  const metadata: { userId?: string | null; connectorId?: number; transactionId?: number; reason?: string } = {
+    connectorId: typeof payload.connectorId === "number" ? payload.connectorId : undefined,
+    transactionId: typeof payload.transactionId === "number" ? payload.transactionId : undefined,
+    reason: action === "StatusNotification" && typeof payload.errorCode === "string" && payload.errorCode !== "NoError" ? payload.errorCode : undefined,
+  };
+  if (charger && action === "StartTransaction" && typeof payload.idTag === "string") {
+    metadata.userId = (await resolveIdTagGrant(charger, payload.idTag))?.userId ?? null;
+  }
+  if (charger && action === "StopTransaction" && typeof payload.transactionId === "number" && registry) {
+    const { data } = await registry.from("sessions").select("authorized_user_id")
+      .eq("charger_id", charger.id).eq("ocpp_transaction_id", payload.transactionId).maybeSingle();
+    metadata.userId = data?.authorized_user_id ?? null;
+  }
+  return metadata;
+}
+
+async function safeCallMetadata(charger: ChargerRecord | null, action: string, payload: Record<string, unknown>) {
+  try { return await callMetadata(charger, action, payload); }
+  catch (error) {
+    if (charger) reportPersistenceFailure("ocpp_message_metadata", charger.id, error);
+    return {};
+  }
 }
 
 async function updateCommand(
   commandId: string,
   messageId: string,
-  status: "accepted" | "rejected" | "timeout" | "failed" | "unknown",
+  status: "accepted" | "rejected" | "timeout" | "failed" | "unknown" | "confirmed",
   result: Record<string, unknown>,
   previousStatuses: string[],
 ): Promise<boolean> {

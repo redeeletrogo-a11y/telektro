@@ -3,14 +3,16 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Activity, ArrowRight, Building2, Cable, Check, Clock3, Copy, LayoutDashboard, MapPin, Play, PlugZap, ShieldCheck, Square, Users, Zap } from "lucide-react";
-import { createSite, registerCharger, requestRemoteStart, requestRemoteStop, signOut, type FormState } from "@/app/workspace-actions";
+import { createSite, registerCharger, registerRfidAuthorization, requestGetConfiguration, requestRemoteStart, requestRemoteStop, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
 
 type Organization = { id: string; name: string; slug: string };
 type Site = { id: string; name: string; address: string | null; timezone: string; max_power_kw: number | null };
-type Charger = { id: string; site_id: string; charge_point_id: string; vendor: string | null; model: string | null; model_code: string | null; serial_number: string | null; connector_type: string | null; connector_count: number | null; installation_power_kw: number | null; ocpp_version: string | null; technical_specs: Record<string, unknown>; max_power_kw: number | null; status: string; online: boolean; last_heartbeat_at: string | null };
-type ActiveSession = { id: string; charger_id: string; connector_id: number | null; started_at: string | null; start_meter_wh: number | null; ocpp_transaction_id: number | null };
+type Charger = { id: string; site_id: string; charge_point_id: string; vendor: string | null; model: string | null; firmware: string | null; model_code: string | null; serial_number: string | null; connector_type: string | null; connector_count: number | null; installation_power_kw: number | null; ocpp_version: string | null; technical_specs: Record<string, unknown>; capabilities: Record<string, unknown>; max_power_kw: number | null; status: string; online: boolean; last_heartbeat_at: string | null; last_boot_at: string | null; last_status_notification_at: string | null; last_transaction_at: string | null; last_transaction_id: number | null; last_ocpp_error: string | null };
+type ConnectorInfo = { id: string; organization_id: string; charger_id: string; connector_id: number; status: string; updated_at: string };
+type ChargerAuthorization = { id: string; charger_id: string; id_tag_hash: string; authorization_type: string; enabled: boolean; created_at: string };
+type ActiveSession = { id: string; charger_id: string; connector_id: number | null; started_at: string | null; start_meter_wh: number | null; ocpp_transaction_id: number | null; authorization_type: string | null; authorized_user_id: string | null };
 type MeterReading = { session_id: string | null; measurand: string; value: number; unit: string | null; sampled_at: string };
-type CommandRecord = { id: string; charger_id: string; action: string; status: string; requested_at: string; completed_at: string | null };
+type CommandRecord = { id: string; charger_id: string; action: string; status: string; requested_at: string; completed_at: string | null; result: Record<string, unknown> | null };
 
 const initialState: FormState = {};
 
@@ -45,6 +47,24 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
   const connectionUrl = gatewayBaseUrl && state.chargePointId ? `${gatewayBaseUrl}/ocpp/${state.chargePointId}` : null;
   function chooseProfile(value: string) {
     setProfile(value);
+    if (value === "byd-dolphin-ac") setFormValues((current) => ({
+      ...current,
+      vendor: "",
+      model: "Wallbox AC Tipo 2 (veículo BYD Dolphin)",
+      modelCode: "",
+      catalogCode: "",
+      maxPower: "",
+      connectorType: "Tipo 2 (AC)",
+      connectorCount: "1",
+      ocppVersion: "unknown",
+      voltage: "",
+      phases: "",
+      networkInterfaces: [],
+      hasRfid: "",
+      hasMeter: "",
+      hasDisplay: "",
+      authorizationMode: "",
+    }));
     if (value === "weg-wemob-parking-g2") setFormValues((current) => ({
       ...current,
       vendor: "WEG",
@@ -74,7 +94,7 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
 
   return <form action={action} className="site-form">
     <label htmlFor="charger-profile">Modelo de referência <span>opcional · você pode cadastrar outras marcas</span></label>
-    <select id="charger-profile" value={profile} onChange={(event) => chooseProfile(event.currentTarget.value)}><option value="manual">Outro modelo — preencher dados</option><option value="weg-wemob-parking-g2">WEG WEMOB-P-023-W-R-1T2 · Parking Geração 2</option></select>
+    <select id="charger-profile" value={profile} onChange={(event) => chooseProfile(event.currentTarget.value)}><option value="manual">Outro modelo — preencher dados</option><option value="weg-wemob-parking-g2">WEG WEMOB-P-023-W-R-1T2 · Parking Geração 2</option><option value="byd-dolphin-ac">BYD Dolphin · wallbox AC Tipo 2 (modelo a confirmar)</option></select>
     <p className="form-help">O perfil só preenche os campos conhecidos. O cadastro aceita qualquer fabricante; para conectar, o equipamento precisa usar OCPP 1.6J, compatível com o gateway atual.</p>
     <div className="site-form-row">
       <div><label htmlFor="charger-id">ID OCPP / Charge Box ID</label><input id="charger-id" name="charge_point_id" autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={64} placeholder="Copie o ID configurado no carregador" required/><small className="form-help">Use exatamente o mesmo ID, respeitando maiúsculas e minúsculas.</small></div>
@@ -97,6 +117,7 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
       <div><label htmlFor="charger-installed-power">Limite configurado na instalação <span>kW · opcional</span></label><input id="charger-installed-power" name="installation_power_kw" value={formValues.installationPower} onChange={(event) => setValue("installationPower", event.currentTarget.value)} type="number" min="0.001" step="0.001" placeholder="Confirme a alimentação elétrica"/></div>
     </div>
     {profile === "weg-wemob-parking-g2" && <p className="form-help profile-note">Neste WEG, 22 kW é a potência máxima do modelo. A instalação pode entregar 4,06 kW (127 V), 7,04 kW (220 V mono/bifásico), 12,19 kW (220 V trifásico) ou 21,06 kW (380 V trifásico), conforme a rede local.</p>}
+    {profile === "byd-dolphin-ac" && <p className="form-help profile-note">O Dolphin é o veículo; o Telektro conecta à wallbox. O perfil informa apenas o conector Tipo 2 AC e deixa fabricante, potência e protocolo em aberto para confirmar pela etiqueta/manual. A ficha comercial consultada da BYD/E-Wolf EW1005 não lista OCPP; para conectar, confirme que a estação real suporta OCPP 1.6J e configure nela o endpoint, Charge Point ID e credencial exibidos após o cadastro.</p>}
     <div className="site-form-row">
       <div><label htmlFor="charger-connector">Tipo de conector <span>opcional</span></label><input id="charger-connector" name="connector_type" value={formValues.connectorType} onChange={(event) => setValue("connectorType", event.currentTarget.value)} maxLength={80} placeholder="Ex.: Tipo 2, CCS2, NACS"/></div>
       <div><label htmlFor="charger-connectors">Quantidade de conectores <span>opcional</span></label><input id="charger-connectors" name="connector_count" value={formValues.connectorCount} onChange={(event) => setValue("connectorCount", event.currentTarget.value)} type="number" min="1" max="64" step="1"/></div>
@@ -125,7 +146,7 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
 }
 
 export function Dashboard({
-  email, organizations, organization, role, sites, chargers, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, meterReadings, commandRows, dataLoadedAt,
+  email, organizations, organization, role, sites, chargers, connectors, authorizations, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, meterReadings, commandRows, dataLoadedAt,
 }: {
   email: string;
   organizations: Organization[];
@@ -133,6 +154,8 @@ export function Dashboard({
   role: string;
   sites: Site[];
   chargers: Charger[];
+  connectors: ConnectorInfo[];
+  authorizations: ChargerAuthorization[];
   capacityKw: number;
   totalChargers: number;
   onlineChargers: number;
@@ -222,7 +245,7 @@ export function Dashboard({
           <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Locais cadastrados</h2><div className="panel-kicker">{sites.length} local(is) em {organization.name}</div></div><MapPin size={17}/></div><SiteList sites={sites}/></section>
           {canManageSites ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Adicionar local</h2><div className="panel-kicker">Cadastre os dados elétricos e de localização.</div></div></div><SiteForm organizationId={organization.id}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner ou admin para cadastrar locais nesta organização.</p></section>}
         </div> : activeNav === "Carregadores" ? <div className="site-management">
-          <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Carregadores cadastrados</h2><div className="panel-kicker">{chargers.length} equipamento(s) vinculados à organização</div></div><PlugZap size={17}/></div><ChargerList chargers={chargers} siteNames={siteNames} organizationId={organization.id} canControl={canControlChargers}/></section>
+          <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Carregadores cadastrados</h2><div className="panel-kicker">{chargers.length} equipamento(s) vinculados à organização</div></div><PlugZap size={17}/></div><ChargerList chargers={chargers} connectors={connectors} authorizations={authorizations} siteNames={siteNames} organizationId={organization.id} canControl={canControlChargers} canManage={canManageChargers}/></section>
           {canManageChargers ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Provisionar carregador</h2><div className="panel-kicker">Crie uma credencial individual para autenticação OCPP.</div></div></div><ChargerForm organizationId={organization.id} sites={sites}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner, admin ou technician para cadastrar carregadores.</p></section>}
         </div> : <SessionList sessions={sessionRows} meterReadings={meterReadings} chargers={chargers} siteNames={siteNames} now={clockNow}
           organizationId={organization.id} canControl={canControlChargers} commands={commandRows}/>}
@@ -297,7 +320,7 @@ function SiteList({ sites }: { sites: Site[] }) {
   return <div className="site-list">{sites.map((site) => <article className="panel site-row" key={site.id}><div className="site-row-icon"><MapPin size={16}/></div><div className="site-row-main"><strong>{site.name}</strong><span>{site.address || "Endereço não informado"}</span></div><div className="site-row-meta"><span>Capacidade</span><strong>{site.max_power_kw ? `${Number(site.max_power_kw).toLocaleString("pt-BR")} kW` : "Não definida"}</strong></div><div className="site-row-meta"><span>Fuso horário</span><strong>{site.timezone}</strong></div></article>)}</div>;
 }
 
-function ChargerList({ chargers, siteNames, organizationId, canControl }: { chargers: Charger[]; siteNames: Map<string, string>; organizationId: string; canControl: boolean }) {
+function ChargerList({ chargers, connectors, authorizations, siteNames, organizationId, canControl, canManage }: { chargers: Charger[]; connectors: ConnectorInfo[]; authorizations: ChargerAuthorization[]; siteNames: Map<string, string>; organizationId: string; canControl: boolean; canManage: boolean }) {
   if (!chargers.length) return <div className="site-empty"><PlugZap size={17}/><strong>Nenhum carregador cadastrado</strong><span>Cadastre o equipamento para criar sua credencial de conexão OCPP.</span></div>;
   return <div className="site-list">{chargers.map((charger) => {
     const specs = charger.technical_specs ?? {};
@@ -311,6 +334,11 @@ function ChargerList({ chargers, siteNames, organizationId, canControl }: { char
       specs.has_energy_meter === true ? "Medição de energia" : null,
     ].filter(Boolean).join(" · ");
     const compatibilityPending = Boolean(charger.ocpp_version && !["1.6J", "unknown"].includes(charger.ocpp_version));
+    const chargerConnectors = connectors.filter((connector) => connector.charger_id === charger.id);
+    const remoteStart = capabilityLabel(charger.capabilities?.remoteStart);
+    const remoteStop = capabilityLabel(charger.capabilities?.remoteStop);
+    const rfidCapability = capabilityLabel(charger.capabilities?.rfid);
+    const remoteAuthorization = charger.capabilities?.authorizeRemoteTxRequests as { state?: string; value?: string | null } | undefined;
     return <article className="panel site-row" key={charger.id}>
       <div className="site-row-icon"><PlugZap size={16}/></div>
       <div className="site-row-main"><strong>{charger.charge_point_id}</strong><span>{[charger.vendor, charger.model].filter(Boolean).join(" · ") || "Fabricante e modelo não informados"}{charger.model_code ? ` · ${charger.model_code}` : ""} · {siteNames.get(charger.site_id) ?? "Local indisponível"}</span>{profileDetails && <small className="charger-profile-details">{profileDetails}</small>}</div>
@@ -319,14 +347,55 @@ function ChargerList({ chargers, siteNames, organizationId, canControl }: { char
       <div className="site-row-meta"><span>Potência máx. do modelo</span><strong>{charger.max_power_kw ? `${Number(charger.max_power_kw).toLocaleString("pt-BR")} kW` : "Não definida"}</strong></div>
       <div className="site-row-meta"><span>Limite da instalação</span><strong>{charger.installation_power_kw ? `${Number(charger.installation_power_kw).toLocaleString("pt-BR")} kW` : "Não informado"}</strong></div>
       <div className="site-row-meta"><span>Último heartbeat</span><strong>{charger.last_heartbeat_at ? new Date(charger.last_heartbeat_at).toLocaleString("pt-BR") : "Ainda sem conexão"}</strong></div>
-      {canControl && <ChargerControl charger={charger} organizationId={organizationId}/>}
+      <div className="charger-diagnostics">
+        <strong>Diagnóstico OCPP</strong>
+        <span>Protocolo cadastrado: {charger.ocpp_version && charger.ocpp_version !== "unknown" ? charger.ocpp_version : "Não informado"} · Boot: {charger.last_boot_at ? new Date(charger.last_boot_at).toLocaleString("pt-BR") : "ainda não recebido"}</span>
+        <span>Firmware: {charger.firmware ?? "Não informado"} · StatusNotification: {charger.last_status_notification_at ? new Date(charger.last_status_notification_at).toLocaleString("pt-BR") : "ainda não recebido"}</span>
+        <span>Conectores: {chargerConnectors.length ? chargerConnectors.map((item) => `${item.connector_id}: ${item.status}`).join(" · ") : "Ainda sem status reportado"}</span>
+        <span>Última transação: {charger.last_transaction_at ? `${new Date(charger.last_transaction_at).toLocaleString("pt-BR")} · ID ${charger.last_transaction_id ?? "—"}` : "ainda não recebida"}</span>
+        <span>Remote Start: {remoteStart} · Remote Stop: {remoteStop} · RFID OCPP: {rfidCapability}</span>
+        <span>AuthorizeRemoteTxRequests: {remoteAuthorization?.state === "SUPPORTED" ? remoteAuthorization.value === "true" ? "ativado" : "desativado" : remoteAuthorization?.state === "UNSUPPORTED" ? "não informado pelo carregador" : "não consultado"}</span>
+        {charger.last_ocpp_error && <span className="form-error">Último erro OCPP: {charger.last_ocpp_error}</span>}
+      </div>
+      {canControl && <ChargerControl charger={charger} connectors={chargerConnectors} organizationId={organizationId}/>}
+      {canManage && <><ConfigurationControl charger={charger} organizationId={organizationId}/><RfidAuthorizationManager charger={charger} authorizations={authorizations.filter((item) => item.charger_id === charger.id)} organizationId={organizationId}/></>}
     </article>;
   })}</div>;
 }
 
-function ChargerControl({ charger, organizationId }: { charger: Charger; organizationId: string }) {
+function capabilityLabel(value: unknown) {
+  const state = value && typeof value === "object" ? (value as { state?: string }).state : undefined;
+  return state === "SUPPORTED" ? "SUPPORTED" : state === "UNSUPPORTED" ? "UNSUPPORTED" : "UNKNOWN";
+}
+
+function ChargerControl({ charger, connectors, organizationId }: { charger: Charger; connectors: ConnectorInfo[]; organizationId: string }) {
   const [state, action, pending] = useActionState(requestRemoteStart.bind(null, organizationId, charger.id), initialState);
-  return <div className="charger-control"><form action={action} onSubmit={(event) => { if (!window.confirm("Enviar ao carregador o pedido para iniciar uma recarga?")) event.preventDefault(); }}><button className="secondary-button command-button" type="submit" disabled={!charger.online || pending}><Play size={13}/>{pending ? "Enviando…" : "Solicitar início"}</button></form>{state.error && <small className="form-error" role="alert">{state.error}</small>}{state.success && <small className="form-success" role="status">{state.success}</small>}</div>;
+  const usableConnectors = connectors.filter((item) => ["Available", "Preparing"].includes(item.status));
+  return <div className="charger-control"><form action={action} onSubmit={(event) => { if (!window.confirm("Enviar ao carregador o pedido para iniciar uma recarga?")) event.preventDefault(); }}>
+    {charger.connector_count !== null && charger.connector_count > 1 && <label>Conector<select name="connector_id" defaultValue=""><option value="" disabled>Selecione</option>{Array.from({ length: charger.connector_count }, (_, index) => index + 1).map((id) => <option key={id} value={id}>{id}{usableConnectors.length && !usableConnectors.some((item) => item.connector_id === id) ? " · indisponível" : ""}</option>)}</select></label>}
+    {charger.connector_count === 1 && <input type="hidden" name="connector_id" value="1"/>}
+    <button className="secondary-button command-button" type="submit" disabled={!charger.online || pending || (connectors.length > 0 && usableConnectors.length === 0)}><Play size={13}/>{pending ? "Enviando…" : "Solicitar início"}</button>
+  </form>{state.error && <small className="form-error" role="alert">{state.error}</small>}{state.success && <small className="form-success" role="status">{state.success}</small>}</div>;
+}
+
+function ConfigurationControl({ charger, organizationId }: { charger: Charger; organizationId: string }) {
+  const [state, action, pending] = useActionState(requestGetConfiguration.bind(null, organizationId, charger.id), initialState);
+  return <div className="charger-control"><form action={action}><button className="secondary-button command-button" type="submit" disabled={!charger.online || pending}>{pending ? "Consultando…" : "Ler configuração de autorização"}</button></form>{state.error && <small className="form-error" role="alert">{state.error}</small>}{state.success && <small className="form-success" role="status">{state.success}</small>}</div>;
+}
+
+function RfidAuthorizationManager({ charger, authorizations, organizationId }: { charger: Charger; authorizations: ChargerAuthorization[]; organizationId: string }) {
+  const [state, action, pending] = useActionState(registerRfidAuthorization.bind(null, organizationId, charger.id), initialState);
+  return <div className="rfid-manager"><strong>Cartões RFID autorizados</strong>
+    <form action={action}><input name="id_tag" maxLength={20} autoComplete="off" placeholder="Identificador impresso do cartão" required/><button className="secondary-button command-button" type="submit" disabled={pending}>{pending ? "Salvando…" : "Autorizar cartão"}</button></form>
+    {authorizations.length > 0 && authorizations.map((authorization) => <RfidAuthorizationRow key={authorization.id} authorization={authorization} organizationId={organizationId} chargerId={charger.id}/>)}
+    {state.error && <small className="form-error" role="alert">{state.error}</small>}{state.success && <small className="form-success" role="status">{state.success}</small>}
+    <small>O valor digitado é usado para comparar o OCPP idTag e armazenado somente como hash.</small>
+  </div>;
+}
+
+function RfidAuthorizationRow({ authorization, organizationId, chargerId }: { authorization: ChargerAuthorization; organizationId: string; chargerId: string }) {
+  const [state, action, pending] = useActionState(revokeRfidAuthorization.bind(null, organizationId, chargerId, authorization.id), initialState);
+  return <div className="rfid-row"><span>{authorization.authorization_type} · impressão digital {authorization.id_tag_hash.slice(0, 10)} · {authorization.enabled ? "ativo" : "revogado"}</span>{authorization.enabled && <form action={action}><button type="submit" className="credential-copy" disabled={pending}>{pending ? "Revogando…" : "Revogar"}</button></form>}{state.error && <small className="form-error">{state.error}</small>}{state.success && <small className="form-success">{state.success}</small>}</div>;
 }
 
 function SessionList({ sessions, meterReadings, chargers, siteNames, now, organizationId, canControl, commands }: {
@@ -368,7 +437,7 @@ function SessionList({ sessions, meterReadings, chargers, siteNames, now, organi
       const elapsed = elapsedSeconds === null ? "Aguardando horário" : `${Math.floor(elapsedSeconds / 3600).toString().padStart(2, "0")}:${Math.floor((elapsedSeconds % 3600) / 60).toString().padStart(2, "0")}:${(elapsedSeconds % 60).toString().padStart(2, "0")}`;
       return <article className="session-row" key={session.id}>
         <div className="site-row-icon"><PlugZap size={16}/></div>
-        <div className="session-row-main"><strong>{charger?.charge_point_id ?? "Carregador"}</strong><span>{siteNames.get(charger?.site_id ?? "") ?? "Local indisponível"} · Conector {session.connector_id ?? "—"}</span></div>
+        <div className="session-row-main"><strong>{charger?.charge_point_id ?? "Carregador"}</strong><span>{siteNames.get(charger?.site_id ?? "") ?? "Local indisponível"} · Conector {session.connector_id ?? "—"} · Autorização {session.authorization_type ?? "não identificada"}</span></div>
         <div className="session-metric"><span><Clock3 size={12}/>Tempo</span><strong>{elapsed}</strong></div>
         <div className="session-metric"><span><Activity size={12}/>Potência agora</span><strong>{powerKw === null ? "Aguardando medição" : `${powerKw.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kW`}</strong></div>
         <div className="session-metric"><span><Zap size={12}/>Energia entregue</span><strong>{deliveredKwh === null ? "Aguardando medição" : `${deliveredKwh.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kWh`}</strong></div>
@@ -388,6 +457,10 @@ function SessionStopControl({ session, organizationId, online }: { session: Acti
 function CommandHistory({ commands, chargers }: { commands: CommandRecord[]; chargers: Charger[] }) {
   if (!commands.length) return null;
   const chargerNames = new Map(chargers.map((charger) => [charger.id, charger.charge_point_id]));
-  const labels: Record<string, string> = { pending: "Na fila", sent: "Aguardando resposta", accepted: "Aceito pelo carregador", rejected: "Recusado pelo carregador", timeout: "Sem resposta", unknown: "Resultado desconhecido após reinício", failed: "Falhou" };
-  return <div className="command-history"><h3>Pedidos recentes</h3>{commands.map((command) => <div className="command-history-row" key={command.id}><span>{command.action === "RemoteStartTransaction" ? "Iniciar recarga" : "Parar recarga"} · {chargerNames.get(command.charger_id) ?? "Carregador"}</span><strong className={`command-state command-${command.status}`}>{labels[command.status] ?? command.status}</strong><small>{new Date(command.requested_at).toLocaleString("pt-BR")}</small></div>)}</div>;
+  const labels: Record<string, string> = { pending: "Na fila", sent: "Aguardando resposta", accepted: "Aceito · aguardando evento OCPP", confirmed: "Confirmado pelo carregador", rejected: "Recusado pelo carregador", timeout: "Sem resposta ao comando", operation_timeout: "Sem confirmação da transação", unknown: "Resultado desconhecido após reinício", failed: "Falhou" };
+  return <div className="command-history"><h3>Pedidos recentes</h3>{commands.map((command) => {
+    const reason = typeof command.result?.description === "string" ? command.result.description : typeof command.result?.error === "string" ? command.result.error : null;
+    const actionName = command.action === "RemoteStartTransaction" ? "Iniciar recarga" : command.action === "RemoteStopTransaction" ? "Parar recarga" : command.action === "GetConfiguration" ? "Ler configuração OCPP" : command.action;
+    return <div className="command-history-row" key={command.id}><span>{actionName} · {chargerNames.get(command.charger_id) ?? "Carregador"}{command.status === "rejected" && command.action === "RemoteStartTransaction" ? <small> O carregador não autorizou o início remoto. Verifique a configuração ou use o cartão RFID.</small> : reason && <small> {reason}</small>}</span><strong className={`command-state command-${command.status}`}>{labels[command.status] ?? command.status}</strong><small>{new Date(command.requested_at).toLocaleString("pt-BR")}</small></div>;
+  })}</div>;
 }

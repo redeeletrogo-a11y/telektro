@@ -10,6 +10,9 @@ Estes arquivos SQL ficam no projeto local e são versionados no GitHub. O painel
 | `202609280002_product_entities.sql` | Entidades e tabelas do produto | Aplicada |
 | `202609280003_organization_onboarding.sql` | Função para criar organização e tornar o usuário proprietário | Aplicada em 2026-09-28 |
 | `202609280004_charger_credentials.sql` | Índice OCPP e hash das credenciais dos carregadores | Aplicada |
+| `202609280005_command_recovery.sql` | Recuperação/correlação de comandos OCPP após reinício | Aplicada |
+| `202609280006_charger_profiles.sql` | Metadados de modelos, conectores e perfil técnico | Aplicada |
+| `202609300007_remote_authorization_diagnostics.sql` | Autorizações RFID por hash, capabilities, diagnóstico e concorrência por conector | Pendente de aplicar |
 
 ## Aplicar uma migration manualmente
 
@@ -19,4 +22,4 @@ Estes arquivos SQL ficam no projeto local e são versionados no GitHub. O painel
 
 Não execute novamente arquivos marcados como aplicados. Migrations podem conter operações que falham ou alteram dados se repetidas.
 
-Neste projeto, as migrations foram executadas pelo SQL Editor e a tabela de histórico do Supabase CLI ainda não existe. Antes de passar a usar `supabase db push`, será necessário sincronizar o histórico para o CLI não tentar reaplicar os arquivos antigos.
+Neste projeto, as migrations foram executadas pelo SQL Editor e a tabela de histórico do Supabase CLI ainda não existe. A migration 007 precisa ser revisada e aplicada uma vez no SQL Editor do projeto antes de usar as novas funções. Antes de passar a usar `supabase db push`, será necessário sincronizar o histórico para o CLI não tentar reaplicar os arquivos antigos.

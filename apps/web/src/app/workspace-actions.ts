@@ -6,6 +6,12 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type FormState = { error?: string; success?: string; credential?: string; chargePointId?: string };
+const chargerStaleAfterMs = Math.max(60, Number(process.env.OCPP_CHARGER_STALE_AFTER_SECONDS ?? 180)) * 1000;
+
+function chargerHasRecentHeartbeat(lastHeartbeatAt: string | null) {
+  const heartbeatAt = lastHeartbeatAt ? new Date(lastHeartbeatAt).getTime() : Number.NaN;
+  return Number.isFinite(heartbeatAt) && Date.now() - heartbeatAt <= chargerStaleAfterMs;
+}
 
 export async function createOrganization(_previous: FormState, formData: FormData): Promise<FormState> {
   const name = String(formData.get("name") ?? "").trim();
@@ -162,7 +168,6 @@ export async function registerCharger(organizationId: string, _previous: FormSta
 
 export async function requestRemoteStart(organizationId: string, chargerId: string, _previous: FormState, _formData: FormData): Promise<FormState> {
   void _previous;
-  void _formData;
   if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !/^[0-9a-f-]{36}$/i.test(chargerId)) return { error: "Organização ou carregador inválido." };
   let supabase;
   try { supabase = await createSupabaseServerClient(); }
@@ -175,26 +180,124 @@ export async function requestRemoteStart(organizationId: string, chargerId: stri
   if (!membership || !["owner", "admin", "operator", "technician"].includes(membership.role)) {
     return { error: "Seu perfil não pode controlar carregadores nesta organização." };
   }
-  const { data: charger } = await supabase.from("chargers").select("id, online")
+  const { data: charger } = await supabase.from("chargers").select("id, online, status, connector_count, last_heartbeat_at")
     .eq("id", chargerId).eq("organization_id", organizationId).maybeSingle();
   if (!charger) return { error: "Carregador não encontrado nesta organização." };
-  if (!charger.online) return { error: "O carregador está offline. Conecte-o ao gateway antes de pedir uma recarga." };
+  if (!charger.online || !chargerHasRecentHeartbeat(charger.last_heartbeat_at)) return { error: "O carregador está offline ou sem comunicação recente. Confira a conexão antes de pedir uma recarga." };
+  const { data: connectors, error: connectorsError } = await supabase.from("connectors")
+    .select("connector_id, status").eq("charger_id", chargerId).order("connector_id");
+  if (connectorsError) return { error: "Não foi possível conferir o estado dos conectores." };
+  const rawConnectorId = String(_formData.get("connector_id") ?? "").trim();
+  let connectorId: number | null = rawConnectorId ? Number(rawConnectorId) : null;
+  if (rawConnectorId && (!Number.isInteger(connectorId) || Number(connectorId) < 1)) return { error: "Selecione um conector válido." };
+  const eligible = (connectors ?? []).filter((connector) => ["Available", "Preparing"].includes(connector.status));
+  if (connectorId !== null) {
+    const connector = (connectors ?? []).find((item) => item.connector_id === connectorId);
+    if (!connector || !["Available", "Preparing"].includes(connector.status)) return { error: "Este conector não está disponível para iniciar uma recarga." };
+  } else if (eligible.length === 1) {
+    connectorId = eligible[0].connector_id;
+  } else if (eligible.length > 1) {
+    return { error: "Selecione qual conector deve iniciar a recarga." };
+  } else if (!connectors?.length && charger.connector_count === 1 && ["Available", "Preparing"].includes(charger.status)) {
+    connectorId = 1;
+  } else {
+    return { error: "O carregador ainda não confirmou um conector disponível. Confira o estado no equipamento." };
+  }
   const { data: activeSession, error: sessionError } = await supabase.from("sessions").select("id")
-    .eq("charger_id", chargerId).is("ended_at", null).maybeSingle();
+    .eq("charger_id", chargerId).eq("connector_id", connectorId).is("ended_at", null).maybeSingle();
   if (sessionError) return { error: "Não foi possível conferir as sessões deste carregador." };
-  if (activeSession) return { error: "Este carregador já tem uma recarga em andamento." };
+  if (activeSession) return { error: "Este conector já tem uma recarga em andamento." };
+
+  const { data: pendingStarts, error: pendingError } = await supabase.from("commands").select("payload")
+    .eq("charger_id", chargerId).eq("action", "RemoteStartTransaction")
+    .in("status", ["pending", "sent", "accepted", "unknown"]);
+  if (pendingError) return { error: "Não foi possível conferir pedidos de início anteriores." };
+  const connectorHasPendingStart = (pendingStarts ?? []).some((command) => {
+    const pendingConnectorId = typeof command.payload?.connectorId === "number" ? command.payload.connectorId : null;
+    return pendingConnectorId === null || pendingConnectorId === connectorId;
+  });
+  if (connectorHasPendingStart) return { error: "Já existe um pedido de início pendente para este conector. Aguarde a confirmação antes de tentar novamente." };
 
   const idTag = `TK${randomBytes(9).toString("hex")}`;
   const { error } = await supabase.from("commands").insert({
     organization_id: organizationId,
     charger_id: chargerId,
     action: "RemoteStartTransaction",
-    payload: { idTag },
+    payload: { idTag, ...(connectorId === null ? {} : { connectorId }) },
+    operation_key: `start:${connectorId ?? "*"}`,
     requested_by: user.id,
   });
+  if (error?.code === "23505") return { error: "Já existe uma solicitação de início em andamento para este carregador." };
   if (error) return { error: "Não foi possível enfileirar o pedido. Atualize a página e tente novamente." };
   revalidatePath("/");
   return { success: "Pedido enviado à fila. A recarga aparecerá após a confirmação do carregador e o início da transação OCPP." };
+}
+
+export async function requestGetConfiguration(organizationId: string, chargerId: string, _previous: FormState, _formData: FormData): Promise<FormState> {
+  void _previous;
+  void _formData;
+  if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !/^[0-9a-f-]{36}$/i.test(chargerId)) return { error: "Organização ou carregador inválido." };
+  let supabase;
+  try { supabase = await createSupabaseServerClient(); }
+  catch { return { error: "Não foi possível conectar ao Supabase." }; }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Sua sessão expirou. Entre novamente para continuar." };
+  const { data: membership } = await supabase.from("memberships").select("role")
+    .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
+  if (!membership || !["owner", "admin", "technician"].includes(membership.role)) return { error: "Somente owners, admins e técnicos podem consultar configurações OCPP." };
+  const { data: charger } = await supabase.from("chargers").select("id, online, last_heartbeat_at")
+    .eq("id", chargerId).eq("organization_id", organizationId).maybeSingle();
+  if (!charger) return { error: "Carregador não encontrado nesta organização." };
+  if (!charger.online || !chargerHasRecentHeartbeat(charger.last_heartbeat_at)) return { error: "O carregador está offline ou sem comunicação recente." };
+  const { error } = await supabase.from("commands").insert({
+    organization_id: organizationId, charger_id: chargerId, action: "GetConfiguration",
+    payload: { key: ["AuthorizeRemoteTxRequests"] }, requested_by: user.id,
+  });
+  if (error) return { error: "Não foi possível enfileirar a consulta OCPP." };
+  revalidatePath("/");
+  return { success: "Consulta de configuração enviada. O resultado aparecerá no diagnóstico do carregador." };
+}
+
+export async function registerRfidAuthorization(organizationId: string, chargerId: string, _previous: FormState, formData: FormData): Promise<FormState> {
+  void _previous;
+  const idTag = String(formData.get("id_tag") ?? "").trim();
+  if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !/^[0-9a-f-]{36}$/i.test(chargerId)) return { error: "Organização ou carregador inválido." };
+  if (!idTag || idTag.length > 20 || /[\u0000-\u001f]/.test(idTag)) return { error: "Informe o identificador do cartão RFID (máximo de 20 caracteres)." };
+  let supabase;
+  try { supabase = await createSupabaseServerClient(); }
+  catch { return { error: "Não foi possível conectar ao Supabase." }; }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Sua sessão expirou. Entre novamente para continuar." };
+  const { data: membership } = await supabase.from("memberships").select("role")
+    .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
+  if (!membership || !["owner", "admin", "technician"].includes(membership.role)) return { error: "Seu perfil não pode autorizar cartões RFID nesta organização." };
+  const { error } = await supabase.from("charger_authorizations").insert({
+    organization_id: organizationId, charger_id: chargerId, user_id: user.id,
+    id_tag_hash: createHash("sha256").update(idTag, "utf8").digest("hex"), authorization_type: "RFID", created_by: user.id,
+  });
+  if (error?.code === "23505") return { error: "Este cartão já está autorizado para este carregador." };
+  if (error) return { error: "Não foi possível autorizar o cartão. Confira as migrations e tente novamente." };
+  revalidatePath("/");
+  return { success: "Cartão autorizado. O valor do RFID foi armazenado somente como hash." };
+}
+
+export async function revokeRfidAuthorization(organizationId: string, chargerId: string, authorizationId: string, _previous: FormState, _formData: FormData): Promise<FormState> {
+  void _previous;
+  void _formData;
+  if (![organizationId, chargerId, authorizationId].every((value) => /^[0-9a-f-]{36}$/i.test(value))) return { error: "Organização, carregador ou autorização inválida." };
+  let supabase;
+  try { supabase = await createSupabaseServerClient(); }
+  catch { return { error: "Não foi possível conectar ao Supabase." }; }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Sua sessão expirou. Entre novamente para continuar." };
+  const { data: membership } = await supabase.from("memberships").select("role")
+    .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
+  if (!membership || !["owner", "admin", "technician"].includes(membership.role)) return { error: "Seu perfil não pode revogar cartões RFID nesta organização." };
+  const { error } = await supabase.from("charger_authorizations").update({ enabled: false })
+    .eq("id", authorizationId).eq("charger_id", chargerId).eq("organization_id", organizationId);
+  if (error) return { error: "Não foi possível revogar esta autorização." };
+  revalidatePath("/");
+  return { success: "Autorização do cartão revogada." };
 }
 
 export async function requestRemoteStop(organizationId: string, sessionId: string, _previous: FormState, _formData: FormData): Promise<FormState> {
@@ -218,17 +321,26 @@ export async function requestRemoteStop(organizationId: string, sessionId: strin
   if (!Number.isInteger(Number(session.ocpp_transaction_id)) || Number(session.ocpp_transaction_id) < 1) {
     return { error: "Esta recarga não tem um identificador OCPP válido para solicitar a parada." };
   }
-  const { data: charger } = await supabase.from("chargers").select("online")
+  const { data: charger } = await supabase.from("chargers").select("online, last_heartbeat_at")
     .eq("id", session.charger_id).eq("organization_id", organizationId).maybeSingle();
-  if (!charger?.online) return { error: "O carregador está offline; não é possível enviar o pedido de parada." };
+  if (!charger?.online || !chargerHasRecentHeartbeat(charger.last_heartbeat_at)) return { error: "O carregador está offline ou sem comunicação recente; não é possível enviar o pedido de parada." };
+
+  const { data: pendingStop, error: pendingStopError } = await supabase.from("commands").select("id")
+    .eq("charger_id", session.charger_id).eq("action", "RemoteStopTransaction")
+    .filter("payload->>transactionId", "eq", String(session.ocpp_transaction_id))
+    .in("status", ["pending", "sent", "accepted", "unknown"]).limit(1).maybeSingle();
+  if (pendingStopError) return { error: "Não foi possível conferir pedidos de parada anteriores." };
+  if (pendingStop) return { error: "Já existe um pedido de parada pendente para esta recarga." };
 
   const { error } = await supabase.from("commands").insert({
     organization_id: organizationId,
     charger_id: session.charger_id,
     action: "RemoteStopTransaction",
     payload: { transactionId: Number(session.ocpp_transaction_id) },
+    operation_key: `stop:${session.ocpp_transaction_id}`,
     requested_by: user.id,
   });
+  if (error?.code === "23505") return { error: "Já existe um pedido de parada pendente para esta recarga." };
   if (error) return { error: "Não foi possível enfileirar o pedido. Atualize a página e tente novamente." };
   revalidatePath("/");
   return { success: "Pedido enviado à fila. A recarga só será encerrada quando o carregador confirmar e enviar StopTransaction." };
