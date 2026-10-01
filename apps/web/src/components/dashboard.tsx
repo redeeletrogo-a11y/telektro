@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Activity, ArrowRight, Building2, Cable, Check, Clock3, Copy, LayoutDashboard, MapPin, Play, PlugZap, RotateCcw, ShieldCheck, Square, Trash2, Users, Zap } from "lucide-react";
-import { createSite, registerCharger, registerRfidAuthorization, removeCharger, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
+import { createSite, registerCharger, registerRfidAuthorization, removeCharger, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, rotateChargerCredential, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
 
 type Organization = { id: string; name: string; slug: string };
 type Site = { id: string; name: string; address: string | null; timezone: string; max_power_kw: number | null };
@@ -365,7 +365,7 @@ function ChargerList({ chargers, removedChargers, connectors, authorizations, si
       </div>
       {canControl && <ChargerControl charger={charger} connectors={chargerConnectors} organizationId={organizationId}/>}
       {canManage && <><ConfigurationControl charger={charger} organizationId={organizationId}/><RfidAuthorizationManager charger={charger} authorizations={authorizations.filter((item) => item.charger_id === charger.id)} organizationId={organizationId}/></>}
-      {isOwner && <ChargerRemovalControl charger={charger} organizationId={organizationId} hasActiveSession={activeSessionChargerIds.has(charger.id)}/>}
+      {isOwner && <><ChargerCredentialControl charger={charger} organizationId={organizationId}/><ChargerRemovalControl charger={charger} organizationId={organizationId} hasActiveSession={activeSessionChargerIds.has(charger.id)}/></>}
     </article>;
   })}</div>}</>;
 }
@@ -427,6 +427,38 @@ function ChargerRemovalControl({ charger, organizationId, hasActiveSession }: { 
       <div className="command-confirm-actions"><button className="secondary-button" type="button" onClick={() => { setConfirming(false); setTypedId(""); }}>Cancelar</button><button className="remove-charger-confirm" type="submit" disabled={pending || hasActiveSession || typedId.trim() !== charger.charge_point_id}>{pending ? "Removendo…" : "Remover carregador"}</button></div>
     </form></div>}
     {state.error && !confirming && <small className="form-error" role="alert">{state.error}</small>}
+  </div>;
+}
+
+function ChargerCredentialControl({ charger, organizationId }: { charger: Charger; organizationId: string }) {
+  const [state, action, pending] = useActionState(rotateChargerCredential.bind(null, organizationId, charger.id), initialState);
+  const [confirming, setConfirming] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState("");
+  async function copyCredential() {
+    if (!state.credential) return;
+    try {
+      await navigator.clipboard.writeText(state.credential);
+      setCopyFeedback("Senha copiada.");
+    } catch {
+      setCopyFeedback("Não foi possível copiar. Selecione e copie a senha.");
+    }
+  }
+  return <div className="charger-credential-control">
+    {!state.credential && <button type="button" className="secondary-button rotate-credential-button" onClick={() => { setConfirming(true); setCopyFeedback(""); }} disabled={pending}><RotateCcw size={13}/>Gerar nova credencial</button>}
+    {confirming && !state.credential && <div className="command-confirm-backdrop"><form action={action} className="command-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby={`rotate-credential-title-${charger.id}`} aria-describedby={`rotate-credential-description-${charger.id}`}>
+      <h2 id={`rotate-credential-title-${charger.id}`}>Gerar nova credencial?</h2>
+      <p id={`rotate-credential-description-${charger.id}`}>A senha antiga deixa de funcionar e o carregador desconecta. Será necessário atualizar a senha no equipamento para conectá-lo novamente.</p>
+      {state.error && <small className="form-error" role="alert">{state.error}</small>}
+      <div className="command-confirm-actions"><button className="secondary-button" type="button" onClick={() => setConfirming(false)}>Cancelar</button><button className="primary-button" type="submit" disabled={pending}>{pending ? "Gerando…" : "Confirmar e gerar"}</button></div>
+    </form></div>}
+    {state.credential && <div className="command-confirm-backdrop"><section className="command-confirm-dialog credential-once-dialog" role="dialog" aria-modal="true" aria-labelledby={`new-credential-title-${charger.id}`}>
+      <h2 id={`new-credential-title-${charger.id}`}>Nova credencial gerada</h2>
+      <p>A senha antiga foi invalidada. Copie e atualize o equipamento agora; esta senha será exibida somente nesta tela.</p>
+      <span>ID OCPP: <code>{state.chargePointId}</code></span>
+      <span>Nova senha: <code>{state.credential}</code></span>
+      <div className="command-confirm-actions"><button type="button" className="secondary-button" onClick={() => void copyCredential()}><Copy size={13}/>Copiar senha</button><button type="button" className="primary-button" onClick={() => window.location.reload()}>Concluir</button></div>
+      {copyFeedback && <small role="status">{copyFeedback}</small>}
+    </section></div>}
   </div>;
 }
 

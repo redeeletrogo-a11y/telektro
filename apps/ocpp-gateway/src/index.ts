@@ -37,7 +37,7 @@ const developmentToken = process.env.OCPP_DEV_TOKEN;
 const connections = new Map<string, WebSocket>();
 const inboundMessageQueues = new Map<string, Promise<void>>();
 const socketChargers = new WeakMap<WebSocket, ChargerRecord | null>();
-const chargerConnections = new Map<string, { chargePointId: string; websocket: WebSocket }>();
+const chargerConnections = new Map<string, { chargePointId: string; websocket: WebSocket; credentialHash: string | null }>();
 const pendingCommands = new Map<string, PendingCommand>();
 const idTagGrants = new Map<string, IdTagGrant>();
 const heartbeatSeconds = Number(process.env.OCPP_HEARTBEAT_INTERVAL_SECONDS ?? 60);
@@ -103,7 +103,7 @@ sockets.on("connection", (websocket: WebSocket, request) => {
   if (previous && previous !== websocket) previous.close(1000, "Replaced by a new connection");
   connections.set(chargePointId, websocket);
   const charger = socketChargers.get(websocket) ?? null;
-  if (charger) chargerConnections.set(charger.id, { chargePointId, websocket });
+  if (charger) chargerConnections.set(charger.id, { chargePointId, websocket, credentialHash: charger.ocpp_credential_hash });
   void setOnline(charger, true).catch((error) => reportPersistenceFailure("connect", chargePointId, error));
   console.info(JSON.stringify({ event: "ocpp.connected", chargePointId }));
 
@@ -814,7 +814,7 @@ async function recoverInterruptedCommands() {
 }
 
 setInterval(() => { void pollPendingCommands(); }, 1_500).unref();
-setInterval(() => { void disconnectRemovedChargerConnections(); }, 5_000).unref();
+setInterval(() => { void disconnectRemovedChargerConnections(); }, 1_000).unref();
 setInterval(() => {
   const now = Date.now();
   for (const [idTag, grant] of idTagGrants) if (grant.expiresAt <= now) idTagGrants.delete(idTag);
@@ -828,8 +828,8 @@ function reportPersistenceFailure(action: string, chargePointId: string, error: 
 async function disconnectRemovedChargerConnections() {
   if (!registry || chargerConnections.size === 0) return;
   const chargerIds = [...chargerConnections.keys()];
-  const { data, error } = await registry.from("chargers").select("id")
-    .in("id", chargerIds).not("removed_at", "is", null);
+  const { data, error } = await registry.from("chargers").select("id, ocpp_credential_hash, removed_at")
+    .in("id", chargerIds);
   if (error) {
     reportPersistenceFailure("removed_charger_disconnect_check", "gateway", error);
     return;
@@ -837,10 +837,13 @@ async function disconnectRemovedChargerConnections() {
   for (const row of data ?? []) {
     const connection = chargerConnections.get(row.id);
     if (!connection) continue;
+    const reason = row.removed_at ? "Charger removed" : row.ocpp_credential_hash !== connection.credentialHash ? "Credential rotated" : null;
+    if (!reason) continue;
     chargerConnections.delete(row.id);
     if (connections.get(connection.chargePointId) === connection.websocket) connections.delete(connection.chargePointId);
     for (const [idTag, grant] of idTagGrants) if (grant.chargerId === row.id) idTagGrants.delete(idTag);
-    if (connection.websocket.readyState === WebSocket.OPEN) connection.websocket.close(4001, "Charger removed");
+    if (connection.websocket.readyState === WebSocket.OPEN) connection.websocket.close(4001, reason);
+    console.info(JSON.stringify({ event: row.removed_at ? "ocpp.removed_charger_disconnected" : "ocpp.credential_rotated_disconnected", chargePointId: connection.chargePointId }));
   }
 }
 

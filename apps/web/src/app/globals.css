@@ -136,6 +136,12 @@ h1 { margin: 0; color: #1c2a33; font-size: 25px; font-weight: 650; letter-spacin
 .charger-tabs button.active { border-bottom-color: #398c80; color: #397e73; font-weight: 650; }
 .charger-tabs button span { min-width: 17px; border-radius: 9px; padding: 2px 5px; color: #72817f; background: #eff4f2; text-align: center; font-size: 8px; }
 .charger-removal-control { display: flex; flex-basis: 100%; align-items: center; gap: 9px; border-top: 1px solid #edf1f0; padding: 10px 0 0 43px; }
+.charger-credential-control { display: flex; flex-basis: 100%; align-items: center; gap: 9px; padding-left: 43px; }
+.rotate-credential-button { font-size: 10px; }
+.credential-once-dialog { display: grid; gap: 10px; }
+.credential-once-dialog > span { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; }
+.credential-once-dialog code { overflow-wrap: anywhere; color: #33444c; font-family: var(--font-technical); font-size: 11px; user-select: all; }
+.credential-once-dialog small { color: #718087; }
 .remove-charger-button { display: inline-flex; min-height: 29px; align-items: center; gap: 5px; border: 1px solid #f0dede; border-radius: 6px; padding: 0 9px; color: #a85050; background: #fffafa; font: inherit; font-size: 9px; }
 .remove-charger-button:hover:not(:disabled), .remove-charger-confirm:hover:not(:disabled) { border-color: #d99b9b; background: #fff3f3; }
 .remove-charger-button:disabled { cursor: not-allowed; opacity: .5; }

@@ -368,6 +368,37 @@ export async function restoreCharger(organizationId: string, chargerId: string, 
   return { success: "Carregador restaurado. A credencial anterior continua revogada.", credential, chargePointId: charger.charge_point_id };
 }
 
+export async function rotateChargerCredential(organizationId: string, chargerId: string, _previous: FormState, _formData: FormData): Promise<FormState> {
+  void _previous;
+  void _formData;
+  if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !/^[0-9a-f-]{36}$/i.test(chargerId)) return { error: "Organização ou carregador inválido." };
+  let supabase;
+  try { supabase = await createSupabaseServerClient(); }
+  catch { return { error: "Não foi possível conectar ao Supabase." }; }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Sua sessão expirou. Entre novamente para continuar." };
+  const { data: membership } = await supabase.from("memberships").select("role")
+    .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
+  if (membership?.role !== "owner") return { error: "Somente o dono da organização pode gerar uma nova credencial." };
+  const { data: charger, error: chargerError } = await supabase.from("chargers").select("charge_point_id")
+    .eq("id", chargerId).eq("organization_id", organizationId).is("removed_at", null).maybeSingle();
+  if (chargerError || !charger) return { error: "Carregador não encontrado ou já removido nesta organização." };
+  const credential = randomBytes(20).toString("hex");
+  const credentialHash = createHash("sha256").update(credential, "utf8").digest("hex");
+  const { error } = await supabase.rpc("rotate_charger_credential", {
+    p_organization_id: organizationId, p_charger_id: chargerId, p_credential_hash: credentialHash,
+  });
+  if (error) {
+    if (error.message.includes("OWNER_REQUIRED")) return { error: "Somente o dono da organização pode gerar uma nova credencial." };
+    if (error.message.includes("CHARGER_NOT_FOUND")) return { error: "Carregador não encontrado nesta organização." };
+    if (error.message.includes("CHARGER_REMOVED")) return { error: "Restaure o carregador antes de gerar uma nova credencial." };
+    if (error.code === "PGRST202" || error.message.includes("rotate_charger_credential")) return { error: "A nova migration de credenciais ainda precisa ser aplicada no Supabase." };
+    return { error: "Não foi possível gerar a nova credencial. Atualize a página e tente novamente." };
+  }
+  revalidatePath("/");
+  return { success: "Nova credencial gerada. A anterior foi invalidada.", credential, chargePointId: charger.charge_point_id };
+}
+
 export async function requestRemoteStop(organizationId: string, sessionId: string, _previous: FormState, _formData: FormData): Promise<FormState> {
   void _previous;
   void _formData;
