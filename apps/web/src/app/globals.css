@@ -479,3 +479,21 @@ tbody tr:last-child td { border-bottom: 0; }
   .onboarding-card { padding: 27px 22px 22px; }
   .site-form-row { grid-template-columns: 1fr; }
 }
+
+/* Account types */
+.account-types { display: grid; gap: 8px; margin: 0 0 14px; padding: 0; border: 0; }
+.account-types legend { margin-bottom: 8px; font-size: 12px; font-weight: 600; }
+.account-type { position: relative; display: grid; gap: 2px; border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px 10px 36px; cursor: pointer; }
+.account-type input { position: absolute; left: 12px; top: 14px; }
+.account-type strong { font-size: 13px; }
+.account-type span { font-size: 11px; color: #68757d; }
+.account-type.selected { border-color: var(--teal); background: rgb(9 140 129 / 6%); }
+.account-type.disabled { opacity: .55; cursor: not-allowed; }
+.residents-panel { display: grid; gap: 14px; }
+.resident-row, .invite-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); padding: 9px 0; font-size: 12px; }
+.invite-card { display: grid; gap: 8px; justify-items: start; padding: 12px; border: 1px solid var(--line); border-radius: 9px; }
+.invite-card img { width: 168px; height: 168px; background: white; border-radius: 6px; }
+.invite-link { word-break: break-all; font-size: 11px; background: #f3f6f7; padding: 6px 8px; border-radius: 6px; }
+.limit-bar { height: 6px; border-radius: 3px; background: #e5ecee; overflow: hidden; }
+.limit-bar > i { display: block; height: 100%; background: var(--teal); }
+.resident-home { max-width: 760px; margin: 0 auto; padding: 20px 16px 40px; display: grid; gap: 14px; }

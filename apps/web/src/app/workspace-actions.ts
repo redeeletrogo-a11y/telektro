@@ -17,6 +17,9 @@ function chargerHasRecentHeartbeat(lastHeartbeatAt: string | null) {
 export async function createOrganization(_previous: FormState, formData: FormData): Promise<FormState> {
   const name = String(formData.get("name") ?? "").trim();
   const slug = String(formData.get("slug") ?? "").trim().toLowerCase();
+  const accountType = String(formData.get("account_type") ?? "residencial");
+  if (accountType === "eletroposto") return { error: "O plano Eletroposto ainda não está disponível. Fale com a Telektro." };
+  if (!["residencial", "condominio"].includes(accountType)) return { error: "Escolha o tipo de conta." };
   if (name.length < 1 || name.length > 120) return { error: "O nome deve ter entre 1 e 120 caracteres." };
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return { error: "Use letras minúsculas, números e hífens no identificador." };
 
@@ -27,7 +30,11 @@ export async function createOrganization(_previous: FormState, formData: FormDat
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Sua sessão expirou. Entre novamente para continuar." };
 
-  const { error } = await supabase.rpc("create_organization_with_owner", { p_name: name, p_slug: slug });
+  const { data: newOrganizationId, error } = await supabase.rpc("create_organization_with_owner", { p_name: name, p_slug: slug, p_account_type: accountType });
+  if (!error && newOrganizationId) {
+    // Default location so the first charger can be registered right away.
+    await supabase.from("sites").insert({ organization_id: newOrganizationId, name: accountType === "residencial" ? "Minha casa" : name, timezone: "America/Fortaleza" });
+  }
   if (error) {
     if (error.code === "PGRST202" || error.message.includes("create_organization_with_owner")) {
       return { error: "A migration de criação da organização ainda precisa ser aplicada no Supabase." };
@@ -449,4 +456,34 @@ export async function signOut() {
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();
   redirect("/login");
+}
+
+
+const uuidPattern = /^[0-9a-f-]{36}$/i;
+
+export async function createResidentInvite(organizationId: string): Promise<{ error?: string; code?: string }> {
+  if (!uuidPattern.test(organizationId)) return { error: "Organização inválida." };
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("create_resident_invite", { p_organization_id: organizationId });
+  if (error) return { error: "Não foi possível criar o convite. Só o síndico de um condomínio pode convidar moradores." };
+  revalidatePath("/");
+  return { code: String(data) };
+}
+
+export async function revokeResidentInvite(inviteId: string): Promise<{ error?: string }> {
+  if (!uuidPattern.test(inviteId)) return { error: "Convite inválido." };
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("revoke_resident_invite", { p_invite_id: inviteId });
+  if (error) return { error: "Não foi possível revogar o convite." };
+  revalidatePath("/");
+  return {};
+}
+
+export async function removeResident(organizationId: string, userId: string): Promise<{ error?: string }> {
+  if (!uuidPattern.test(organizationId) || !uuidPattern.test(userId)) return { error: "Dados inválidos." };
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("remove_resident", { p_organization_id: organizationId, p_user_id: userId });
+  if (error) return { error: "Não foi possível remover o morador." };
+  revalidatePath("/");
+  return {};
 }
