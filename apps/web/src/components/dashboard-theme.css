@@ -120,3 +120,6 @@ html:has(.app-shell) { background: #06120f; }
 @keyframes ring-spin { to { transform: rotate(360deg); } }
 @keyframes ring-pulse { 50% { opacity: .55; } }
 @media (prefers-reduced-motion: reduce) { .app-shell .ring-arc, .app-shell .charge-ring svg + svg { animation: none; } }
+.app-shell .charge-hero > .charge-live { position: absolute; max-width: none; }
+.app-shell .charge-hero { min-height: 260px; background: linear-gradient(to bottom, rgb(5 18 14 / 0%) 18%, rgb(5 18 14 / 80%) 52%, #05120e 88%), url("/charge-bg.webp") center 25% / cover no-repeat, #05120e; }
+.app-shell .charge-banner { min-height: 220px; }
