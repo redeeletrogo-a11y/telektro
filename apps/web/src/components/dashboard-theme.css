@@ -98,3 +98,10 @@ html:has(.app-shell) { background: #06120f; }
 .app-shell .charger-control form { width: 100%; }
 .app-shell .workspace-stat-top { gap: 6px; font-size: 11px; line-height: 1.25; }
 .app-shell .workspace-stat-top svg { flex: none; width: 14px; height: 14px; }
+
+/* Banner com a arte clara: foto no topo, texto sobre degradê escuro embaixo */
+.app-shell .charge-hero { min-height: 230px; border-color: rgb(34 224 160 / 25%); background: linear-gradient(to bottom, rgb(5 18 14 / 0%) 35%, rgb(5 18 14 / 88%) 78%, #05120e 100%), url("/charge-bg.webp") center 30% / cover no-repeat, #05120e; }
+.app-shell .charge-hero > :not(svg) { max-width: 100%; }
+.app-shell .charge-hero h2 { text-shadow: 0 1px 8px rgb(0 0 0 / 55%); }
+.app-shell .charge-hero p { color: #cfe5dd; }
+.app-shell .charge-banner { min-height: 190px; }
