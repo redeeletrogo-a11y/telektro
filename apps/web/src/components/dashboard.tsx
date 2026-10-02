@@ -148,13 +148,14 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
 }
 
 export function Dashboard({
-  email, organizations, organization, role, accountType, residents, invites, sites, chargers, removedChargers, connectors, authorizations, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, completedSessionRows, meterReadings, commandRows, dataLoadedAt,
+  email, organizations, organization, role, accountType, trialDaysLeft, residents, invites, sites, chargers, removedChargers, connectors, authorizations, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, completedSessionRows, meterReadings, commandRows, dataLoadedAt,
 }: {
   email: string;
   organizations: Organization[];
   organization: Organization;
   role: string;
   accountType: string;
+  trialDaysLeft: number | null;
   residents: Resident[];
   invites: Invite[];
   sites: Site[];
@@ -234,6 +235,7 @@ export function Dashboard({
       </header>
 
       <div className="page-wrap">
+        {trialDaysLeft !== null && <div className="trial-banner" role="status">Teste grátis: {trialDaysLeft} dia(s) restante(s). Depois, plano Residencial R$ 19,90/mês.</div>}
         <div className="page-heading"><div><p className="eyebrow">OPERAÇÃO · WORKSPACE REAL</p><h1>{activeNav}</h1><p className="page-description">{organization.name} · dados carregados do Supabase com isolamento por organização.</p></div><div className="workspace-role"><ShieldCheck size={14}/>{role}</div></div>
 
         {activeNav === "Visão geral" ? <>
