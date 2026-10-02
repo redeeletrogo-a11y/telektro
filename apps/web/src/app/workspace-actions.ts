@@ -512,7 +512,7 @@ export async function startSubscription(_previous: FormState, formData: FormData
   if (!host) return { error: "Não foi possível iniciar a assinatura." };
   let checkoutUrl: string;
   try {
-    checkoutUrl = await createSubscriptionCheckoutUrl({ organizationId, origin: `https://${host}` });
+    checkoutUrl = await createSubscriptionCheckoutUrl({ organizationId, origin: `https://${host}`, payerEmail: user.email ?? "" });
   } catch (caught) {
     return { error: `Não foi possível abrir o pagamento agora. Tente novamente em instantes. (${caught instanceof Error ? caught.message : "erro"})` };
   }
