@@ -92,3 +92,9 @@ html:has(.app-shell) { background: #06120f; }
 .app-shell .charger-more > summary::before { content: "+ "; color: #22e0a0; }
 .app-shell .charger-more[open] > summary::before { content: "– "; }
 .app-shell .charger-more > :not(summary) { margin-top: 10px; }
+.app-shell .charge-hero .charge-art { opacity: .5; }
+.app-shell .charge-hero > :not(svg) { max-width: 62%; }
+.app-shell .charge-hero h2, .app-shell .charge-hero p { max-width: 100%; }
+.app-shell .charger-control form { width: 100%; }
+.app-shell .workspace-stat-top { gap: 6px; font-size: 11px; line-height: 1.25; }
+.app-shell .workspace-stat-top svg { flex: none; width: 14px; height: 14px; }
