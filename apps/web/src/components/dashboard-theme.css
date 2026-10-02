@@ -208,3 +208,5 @@ html[data-theme="light"] .app-shell .ring-arc { stroke: #0f9d6e; filter: none; }
 .pix-box { display: grid; gap: 8px; max-width: 280px; padding: 12px; border-radius: 12px; border: 1px solid rgb(127 127 127 / 30%); }
 .pix-box img { background: #fff; border-radius: 8px; padding: 4px; justify-self: center; }
 .pix-box textarea { width: 100%; font-size: 11px; resize: none; }
+.wallet-balance { font-size: 32px; font-weight: 600; margin: 4px 0 12px; }
+.wallet-form { display: grid; gap: 8px; max-width: 280px; }
