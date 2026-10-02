@@ -56,10 +56,13 @@ async function mpFetch(path: string, init?: RequestInit) {
 
 // Creates a pending monthly subscription (preapproval) and returns the checkout URL where the buyer enters payment.
 // The organization id travels in external_reference; the webhook uses it to activate the right organization.
-export async function createSubscriptionCheckoutUrl(args: { organizationId: string; origin: string; payerEmail: string }): Promise<string> {
+export async function createSubscriptionCheckoutUrl(args: { organizationId: string; origin: string; payerEmail: string; trialEndsAt?: string | null }): Promise<string> {
   const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET; // only needed on protected Vercel previews
   const notificationUrl = new URL("/api/billing/mercadopago/webhook", args.origin);
   if (bypass) notificationUrl.searchParams.set("x-vercel-protection-bypass", bypass);
+  // Keep the remaining free-trial days: the first charge only happens after the trial ends.
+  const trialMs = args.trialEndsAt ? new Date(args.trialEndsAt).getTime() - Date.now() : 0;
+  const trialDays = trialMs > 0 ? Math.min(Math.ceil(trialMs / 86_400_000), 30) : 0;
   const body = await mpFetch("/preapproval", {
     method: "POST",
     body: JSON.stringify({
@@ -70,7 +73,7 @@ export async function createSubscriptionCheckoutUrl(args: { organizationId: stri
       back_url: new URL("/", args.origin).toString(),
       notification_url: notificationUrl.toString(),
       status: "pending",
-      auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: RESIDENCIAL_PRICE_BRL, currency_id: "BRL" },
+      auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: RESIDENCIAL_PRICE_BRL, currency_id: "BRL", ...(trialDays > 0 ? { free_trial: { frequency: trialDays, frequency_type: "days" } } : {}) },
     }),
   });
   if (!body.init_point) throw new Error("mercadopago_no_checkout_url");
