@@ -1,0 +1,125 @@
+/* Painel: tema verde escuro, minimalista (apenas visual) */
+html:has(.app-shell) { background: #06120f; }
+.app-shell {
+  --canvas: #06120f; --surface: #0c1d18; --surface-subtle: #0f241e; --ink: #e9f6f1; --muted: #8fa99f; --line: rgb(255 255 255 / 8%);
+  --teal: #22e0a0; --teal-soft: rgb(34 224 160 / 12%); --green: #22e0a0; --green-soft: rgb(34 224 160 / 14%);
+  --amber: #f0b45a; --amber-soft: rgb(240 180 90 / 14%); --red: #ff8a80; --red-soft: rgb(255 138 128 / 14%);
+  min-height: 100vh; color: var(--ink); background: radial-gradient(ellipse at 50% -10%, #0e3a2e 0%, #06120f 55%);
+}
+.app-shell :where(h1, h2, h3, strong, label) { color: #eaf7f2; }
+.app-shell :where(p, small, span, li) { color: #9bb3aa; }
+.app-shell .sidebar { background: #08160f; border-color: rgb(255 255 255 / 6%); }
+.app-shell .main-area { background: transparent; }
+.app-shell .topbar { border-bottom: 1px solid rgb(255 255 255 / 7%); background: rgb(6 18 15 / 82%); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.app-shell .topbar *, .app-shell .breadcrumb strong { color: #cfe5dd; }
+.app-shell .signout-button, .app-shell .organization-switcher { border-color: rgb(255 255 255 / 14%); background: transparent; color: #cfe5dd; }
+.app-shell .organization-switcher select { color: #cfe5dd; background: transparent; }
+.app-shell .organization-switcher select option { color: #111; }
+.app-shell .panel { border: 1px solid rgb(255 255 255 / 8%); border-radius: 18px; background: rgb(14 34 28 / 78%); box-shadow: none; color: var(--ink); }
+.app-shell .panel-title, .app-shell .section-title { color: #eaf7f2; font-size: 14px; }
+.app-shell .panel-kicker, .app-shell .section-subtitle, .app-shell .page-description { color: #8fa99f; }
+.app-shell .panel-heading > svg { color: #22e0a0; }
+.app-shell .eyebrow { color: #22e0a0; }
+.app-shell .link-button { color: #22e0a0; }
+.app-shell .primary-button { border: 0; border-radius: 12px; color: #03211a; background: #22e0a0; font-weight: 700; }
+.app-shell .primary-button:hover { background: #3cf0b5; }
+.app-shell .secondary-button { border: 1px solid rgb(255 255 255 / 16%); border-radius: 12px; color: #dff3ec; background: rgb(255 255 255 / 5%); }
+.app-shell .secondary-button:hover { background: rgb(255 255 255 / 10%); }
+.app-shell input, .app-shell select, .app-shell textarea { border-color: rgb(255 255 255 / 16%); border-radius: 10px; color: #eaf7f2; background: rgb(255 255 255 / 6%); }
+.app-shell input::placeholder { color: rgb(255 255 255 / 40%); }
+.app-shell .form-error, .app-shell .login-error { color: #ffb4ad; background: var(--red-soft); }
+.app-shell .form-success { color: #8cf2cf; background: var(--green-soft); }
+.app-shell .trial-banner { border: 1px solid rgb(34 224 160 / 25%); border-radius: 14px; color: #bff5e1; background: rgb(34 224 160 / 10%); }
+.app-shell .status-badge { border-radius: 999px; }
+.app-shell .status-badge.active { color: #8cf2cf; background: rgb(34 224 160 / 16%); }
+.app-shell .status-badge.available { color: #b7c9c2; background: rgb(255 255 255 / 9%); }
+.app-shell .status-badge.attention { color: #f4c987; background: var(--amber-soft); }
+.app-shell .status-dot { background: currentColor; }
+.app-shell .site-row { border-radius: 18px; }
+.app-shell .site-row-icon, .app-shell .charger-icon { color: #22e0a0; background: rgb(34 224 160 / 12%); border-color: transparent; }
+.app-shell .site-row-main strong, .app-shell .site-row-meta strong { color: #eaf7f2; }
+.app-shell .site-row-main span, .app-shell .site-row-meta span, .app-shell .charger-profile-details { color: #8fa99f; }
+.app-shell .charger-tabs { border-color: rgb(255 255 255 / 8%); }
+.app-shell .charger-tabs button { color: #8fa99f; background: transparent; }
+.app-shell .charger-tabs button.active { border-bottom-color: #22e0a0; color: #22e0a0; }
+.app-shell .charger-tabs button span { color: #cfe5dd; background: rgb(255 255 255 / 10%); }
+.app-shell .charger-diagnostics { border-color: rgb(255 255 255 / 8%); }
+.app-shell .charger-diagnostics strong { color: #cfe5dd; }
+.app-shell .demand-row { border-color: rgb(255 255 255 / 8%); background: rgb(255 255 255 / 3%); border-radius: 14px; }
+.app-shell .demand-row-top strong, .app-shell .demand-reading strong { color: #eaf7f2; }
+.app-shell .demand-row-top span, .app-shell .demand-status, .app-shell .demand-status > small, .app-shell .demand-disclaimer { color: #8fa99f; }
+.app-shell .demand-meter { background: rgb(255 255 255 / 10%); }
+.app-shell .demand-meter > span { background: #22e0a0; }
+.app-shell .operation-empty p:last-child, .app-shell .operation-empty h2 { color: #cfe5dd; }
+.app-shell .footnote { color: #5f7a70; }
+.app-shell .workspace-stat > strong { color: #eaf7f2; }
+.app-shell .workspace-stat-top, .app-shell .workspace-stat > small { color: #8fa99f; }
+.app-shell .workspace-stat-top svg { color: #22e0a0; }
+.app-shell .session-empty-inline, .app-shell .site-empty { color: #8fa99f; }
+.app-shell .mobile-nav { border-top: 1px solid rgb(255 255 255 / 8%); background: rgb(6 18 15 / 92%); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+.app-shell .mobile-nav button { color: #7f9a90; }
+.app-shell .mobile-nav button.active { color: #22e0a0; }
+.app-shell .command-confirm-dialog { color: #111; }
+.app-shell .command-confirm-dialog :where(h2, p) { color: #17232d; }
+.app-shell .command-confirm-dialog .secondary-button { color: #17232d; background: #fff; border-color: #cdd7da; }
+.app-shell .pwa-install-button { right: 14px; }
+
+/* Visão geral minimalista */
+.app-shell .dash-hello { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.app-shell .dash-hello h1 { margin: 0; font-size: 24px; letter-spacing: -.02em; }
+.app-shell .role-chip { border: 1px solid rgb(34 224 160 / 30%); border-radius: 999px; padding: 4px 11px; color: #22e0a0; font-size: 11px; text-transform: capitalize; }
+.app-shell .workspace-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.app-shell .workspace-stat { gap: 4px; padding: 14px; text-align: left; }
+.app-shell .workspace-stat > strong { font-size: 28px; }
+.app-shell .workspace-stat > small { display: none; }
+.app-shell .demand-panel:not(.demand-panel-expanded) .panel-kicker, .app-shell .demand-panel:not(.demand-panel-expanded) .demand-disclaimer { display: none; }
+.app-shell .charge-hero { position: relative; display: flex; min-height: 190px; flex-direction: column; justify-content: flex-end; gap: 6px; overflow: hidden; margin-bottom: 14px; border: 1px solid rgb(34 224 160 / 22%); border-radius: 22px; padding: 20px; background: radial-gradient(ellipse at 80% 20%, #0f5a44 0%, #07261d 55%, #05110d 100%); }
+.app-shell .charge-hero .charge-art { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .95; pointer-events: none; }
+.app-shell .charge-hero > :not(svg) { position: relative; }
+.app-shell .charge-hero h2 { margin: 0; max-width: 260px; font-size: 20px; line-height: 1.2; color: #fff; }
+.app-shell .charge-hero p { margin: 0; max-width: 280px; color: #b4d3c8; font-size: 12px; line-height: 1.5; }
+.app-shell .charge-hero .primary-button { align-self: flex-start; margin-top: 10px; min-height: 44px; padding: 0 20px; }
+.app-shell .charge-banner { min-height: 130px; }
+
+/* Carregadores: ação principal em destaque */
+.app-shell .charger-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px; }
+.app-shell .charger-control { order: 3; flex: 1 1 100%; }
+.app-shell .charger-control .command-button { display: flex; width: 100%; min-height: 50px; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 14px; color: #03211a; background: #22e0a0; font-size: 15px; font-weight: 700; }
+.app-shell .charger-control .command-button:disabled { color: #6f8a80; background: rgb(255 255 255 / 8%); }
+.app-shell .charger-control label { display: grid; gap: 4px; margin-bottom: 8px; }
+.app-shell .charger-more { order: 4; flex: 1 1 100%; border-top: 1px solid rgb(255 255 255 / 8%); padding-top: 10px; }
+.app-shell .charger-more > summary { cursor: pointer; color: #8fa99f; font-size: 12px; list-style: none; }
+.app-shell .charger-more > summary::before { content: "+ "; color: #22e0a0; }
+.app-shell .charger-more[open] > summary::before { content: "– "; }
+.app-shell .charger-more > :not(summary) { margin-top: 10px; }
+.app-shell .charge-hero .charge-art { opacity: .5; }
+.app-shell .charge-hero > :not(svg) { max-width: 62%; }
+.app-shell .charge-hero h2, .app-shell .charge-hero p { max-width: 100%; }
+.app-shell .charger-control form { width: 100%; }
+.app-shell .workspace-stat-top { gap: 6px; font-size: 11px; line-height: 1.25; }
+.app-shell .workspace-stat-top svg { flex: none; width: 14px; height: 14px; }
+
+/* Banner com a arte clara: foto no topo, texto sobre degradê escuro embaixo */
+.app-shell .charge-hero { min-height: 230px; border-color: rgb(34 224 160 / 25%); background: linear-gradient(to bottom, rgb(5 18 14 / 0%) 35%, rgb(5 18 14 / 88%) 78%, #05120e 100%), url("/charge-bg.webp") center 30% / cover no-repeat, #05120e; }
+.app-shell .charge-hero > :not(svg) { max-width: 100%; }
+.app-shell .charge-hero h2 { text-shadow: 0 1px 8px rgb(0 0 0 / 55%); }
+.app-shell .charge-hero p { color: #cfe5dd; }
+.app-shell .charge-banner { min-height: 190px; }
+
+/* Tipografia geométrica (Outfit) e anel de carregamento */
+.app-shell :where(button, input, select, textarea) { font-family: inherit; }
+.app-shell { letter-spacing: -.005em; }
+.app-shell :where(h1, h2, h3) { font-weight: 600; letter-spacing: -.02em; }
+.app-shell .charge-live { position: absolute; top: 14px; right: 14px; display: flex; align-items: center; gap: 8px; border: 1px solid rgb(34 224 160 / 35%); border-radius: 999px; padding: 5px 12px 5px 6px; background: rgb(5 18 14 / 72%); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.app-shell .charge-live span:last-child { color: #eaf7f2; font-size: 12px; font-variant-numeric: tabular-nums; }
+.app-shell .charge-ring { position: relative; display: grid; width: 34px; height: 34px; flex: none; place-items: center; color: #22e0a0; }
+.app-shell .charge-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.app-shell .ring-track { fill: none; stroke: rgb(34 224 160 / 22%); stroke-width: 2.5; }
+.app-shell .ring-arc { fill: none; stroke: #22e0a0; stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 45 75; transform-origin: 50% 50%; animation: ring-spin 1.8s linear infinite; filter: drop-shadow(0 0 4px rgb(34 224 160 / 70%)); }
+.app-shell .charge-ring svg + svg { position: static; width: 18px; height: 18px; transform: none; animation: ring-pulse 1.8s ease-in-out infinite; }
+@keyframes ring-spin { to { transform: rotate(360deg); } }
+@keyframes ring-pulse { 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .app-shell .ring-arc, .app-shell .charge-ring svg + svg { animation: none; } }
+.app-shell .charge-hero > .charge-live { position: absolute; max-width: none; }
+.app-shell .charge-hero { min-height: 260px; background: linear-gradient(to bottom, rgb(5 18 14 / 0%) 18%, rgb(5 18 14 / 80%) 52%, #05120e 88%), url("/charge-bg.webp") center 25% / cover no-repeat, #05120e; }
+.app-shell .charge-banner { min-height: 220px; }
