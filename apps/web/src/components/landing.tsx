@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { ArrowRight, Building2, Check, Gauge, Home, PlugZap, QrCode, ShieldCheck, Smartphone, Zap } from "lucide-react";
+import { HeroCarousel } from "./hero-carousel";
 import "./landing.css";
 
 const check = <Check size={16} aria-hidden="true"/>;
 
 const plans = [
-  { id: "casa", icon: <Home size={20}/>, name: "Usuário comum", tag: "Casa", price: "R$ 19,90", unit: "/mês", text: "Para quem tem carro elétrico em casa e quer controlar tudo pelo celular.", items: ["Iniciar, parar e acompanhar a recarga pelo celular", "Medição de kWh por sessão", "Histórico de recargas", "Instalável no celular (PWA)"] },
+  { id: "casa", icon: <Home size={20}/>, name: "Residencial", tag: "Casa", price: "R$ 19,90", unit: "/mês", text: "Para quem tem carro elétrico em casa e quer controlar tudo pelo celular.", items: ["Iniciar, parar e acompanhar a recarga pelo celular", "Medição de kWh por sessão", "Histórico de recargas", "Instalável no celular (PWA)"] },
   { id: "condominio", icon: <Building2 size={20}/>, name: "Condomínio", tag: "Mais procurado", hl: true, price: "R$ 199", unit: "/mês", text: "Até 5 carregadores por local. Carregador extra: + R$ 19,90/mês cada.", items: ["Vários carregadores e usuários em um painel", "Controle de acesso por morador", "Módulo de cobrança e rateio: + R$ 49,90/mês", "Se o app receber o pagamento: + 1% das recargas", "Exportação de consumo para a administração"] },
   { id: "eletroposto", icon: <PlugZap size={20}/>, name: "Eletroposto", tag: "Público", price: "R$ 149", unit: "/mês", text: "Até 2 carregadores AC. AC extra: + R$ 49 cada. DC: + R$ 99 cada.", items: ["Recarga por QR Code e controle de pagamento", "Status em tempo real via OCPP 1.6J", "Relatórios de sessões e receita", "+ 2% das recargas processadas"] },
 ];
@@ -35,26 +36,9 @@ export function Landing() {
               <Link href="/login" className="lp-btn ghost">Entrar no painel</Link>
             </div>
           </div>
-          <div>
-            <div className="lp-art" role="img" aria-label="Ilustração de um carregador de veículo elétrico ligado a um carro">
-              <svg viewBox="0 0 420 300" fill="none">
-                <rect x="30" y="228" width="360" height="6" rx="3" fill="#1d2f38"/>
-                <rect x="70" y="60" width="86" height="168" rx="18" fill="#12332f" stroke="#2fd3b8" strokeWidth="2"/>
-                <rect x="86" y="80" width="54" height="34" rx="7" fill="#070d11" stroke="#1d2f38"/>
-                <path d="m118 86-14 18h10l-4 14 16-20h-10z" fill="#7be8d3"/>
-                <circle cx="113" cy="150" r="7" fill="#2fd3b8"/>
-                <path d="M156 160c40 0 40 40 80 40h30" stroke="#2fd3b8" strokeWidth="5" strokeLinecap="round"/>
-                <path d="M250 160h120c14 0 22 8 24 22l4 30H236l-6-26c-2-12 6-26 20-26z" fill="#0e1a21" stroke="#2fd3b8" strokeWidth="2"/>
-                <circle cx="280" cy="214" r="17" fill="#070d11" stroke="#7be8d3" strokeWidth="3"/>
-                <circle cx="366" cy="214" r="17" fill="#070d11" stroke="#7be8d3" strokeWidth="3"/>
-                <rect x="250" y="40" width="130" height="64" rx="12" fill="#0e1a21" stroke="#1d2f38"/>
-                <text x="266" y="66" fill="#93a6ad" fontSize="11" fontFamily="Arial">Recarga ativa</text>
-                <text x="266" y="92" fill="#f2f7f8" fontSize="22" fontWeight="700" fontFamily="Arial">7,4 kW</text>
-              </svg>
-            </div>
-            <p className="lp-note">Ilustração original (temporária). Pode ser trocada por fotos reais.</p>
-          </div>
         </section>
+
+        <div className="lp-wrap"><HeroCarousel/></div>
 
         <div className="lp-wrap lp-stats">
           <div className="lp-stat"><b>OCPP 1.6J</b><span>Compatível com carregadores do mercado</span></div>
