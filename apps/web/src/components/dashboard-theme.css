@@ -208,3 +208,19 @@ html[data-theme="light"] .app-shell .ring-arc { stroke: #0f9d6e; filter: none; }
 .pix-box { display: grid; gap: 8px; max-width: 280px; padding: 12px; border-radius: 12px; border: 1px solid rgb(127 127 127 / 30%); }
 .pix-box img { background: #fff; border-radius: 8px; padding: 4px; justify-self: center; }
 .pix-box textarea { width: 100%; font-size: 11px; resize: none; }
+.condo-billing { display: grid; gap: 16px; }
+.tariff-form { display: grid; gap: 8px; max-width: 320px; margin: 8px 0; }
+.tariff-form label { display: grid; gap: 4px; font-size: 13px; }
+.statement-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.statement-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.statement-table th, .statement-table td { text-align: left; padding: 8px 6px; border-bottom: 1px solid rgb(127 127 127 / 25%); }
+.statement-table tfoot td { font-weight: 600; }
+.print-only { display: none; }
+@media print {
+  body * { visibility: hidden; }
+  .statement, .statement * { visibility: visible; }
+  .statement { position: absolute; inset: 0; background: #fff; color: #000; }
+  .no-print { display: none !important; }
+  .print-only { display: block; }
+}
+.wallet-balance { font-size: 32px; font-weight: 600; margin: 4px 0 12px; }

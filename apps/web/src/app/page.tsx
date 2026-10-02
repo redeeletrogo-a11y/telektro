@@ -59,7 +59,12 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
       supabase.from("chargers").select("id, charge_point_id, model, status, online").eq("organization_id", activeOrganization.id).is("removed_at", null).order("charge_point_id"),
       supabase.from("sessions").select("id, charger_id, started_at, ended_at").eq("organization_id", activeOrganization.id).order("started_at", { ascending: false }).limit(20),
     ]);
-    return <ResidentHome email={user.email ?? ""} organizationName={activeOrganization.name} chargers={residentChargers.data ?? []} sessions={residentSessions.data ?? []}/>;
+    let usage: { ended_at: string; kwh: number; price_per_kwh: number; amount: number }[] | null = null;
+    if (activeOrganization.account_type === "condominio") {
+      const { data: usageRows, error: usageError } = await supabase.rpc("my_condo_usage", { p_organization_id: activeOrganization.id, p_month: new Date().toISOString().slice(0, 7) + "-01" });
+      if (!usageError) usage = (usageRows ?? []).map((row: { ended_at: string; kwh: string | number; price_per_kwh: string | number; amount: string | number }) => ({ ended_at: row.ended_at, kwh: Number(row.kwh), price_per_kwh: Number(row.price_per_kwh), amount: Number(row.amount) }));
+    }
+    return <ResidentHome email={user.email ?? ""} organizationName={activeOrganization.name} chargers={residentChargers.data ?? []} sessions={residentSessions.data ?? []} usage={usage}/>;
   }
 
   if (!organizationHasAccess(activeOrganization)) {
@@ -112,10 +117,15 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
     if (meterError) return <SetupMessage title="Falha ao carregar medições" message="As sessões foram encontradas, mas não conseguimos consultar as leituras recentes dos carregadores."/>;
     meterReadings = (meterData ?? []) as MeterReading[];
   }
+  let condoTariff: { price_per_kwh: number; session_fee: number } | null = null;
+  if (activeOrganization.account_type === "condominio" && (activeMembership?.role === "owner" || activeMembership?.role === "admin")) {
+    const { data: tariffRow } = await supabase.from("tariffs").select("price_per_kwh, session_fee").eq("organization_id", activeOrganization.id).eq("active", true).is("site_id", null).order("valid_from", { ascending: false }).limit(1).maybeSingle();
+    if (tariffRow) condoTariff = { price_per_kwh: Number(tariffRow.price_per_kwh), session_fee: Number(tariffRow.session_fee) };
+  }
   const capacityKw = sites.reduce((total, site) => total + Number(site.max_power_kw ?? 0), 0);
 
   return <Dashboard email={user.email ?? ""} organizations={availableOrganizations} organization={activeOrganization}
-    role={activeMembership?.role ?? "viewer"} accountType={activeOrganization.account_type} trialDaysLeft={trialDaysLeft(activeOrganization)} pixDueDays={pixDueDays(activeOrganization)} residents={residents} invites={invites} sites={sites} chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} capacityKw={capacityKw}
+    role={activeMembership?.role ?? "viewer"} accountType={activeOrganization.account_type} trialDaysLeft={trialDaysLeft(activeOrganization)} pixDueDays={pixDueDays(activeOrganization)} condoTariff={condoTariff} residents={residents} invites={invites} sites={sites} chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} capacityKw={capacityKw}
     totalChargers={chargersResult.count ?? 0} onlineChargers={onlineResult.count ?? 0} activeSessions={activeSessions.length}
     sessionRows={activeSessions} completedSessionRows={completedSessions} meterReadings={meterReadings} commandRows={commandRows} dataLoadedAt={new Date().toISOString()}/>;
 }
