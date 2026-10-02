@@ -19,6 +19,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#0f776c", viewportFit: "cover" };
 
+const THEME_SCRIPT = `try{var t=localStorage.getItem("telektro-theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme="light"}`;
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="pt-BR"><body><PwaInstallButton/>{children}</body></html>;
+  return <html lang="pt-BR" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }}/></head><body><PwaInstallButton/>{children}</body></html>;
 }
