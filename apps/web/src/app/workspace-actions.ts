@@ -7,6 +7,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupportedTimeZone } from "@/lib/time-zone";
 
 export type FormState = { error?: string; success?: string; credential?: string; chargePointId?: string };
+
+async function accessBlocked(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, organizationId: string) {
+  const { data, error } = await supabase.rpc("org_has_access", { target_organization_id: organizationId });
+  return !error && data === false;
+}
+const blockedMessage = "Seu teste grátis terminou. Assine o plano para continuar usando os controles.";
 const chargerStaleAfterMs = Math.max(60, Number(process.env.OCPP_CHARGER_STALE_AFTER_SECONDS ?? 180)) * 1000;
 
 function chargerHasRecentHeartbeat(lastHeartbeatAt: string | null) {
@@ -128,6 +134,7 @@ export async function registerCharger(organizationId: string, _previous: FormSta
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Sua sessão expirou. Entre novamente para continuar." };
+  if (await accessBlocked(supabase, organizationId)) return { error: blockedMessage };
   const { data: membership } = await supabase.from("memberships").select("role")
     .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
   if (!membership || !["owner", "admin", "technician"].includes(membership.role)) {
@@ -183,6 +190,7 @@ export async function requestRemoteStart(organizationId: string, chargerId: stri
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Sua sessão expirou. Entre novamente para continuar." };
+  if (await accessBlocked(supabase, organizationId)) return { error: blockedMessage };
   const { data: membership } = await supabase.from("memberships").select("role")
     .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
   if (!membership || !["owner", "admin", "operator", "technician"].includes(membership.role)) {

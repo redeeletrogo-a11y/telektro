@@ -497,3 +497,4 @@ tbody tr:last-child td { border-bottom: 0; }
 .limit-bar { height: 6px; border-radius: 3px; background: #e5ecee; overflow: hidden; }
 .limit-bar > i { display: block; height: 100%; background: var(--teal); }
 .resident-home { max-width: 760px; margin: 0 auto; padding: 20px 16px 40px; display: grid; gap: 14px; }
+.trial-banner { margin-bottom: 14px; padding: 9px 12px; border: 1px solid #f0d9a8; border-radius: 8px; background: #fff7e6; color: #7a5200; font-size: 12px; }
