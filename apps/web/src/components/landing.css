@@ -66,3 +66,12 @@
   .lp-show-ctl { grid-template-columns:1fr auto; align-items:center; }
 }
 @media (prefers-reduced-motion:reduce){ .lp-show-img { transition:none; } }
+.lp-wa { position:fixed; left:16px; bottom:max(16px, env(safe-area-inset-bottom)); z-index:40; display:inline-flex; align-items:center; gap:8px; min-height:52px; padding:0 18px 0 14px; border-radius:99px; background:#25d366; color:#04301a; font-weight:700; font-size:15px; text-decoration:none; box-shadow:0 8px 24px rgba(0,0,0,.35); }
+.lp-wa:hover { filter:brightness(1.05); }
+.lp-wa:focus-visible { outline:3px solid #fff; outline-offset:3px; }
+@media (max-width:420px){ .lp-wa span { display:none; } .lp-wa { padding:0; width:56px; height:56px; justify-content:center; } }
+.lp-seo p { color:var(--lp-mut); max-width:70ch; margin:0 0 14px; line-height:1.6; }
+.lp-faq { display:grid; gap:10px; margin-top:20px; }
+.lp-faq details { border:1px solid var(--lp-line); border-radius:14px; padding:14px 16px; background:var(--lp-card); }
+.lp-faq summary { cursor:pointer; font-weight:700; color:var(--lp-ink); }
+.lp-faq details p { margin:10px 0 0; }
