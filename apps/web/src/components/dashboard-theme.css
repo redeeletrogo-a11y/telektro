@@ -123,3 +123,79 @@ html:has(.app-shell) { background: #06120f; }
 .app-shell .charge-hero > .charge-live { position: absolute; max-width: none; }
 .app-shell .charge-hero { min-height: 260px; background: linear-gradient(to bottom, rgb(5 18 14 / 0%) 18%, rgb(5 18 14 / 80%) 52%, #05120e 88%), url("/charge-bg.webp") center 25% / cover no-repeat, #05120e; }
 .app-shell .charge-banner { min-height: 220px; }
+
+/* Botão dia/noite */
+.app-shell .theme-toggle { display: grid; width: 34px; height: 34px; flex: none; place-items: center; border: 1px solid rgb(255 255 255 / 16%); border-radius: 999px; color: #cfe5dd; background: transparent; cursor: pointer; }
+.app-shell .theme-toggle:hover { background: rgb(255 255 255 / 8%); }
+
+/* Tema claro (combina com a arte clara e o verde da marca) */
+html[data-theme="light"]:has(.app-shell) { background: #f3faf7; }
+html[data-theme="light"] .app-shell {
+  --canvas: #f3faf7; --surface: #ffffff; --surface-subtle: #eef7f3; --ink: #0d2b22; --muted: #5b7a6e; --line: rgb(13 43 34 / 10%);
+  --teal: #0f9d6e; --teal-soft: rgb(15 157 110 / 10%); --green: #0f9d6e; --green-soft: rgb(15 157 110 / 12%);
+  --amber: #b7791f; --amber-soft: rgb(240 180 90 / 22%); --red: #c0392b; --red-soft: rgb(220 80 70 / 12%);
+  background: radial-gradient(ellipse at 50% -10%, #d8f4e9 0%, #f3faf7 60%);
+}
+html[data-theme="light"] .app-shell :where(h1, h2, h3, strong, label) { color: #0d2b22; }
+html[data-theme="light"] .app-shell :where(p, small, span, li) { color: #4f6f63; }
+html[data-theme="light"] .app-shell .sidebar { background: #ffffff; border-color: rgb(13 43 34 / 8%); }
+html[data-theme="light"] .app-shell .sidebar :where(.nav-item, .brand, .gateway-note, .profile-name, .profile-role) { color: #35584a; }
+html[data-theme="light"] .app-shell .sidebar .nav-item.active { color: #0f9d6e; background: rgb(15 157 110 / 10%); }
+html[data-theme="light"] .app-shell .gateway-card { background: #eef7f3; border-color: rgb(13 43 34 / 8%); }
+html[data-theme="light"] .app-shell .topbar { border-bottom-color: rgb(13 43 34 / 8%); background: rgb(243 250 247 / 85%); }
+html[data-theme="light"] .app-shell .topbar *, html[data-theme="light"] .app-shell .breadcrumb strong { color: #24473a; }
+html[data-theme="light"] .app-shell .signout-button, html[data-theme="light"] .app-shell .organization-switcher, html[data-theme="light"] .app-shell .theme-toggle { border-color: rgb(13 43 34 / 16%); background: #fff; color: #24473a; }
+html[data-theme="light"] .app-shell .theme-toggle:hover { background: #eef7f3; }
+html[data-theme="light"] .app-shell .organization-switcher select { color: #24473a; background: transparent; }
+html[data-theme="light"] .app-shell .panel { border-color: rgb(13 43 34 / 8%); background: #fff; box-shadow: 0 1px 2px rgb(13 43 34 / 4%), 0 8px 24px rgb(13 43 34 / 4%); }
+html[data-theme="light"] .app-shell .panel-title, html[data-theme="light"] .app-shell .section-title { color: #0d2b22; }
+html[data-theme="light"] .app-shell .panel-kicker, html[data-theme="light"] .app-shell .section-subtitle, html[data-theme="light"] .app-shell .page-description { color: #5b7a6e; }
+html[data-theme="light"] .app-shell .panel-heading > svg, html[data-theme="light"] .app-shell .eyebrow, html[data-theme="light"] .app-shell .link-button { color: #0f9d6e; }
+html[data-theme="light"] .app-shell .primary-button, html[data-theme="light"] .app-shell .charger-control .command-button { color: #fff; background: #0f9d6e; }
+html[data-theme="light"] .app-shell .primary-button:hover { background: #0b8a60; }
+html[data-theme="light"] .app-shell .charger-control .command-button:disabled { color: #8aa398; background: #e6efeb; }
+html[data-theme="light"] .app-shell .secondary-button { border-color: rgb(13 43 34 / 18%); color: #1c4a39; background: #fff; }
+html[data-theme="light"] .app-shell .secondary-button:hover { background: #eef7f3; }
+html[data-theme="light"] .app-shell input, html[data-theme="light"] .app-shell select, html[data-theme="light"] .app-shell textarea { border-color: rgb(13 43 34 / 18%); color: #0d2b22; background: #fff; }
+html[data-theme="light"] .app-shell input::placeholder { color: rgb(13 43 34 / 40%); }
+html[data-theme="light"] .app-shell .form-error, html[data-theme="light"] .app-shell .login-error { color: #a32b20; }
+html[data-theme="light"] .app-shell .form-success { color: #0b7a55; }
+html[data-theme="light"] .app-shell .trial-banner { border-color: rgb(15 157 110 / 30%); color: #0b6b4b; background: rgb(15 157 110 / 9%); }
+html[data-theme="light"] .app-shell .status-badge.active { color: #0b7a55; background: rgb(15 157 110 / 14%); }
+html[data-theme="light"] .app-shell .status-badge.available { color: #4f6f63; background: #e9f1ed; }
+html[data-theme="light"] .app-shell .status-badge.attention { color: #8a5a0f; background: var(--amber-soft); }
+html[data-theme="light"] .app-shell .site-row-icon, html[data-theme="light"] .app-shell .charger-icon { color: #0f9d6e; background: rgb(15 157 110 / 11%); }
+html[data-theme="light"] .app-shell .site-row-main strong, html[data-theme="light"] .app-shell .site-row-meta strong { color: #0d2b22; }
+html[data-theme="light"] .app-shell .site-row-main span, html[data-theme="light"] .app-shell .site-row-meta span, html[data-theme="light"] .app-shell .charger-profile-details { color: #5b7a6e; }
+html[data-theme="light"] .app-shell .charger-tabs { border-color: rgb(13 43 34 / 10%); }
+html[data-theme="light"] .app-shell .charger-tabs button { color: #5b7a6e; }
+html[data-theme="light"] .app-shell .charger-tabs button.active { border-bottom-color: #0f9d6e; color: #0f9d6e; }
+html[data-theme="light"] .app-shell .charger-tabs button span { color: #24473a; background: #e9f1ed; }
+html[data-theme="light"] .app-shell .charger-diagnostics { border-color: rgb(13 43 34 / 10%); }
+html[data-theme="light"] .app-shell .charger-diagnostics strong { color: #24473a; }
+html[data-theme="light"] .app-shell .demand-row { border-color: rgb(13 43 34 / 10%); background: #f6fbf9; }
+html[data-theme="light"] .app-shell .demand-row-top strong, html[data-theme="light"] .app-shell .demand-reading strong { color: #0d2b22; }
+html[data-theme="light"] .app-shell .demand-row-top span, html[data-theme="light"] .app-shell .demand-status, html[data-theme="light"] .app-shell .demand-status > small, html[data-theme="light"] .app-shell .demand-disclaimer { color: #5b7a6e; }
+html[data-theme="light"] .app-shell .demand-meter { background: #dcebe5; }
+html[data-theme="light"] .app-shell .demand-meter > span { background: #0f9d6e; }
+html[data-theme="light"] .app-shell .operation-empty p:last-child, html[data-theme="light"] .app-shell .operation-empty h2 { color: #24473a; }
+html[data-theme="light"] .app-shell .footnote { color: #7f9a8f; }
+html[data-theme="light"] .app-shell .workspace-stat > strong { color: #0d2b22; }
+html[data-theme="light"] .app-shell .workspace-stat-top, html[data-theme="light"] .app-shell .workspace-stat > small { color: #5b7a6e; }
+html[data-theme="light"] .app-shell .workspace-stat-top svg { color: #0f9d6e; }
+html[data-theme="light"] .app-shell .session-empty-inline, html[data-theme="light"] .app-shell .site-empty { color: #5b7a6e; }
+html[data-theme="light"] .app-shell .mobile-nav { border-top-color: rgb(13 43 34 / 8%); background: rgb(255 255 255 / 94%); }
+html[data-theme="light"] .app-shell .mobile-nav button { color: #7f9a8f; }
+html[data-theme="light"] .app-shell .mobile-nav button.active { color: #0f9d6e; }
+html[data-theme="light"] .app-shell .role-chip { border-color: rgb(15 157 110 / 35%); color: #0f9d6e; }
+html[data-theme="light"] .app-shell .charger-more { border-top-color: rgb(13 43 34 / 10%); }
+html[data-theme="light"] .app-shell .charger-more > summary { color: #5b7a6e; }
+html[data-theme="light"] .app-shell .charger-more > summary::before { color: #0f9d6e; }
+html[data-theme="light"] .app-shell .charge-hero { border-color: rgb(15 157 110 / 25%); background: linear-gradient(to bottom, rgb(243 250 247 / 0%) 18%, rgb(243 250 247 / 82%) 55%, #f3faf7 90%), url("/charge-bg.webp") center 25% / cover no-repeat, #f3faf7; }
+html[data-theme="light"] .app-shell .charge-hero h2 { color: #0d2b22; text-shadow: none; }
+html[data-theme="light"] .app-shell .charge-hero p { color: #35584a; }
+html[data-theme="light"] .app-shell .charge-live { border-color: rgb(15 157 110 / 35%); background: rgb(255 255 255 / 85%); }
+html[data-theme="light"] .app-shell .charge-live span:last-child { color: #0d2b22; }
+html[data-theme="light"] .app-shell .charge-ring { color: #0f9d6e; }
+html[data-theme="light"] .app-shell .ring-track { stroke: rgb(15 157 110 / 22%); }
+html[data-theme="light"] .app-shell .ring-arc { stroke: #0f9d6e; filter: none; }

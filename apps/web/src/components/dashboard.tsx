@@ -5,7 +5,7 @@ import { Outfit } from "next/font/google";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ResidentsPanel, type Invite, type Resident } from "@/components/residents-panel";
-import { Activity, ArrowRight, Building2, Car, Check, Clock3, Copy, LayoutDashboard, MapPin, Play, PlugZap, RotateCcw, Square, Trash2, Users, Zap } from "lucide-react";
+import { Activity, ArrowRight, Building2, Car, Check, Clock3, Copy, LayoutDashboard, MapPin, Moon, Sun, Play, PlugZap, RotateCcw, Square, Trash2, Users, Zap } from "lucide-react";
 import { createSite, registerCharger, registerRfidAuthorization, removeCharger, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, rotateChargerCredential, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
 
 type Organization = { id: string; name: string; slug: string; account_type?: string; resident_limit?: number | null };
@@ -21,6 +21,21 @@ type CommandRecord = { id: string; charger_id: string; action: string; status: s
 const initialState: FormState = {};
 
 const interfaceFont = Outfit({ subsets: ["latin"], display: "swap" });
+
+function ThemeToggle() {
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  useEffect(() => {
+    const id = window.setTimeout(() => setTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light"), 0);
+    return () => window.clearTimeout(id);
+  }, []);
+  const toggle = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem("telektro-theme", next); } catch {}
+  };
+  return <button type="button" className="theme-toggle" onClick={toggle} aria-label={theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"} title={theme === "dark" ? "Tema claro" : "Tema escuro"}>{theme === "dark" ? <Sun size={16}/> : <Moon size={16}/>}</button>;
+}
 
 function ChargeRing() {
   return <span className="charge-ring" aria-hidden="true"><svg viewBox="0 0 44 44"><circle className="ring-track" cx="22" cy="22" r="19"/><circle className="ring-arc" cx="22" cy="22" r="19"/></svg><Car size={18}/></span>;
@@ -246,6 +261,7 @@ export function Dashboard({
               {organizations.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           </form>
+          <ThemeToggle/>
           <span className="account-email" title={email}>{email}</span>
           <form action={signOut}><button className="signout-button" type="submit">Sair</button></form>
         </div>
