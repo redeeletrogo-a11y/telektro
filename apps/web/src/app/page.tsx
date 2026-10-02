@@ -7,7 +7,7 @@ import { PIX_GRACE_DAYS, syncPendingPix } from "@/lib/pix";
 import { SubscribeScreen } from "@/components/subscribe-screen";
 import { mercadoPagoConfigured, organizationHasAccess, reconcileSubscription, trialDaysLeft } from "@/lib/billing";
 import { ResidentHome } from "@/components/resident-home";
-import type { Invite, Resident } from "@/components/residents-panel";
+import type { Invite, Resident, ResidentTag } from "@/components/residents-panel";
 import { OrganizationOnboarding } from "@/components/organization-onboarding";
 
 // Pix subscribers: days until the paid month ends (current_period_end holds that date plus the grace days). Negative = in grace.
@@ -58,6 +58,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
     const [residentChargers, residentSessions] = await Promise.all([
       supabase.from("chargers").select("id, charge_point_id, model, status, online").eq("organization_id", activeOrganization.id).is("removed_at", null).order("charge_point_id"),
       supabase.from("sessions").select("id, charger_id, started_at, ended_at").eq("organization_id", activeOrganization.id).order("started_at", { ascending: false }).limit(20),
+      supabase.from("resident_tags").select("id, user_id, label, id_tag_hash, enabled").eq("organization_id", activeOrganization.id).eq("enabled", true).order("created_at", { ascending: false }),
     ]);
     let usage: { ended_at: string; kwh: number; price_per_kwh: number; amount: number }[] | null = null;
     if (activeOrganization.account_type === "condominio") {
@@ -75,13 +76,16 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   const isCondoAdmin = activeOrganization.account_type === "condominio" && ["owner", "admin"].includes(activeMembership?.role ?? "");
   let residents: Resident[] = [];
   let invites: Invite[] = [];
+  let residentTags: ResidentTag[] = [];
   if (isCondoAdmin) {
-    const [residentsResult, invitesResult] = await Promise.all([
+    const [residentsResult, invitesResult, tagsResult] = await Promise.all([
       supabase.rpc("list_residents", { p_organization_id: activeOrganization.id }),
       supabase.from("organization_invites").select("id, code, expires_at, revoked_at, accepted_count").eq("organization_id", activeOrganization.id).order("created_at", { ascending: false }).limit(20),
+      supabase.from("resident_tags").select("id, user_id, label, id_tag_hash, enabled").eq("organization_id", activeOrganization.id).eq("enabled", true).order("created_at", { ascending: false }),
     ]);
     residents = (residentsResult.data ?? []) as Resident[];
     invites = (invitesResult.data ?? []) as Invite[];
+    residentTags = (tagsResult.data ?? []) as ResidentTag[];
   }
 
   const [sitesResult, chargerListResult, removedChargersResult, chargersResult, onlineResult, sessionsResult, historyResult, commandsResult, connectorResult, authorizationResult] = await Promise.all([
@@ -125,7 +129,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   const capacityKw = sites.reduce((total, site) => total + Number(site.max_power_kw ?? 0), 0);
 
   return <Dashboard email={user.email ?? ""} organizations={availableOrganizations} organization={activeOrganization}
-    role={activeMembership?.role ?? "viewer"} accountType={activeOrganization.account_type} trialDaysLeft={trialDaysLeft(activeOrganization)} pixDueDays={pixDueDays(activeOrganization)} condoTariff={condoTariff} residents={residents} invites={invites} sites={sites} chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} capacityKw={capacityKw}
+    role={activeMembership?.role ?? "viewer"} accountType={activeOrganization.account_type} trialDaysLeft={trialDaysLeft(activeOrganization)} pixDueDays={pixDueDays(activeOrganization)} condoTariff={condoTariff} residents={residents} residentTags={residentTags} invites={invites} sites={sites} chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} capacityKw={capacityKw}
     totalChargers={chargersResult.count ?? 0} onlineChargers={onlineResult.count ?? 0} activeSessions={activeSessions.length}
     sessionRows={activeSessions} completedSessionRows={completedSessions} meterReadings={meterReadings} commandRows={commandRows} dataLoadedAt={new Date().toISOString()}/>;
 }
