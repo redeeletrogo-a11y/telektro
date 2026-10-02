@@ -6,3 +6,4 @@ export const WHATSAPP_MESSAGE = "Olá, quero saber mais sobre o Telektro";
 export const whatsappUrl = (message = WHATSAPP_MESSAGE) => `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 export const SITE_TITLE = "Telektro: gestão de eletroposto e carregador de carro elétrico";
 export const SITE_DESCRIPTION = "Plataforma para gestão de carregador elétrico em casa, condomínio e eletroposto. Controle recargas pelo celular, meça kWh por sessão e cobre com OCPP 1.6J. Teste grátis por 7 dias.";
+export const COMPANY_NOTE = "Telektro é um produto da Nexa Labs Serviços LTDA - CNPJ 65.072.532/0001-80";
