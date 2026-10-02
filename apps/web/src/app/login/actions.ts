@@ -2,11 +2,14 @@
 
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { SITE_URL } from "@/lib/site";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type LoginState = { error?: string; message?: string };
 
 async function getSiteUrl() {
+  // Production always signs in on the canonical domain, never on a vercel.app alias.
+  if (process.env.VERCEL_ENV === "production") return SITE_URL;
   const configured = process.env.NEXT_PUBLIC_SITE_URL;
   const isLocalUrl = configured ? /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/.test(configured) : false;
   const requestOrigin = (await headers()).get("origin");
