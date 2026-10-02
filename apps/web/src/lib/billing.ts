@@ -55,7 +55,7 @@ async function mpFetch(path: string, init?: RequestInit) {
 
 // Creates a pending monthly subscription (preapproval) and returns the checkout URL where the buyer enters payment.
 // The organization id travels in external_reference; the webhook uses it to activate the right organization.
-export async function createSubscriptionCheckoutUrl(args: { organizationId: string; origin: string }): Promise<string> {
+export async function createSubscriptionCheckoutUrl(args: { organizationId: string; origin: string; payerEmail: string }): Promise<string> {
   const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET; // only needed on protected Vercel previews
   const notificationUrl = new URL("/api/billing/mercadopago/webhook", args.origin);
   if (bypass) notificationUrl.searchParams.set("x-vercel-protection-bypass", bypass);
@@ -64,6 +64,8 @@ export async function createSubscriptionCheckoutUrl(args: { organizationId: stri
     body: JSON.stringify({
       reason: "Telektro Residencial",
       external_reference: args.organizationId,
+      // Mercado Pago requires the payer e-mail. With TEST credentials it must be a test buyer account, so previews can override it.
+      payer_email: process.env.MERCADOPAGO_PAYER_EMAIL_OVERRIDE || args.payerEmail,
       back_url: new URL("/", args.origin).toString(),
       notification_url: notificationUrl.toString(),
       status: "pending",
