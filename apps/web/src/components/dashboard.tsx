@@ -1,5 +1,6 @@
 "use client";
 
+import { PixPay } from "@/components/pix-pay";
 import "./dashboard-theme.css";
 import { Outfit } from "next/font/google";
 import { useActionState, useEffect, useRef, useState } from "react";
@@ -186,7 +187,7 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
 }
 
 export function Dashboard({
-  email, organizations, organization, role, accountType, trialDaysLeft, residents, invites, sites, chargers, removedChargers, connectors, authorizations, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, completedSessionRows, meterReadings, commandRows, dataLoadedAt,
+  email, organizations, organization, role, accountType, trialDaysLeft, pixDueDays, residents, invites, sites, chargers, removedChargers, connectors, authorizations, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, completedSessionRows, meterReadings, commandRows, dataLoadedAt,
 }: {
   email: string;
   organizations: Organization[];
@@ -194,6 +195,7 @@ export function Dashboard({
   role: string;
   accountType: string;
   trialDaysLeft: number | null;
+  pixDueDays: number | null;
   residents: Resident[];
   invites: Invite[];
   sites: Site[];
@@ -277,7 +279,8 @@ export function Dashboard({
       </header>
 
       <div className="page-wrap">
-        {trialDaysLeft !== null && <div className="trial-banner" role="status"><span>Teste grátis: {trialDaysLeft} dia(s) restante(s). Depois, plano Residencial R$ 19,90/mês.</span>{canManageSites && <TrialSubscribe organizationId={organization.id}/>}</div>}
+        {trialDaysLeft !== null && <div className="trial-banner" role="status"><span>Teste grátis: {trialDaysLeft} dia(s) restante(s). Depois, plano Residencial R$ 19,90/mês.</span>{canManageSites && <TrialSubscribe organizationId={organization.id}/>}{canManageSites && <PixPay organizationId={organization.id}/>}</div>}
+        {pixDueDays !== null && pixDueDays <= 5 && <div className="trial-banner" role="status"><span>{pixDueDays >= 0 ? `Sua mensalidade Pix vence em ${pixDueDays} dia(s).` : `Mensalidade Pix vencida. Pague em até ${Math.max(0, 3 + pixDueDays)} dia(s) para não perder o acesso.`}</span>{canManageSites && <PixPay organizationId={organization.id} label="Gerar Pix do próximo mês"/>}</div>}
         <div className="dash-hello"><h1>{activeNav === "Visão geral" ? organization.name : activeNav}</h1><span className="role-chip">{role}</span></div>
 
         {activeNav === "Visão geral" ? <>

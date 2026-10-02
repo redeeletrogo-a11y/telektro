@@ -3,13 +3,21 @@ import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Landing } from "@/components/landing";
 import { Dashboard } from "@/components/dashboard";
+import { PIX_GRACE_DAYS, syncPendingPix } from "@/lib/pix";
 import { SubscribeScreen } from "@/components/subscribe-screen";
 import { mercadoPagoConfigured, organizationHasAccess, reconcileSubscription, trialDaysLeft } from "@/lib/billing";
 import { ResidentHome } from "@/components/resident-home";
 import type { Invite, Resident } from "@/components/residents-panel";
 import { OrganizationOnboarding } from "@/components/organization-onboarding";
 
-type Organization = { id: string; name: string; slug: string; account_type: string; resident_limit: number | null; subscription_status: string; trial_ends_at: string | null; current_period_end: string | null };
+// Pix subscribers: days until the paid month ends (current_period_end holds that date plus the grace days). Negative = in grace.
+function pixDueDays(org: { subscription_provider: string | null; current_period_end: string | null }) {
+  if (org.subscription_provider !== "mercadopago_pix" || !org.current_period_end) return null;
+  const due = new Date(org.current_period_end).getTime() - PIX_GRACE_DAYS * 86_400_000;
+  return Math.ceil((due - Date.now()) / 86_400_000);
+}
+
+type Organization = { id: string; name: string; slug: string; account_type: string; resident_limit: number | null; subscription_status: string; trial_ends_at: string | null; current_period_end: string | null; subscription_provider: string | null };
 type Site = { id: string; name: string; address: string | null; timezone: string; max_power_kw: number | null };
 type Charger = { id: string; organization_id: string; site_id: string; charge_point_id: string; vendor: string | null; model: string | null; firmware: string | null; model_code: string | null; serial_number: string | null; connector_type: string | null; connector_count: number | null; installation_power_kw: number | null; ocpp_version: string | null; technical_specs: Record<string, unknown>; capabilities: Record<string, unknown>; max_power_kw: number | null; status: string; online: boolean; last_heartbeat_at: string | null; last_boot_at: string | null; last_status_notification_at: string | null; last_transaction_at: string | null; last_transaction_id: number | null; last_ocpp_error: string | null; removed_at: string | null; removed_by: string | null };
 type Connector = { id: string; organization_id: string; charger_id: string; connector_id: number; status: string; updated_at: string };
@@ -38,7 +46,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   if (!memberships?.length) return <OrganizationOnboarding email={user.email ?? "Conta Telektro"}/>;
 
   const organizationIds = memberships.map((membership) => membership.organization_id);
-  const { data: organizations, error: organizationsError } = await supabase.from("organizations").select("id, name, slug, account_type, resident_limit, subscription_status, trial_ends_at, current_period_end").in("id", organizationIds).order("name");
+  const { data: organizations, error: organizationsError } = await supabase.from("organizations").select("id, name, slug, account_type, resident_limit, subscription_status, trial_ends_at, current_period_end, subscription_provider").in("id", organizationIds).order("name");
   if (organizationsError || !organizations?.length) return <SetupMessage title="Organização indisponível" message="Não conseguimos carregar as organizações vinculadas à sua conta."/>;
 
   const { org: requestedOrganizationId } = await searchParams;
@@ -55,7 +63,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   }
 
   if (!organizationHasAccess(activeOrganization)) {
-    if (activeOrganization.account_type === "residencial" && await reconcileSubscription(activeOrganization.id)) redirect("/");
+    if (activeOrganization.account_type === "residencial" && (await reconcileSubscription(activeOrganization.id) || await syncPendingPix(activeOrganization.id))) redirect("/");
     return <SubscribeScreen organizationId={activeOrganization.id} paymentsEnabled={mercadoPagoConfigured()} organizationName={activeOrganization.name} email={user.email ?? ""} trialEnded={activeOrganization.subscription_status === "trialing"}/>;
   }
 
@@ -107,7 +115,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   const capacityKw = sites.reduce((total, site) => total + Number(site.max_power_kw ?? 0), 0);
 
   return <Dashboard email={user.email ?? ""} organizations={availableOrganizations} organization={activeOrganization}
-    role={activeMembership?.role ?? "viewer"} accountType={activeOrganization.account_type} trialDaysLeft={trialDaysLeft(activeOrganization)} residents={residents} invites={invites} sites={sites} chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} capacityKw={capacityKw}
+    role={activeMembership?.role ?? "viewer"} accountType={activeOrganization.account_type} trialDaysLeft={trialDaysLeft(activeOrganization)} pixDueDays={pixDueDays(activeOrganization)} residents={residents} invites={invites} sites={sites} chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} capacityKw={capacityKw}
     totalChargers={chargersResult.count ?? 0} onlineChargers={onlineResult.count ?? 0} activeSessions={activeSessions.length}
     sessionRows={activeSessions} completedSessionRows={completedSessions} meterReadings={meterReadings} commandRows={commandRows} dataLoadedAt={new Date().toISOString()}/>;
 }

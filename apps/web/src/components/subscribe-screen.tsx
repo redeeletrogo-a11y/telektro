@@ -2,6 +2,7 @@
 import { Zap } from "lucide-react";
 import { useActionState } from "react";
 import { signOut, startSubscription, type FormState } from "@/app/workspace-actions";
+import { PixPay } from "@/components/pix-pay";
 import { RESIDENCIAL_PRICE_LABEL } from "@/lib/billing";
 
 const initialState: FormState = {};
@@ -24,6 +25,7 @@ export function SubscribeScreen({ organizationId, organizationName, email, trial
         <span className="field-help">O pagamento online ainda está sendo ativado. Para liberar agora, fale com a Telektro informando o e-mail {email}.</span>
       </>}
       {state.error && <small className="form-error" role="alert">{state.error}</small>}
+      {paymentsEnabled && <><span className="field-help">Ou pague 1 mês por Pix, sem cartão (renova quando você pagar o próximo).</span><PixPay organizationId={organizationId}/></>}
     </div>
     <form action={signOut}><button className="signout-button" type="submit">Sair</button></form>
   </section></main>;

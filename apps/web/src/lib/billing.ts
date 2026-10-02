@@ -38,7 +38,7 @@ export function mercadoPagoConfigured() {
   return Boolean(process.env.MERCADOPAGO_ACCESS_TOKEN);
 }
 
-async function mpFetch(path: string, init?: RequestInit) {
+export async function mpFetch(path: string, init?: RequestInit) {
   const token = process.env.MERCADOPAGO_ACCESS_TOKEN;
   if (!token) throw new Error("mercadopago_not_configured");
   const response = await fetch(`${MP_API}${path}`, {
