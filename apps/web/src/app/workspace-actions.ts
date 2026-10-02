@@ -2,11 +2,19 @@
 
 import { createHash, randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { createSubscriptionCheckoutUrl, mercadoPagoConfigured } from "@/lib/billing";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupportedTimeZone } from "@/lib/time-zone";
 
 export type FormState = { error?: string; success?: string; credential?: string; chargePointId?: string };
+
+async function accessBlocked(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, organizationId: string) {
+  const { data, error } = await supabase.rpc("org_has_access", { target_organization_id: organizationId });
+  return !error && data === false;
+}
+const blockedMessage = "Seu teste grátis terminou. Assine o plano para continuar usando os controles.";
 const chargerStaleAfterMs = Math.max(60, Number(process.env.OCPP_CHARGER_STALE_AFTER_SECONDS ?? 180)) * 1000;
 
 function chargerHasRecentHeartbeat(lastHeartbeatAt: string | null) {
@@ -128,6 +136,7 @@ export async function registerCharger(organizationId: string, _previous: FormSta
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Sua sessão expirou. Entre novamente para continuar." };
+  if (await accessBlocked(supabase, organizationId)) return { error: blockedMessage };
   const { data: membership } = await supabase.from("memberships").select("role")
     .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
   if (!membership || !["owner", "admin", "technician"].includes(membership.role)) {
@@ -183,6 +192,7 @@ export async function requestRemoteStart(organizationId: string, chargerId: stri
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Sua sessão expirou. Entre novamente para continuar." };
+  if (await accessBlocked(supabase, organizationId)) return { error: blockedMessage };
   const { data: membership } = await supabase.from("memberships").select("role")
     .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
   if (!membership || !["owner", "admin", "operator", "technician"].includes(membership.role)) {
@@ -198,7 +208,7 @@ export async function requestRemoteStart(organizationId: string, chargerId: stri
   const rawConnectorId = String(_formData.get("connector_id") ?? "").trim();
   let connectorId: number | null = rawConnectorId ? Number(rawConnectorId) : null;
   if (rawConnectorId && (!Number.isInteger(connectorId) || Number(connectorId) < 1)) return { error: "Selecione um conector válido." };
-  const eligible = (connectors ?? []).filter((connector) => ["Available", "Preparing"].includes(connector.status));
+  const eligible = (connectors ?? []).filter((connector) => connector.connector_id >= 1 && ["Available", "Preparing"].includes(connector.status));
   if (connectorId !== null) {
     const connector = (connectors ?? []).find((item) => item.connector_id === connectorId);
     if (!connector || !["Available", "Preparing"].includes(connector.status)) return { error: "Este conector não está disponível para iniciar uma recarga." };
@@ -486,4 +496,25 @@ export async function removeResident(organizationId: string, userId: string): Pr
   if (error) return { error: "Não foi possível remover o morador." };
   revalidatePath("/");
   return {};
+}
+
+export async function startSubscription(_previous: FormState, formData: FormData): Promise<FormState> {
+  const organizationId = String(formData.get("organization_id") ?? "");
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Sessão expirada. Entre novamente." };
+  const { data: membership } = await supabase.from("memberships").select("role")
+    .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
+  if (!membership || !["owner", "admin"].includes(membership.role)) return { error: "Só o responsável da conta pode assinar." };
+  if (!mercadoPagoConfigured()) return { error: "Pagamento online indisponível no momento." };
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  if (!host) return { error: "Não foi possível iniciar a assinatura." };
+  let checkoutUrl: string;
+  try {
+    checkoutUrl = await createSubscriptionCheckoutUrl({ organizationId, origin: `https://${host}`, payerEmail: user.email ?? "" });
+  } catch (caught) {
+    return { error: `Não foi possível abrir o pagamento agora. Tente novamente em instantes. (${caught instanceof Error ? caught.message : "erro"})` };
+  }
+  redirect(checkoutUrl);
 }

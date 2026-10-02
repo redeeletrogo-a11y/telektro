@@ -43,7 +43,7 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
   const [state, action, pending] = useActionState(registerCharger.bind(null, organizationId), initialState);
   const [copyFeedback, setCopyFeedback] = useState("");
   const [profile, setProfile] = useState("manual");
-  const [formValues, setFormValues] = useState({ vendor: "", model: "", modelCode: "", catalogCode: "", serialNumber: "", maxPower: "", installationPower: "", connectorType: "", connectorCount: "", ocppVersion: "1.6J", voltage: "", phases: "", networkInterfaces: [] as string[], otherNetwork: "", hasRfid: "", hasMeter: "", hasDisplay: "", authorizationMode: "" });
+  const [formValues, setFormValues] = useState({ vendor: "", model: "", modelCode: "", catalogCode: "", serialNumber: "", maxPower: "", installationPower: "", connectorType: "", connectorCount: "1", ocppVersion: "1.6J", voltage: "", phases: "", networkInterfaces: [] as string[], otherNetwork: "", hasRfid: "", hasMeter: "", hasDisplay: "", authorizationMode: "" });
   const gatewayBaseUrl = (process.env.NEXT_PUBLIC_OCPP_GATEWAY_BASE_URL ?? (process.env.NODE_ENV === "production" ? "wss://telektro-ocpp-gateway.fly.dev" : "ws://localhost:9000")).replace(/\/+$/, "");
   const serverUrl = gatewayBaseUrl ? `${gatewayBaseUrl}/ocpp` : null;
   const connectionUrl = gatewayBaseUrl && state.chargePointId ? `${gatewayBaseUrl}/ocpp/${state.chargePointId}` : null;
@@ -148,13 +148,14 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
 }
 
 export function Dashboard({
-  email, organizations, organization, role, accountType, residents, invites, sites, chargers, removedChargers, connectors, authorizations, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, completedSessionRows, meterReadings, commandRows, dataLoadedAt,
+  email, organizations, organization, role, accountType, trialDaysLeft, residents, invites, sites, chargers, removedChargers, connectors, authorizations, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, completedSessionRows, meterReadings, commandRows, dataLoadedAt,
 }: {
   email: string;
   organizations: Organization[];
   organization: Organization;
   role: string;
   accountType: string;
+  trialDaysLeft: number | null;
   residents: Resident[];
   invites: Invite[];
   sites: Site[];
@@ -234,6 +235,7 @@ export function Dashboard({
       </header>
 
       <div className="page-wrap">
+        {trialDaysLeft !== null && <div className="trial-banner" role="status">Teste grátis: {trialDaysLeft} dia(s) restante(s). Depois, plano Residencial R$ 19,90/mês.</div>}
         <div className="page-heading"><div><p className="eyebrow">OPERAÇÃO · WORKSPACE REAL</p><h1>{activeNav}</h1><p className="page-description">{organization.name} · dados carregados do Supabase com isolamento por organização.</p></div><div className="workspace-role"><ShieldCheck size={14}/>{role}</div></div>
 
         {activeNav === "Visão geral" ? <>
@@ -402,7 +404,7 @@ function ChargerControl({ charger, connectors, organizationId }: { charger: Char
     if (wasPending.current && !pending) setConfirming(false);
     wasPending.current = pending;
   }, [pending]);
-  const usableConnectors = connectors.filter((item) => ["Available", "Preparing"].includes(item.status));
+  const usableConnectors = connectors.filter((item) => item.connector_id >= 1 && ["Available", "Preparing"].includes(item.status));
   return <div className="charger-control"><form action={action}>
     {charger.connector_count !== null && charger.connector_count > 1 && <label>Conector<select name="connector_id" defaultValue=""><option value="" disabled>Selecione</option>{Array.from({ length: charger.connector_count }, (_, index) => index + 1).map((id) => <option key={id} value={id}>{id}{usableConnectors.length && !usableConnectors.some((item) => item.connector_id === id) ? " · indisponível" : ""}</option>)}</select></label>}
     {charger.connector_count === 1 && <input type="hidden" name="connector_id" value="1"/>}

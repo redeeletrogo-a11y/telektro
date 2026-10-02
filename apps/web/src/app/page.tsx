@@ -3,11 +3,13 @@ import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Landing } from "@/components/landing";
 import { Dashboard } from "@/components/dashboard";
+import { SubscribeScreen } from "@/components/subscribe-screen";
+import { mercadoPagoConfigured, organizationHasAccess, reconcileSubscription, trialDaysLeft } from "@/lib/billing";
 import { ResidentHome } from "@/components/resident-home";
 import type { Invite, Resident } from "@/components/residents-panel";
 import { OrganizationOnboarding } from "@/components/organization-onboarding";
 
-type Organization = { id: string; name: string; slug: string; account_type: string; resident_limit: number | null };
+type Organization = { id: string; name: string; slug: string; account_type: string; resident_limit: number | null; subscription_status: string; trial_ends_at: string | null; current_period_end: string | null };
 type Site = { id: string; name: string; address: string | null; timezone: string; max_power_kw: number | null };
 type Charger = { id: string; organization_id: string; site_id: string; charge_point_id: string; vendor: string | null; model: string | null; firmware: string | null; model_code: string | null; serial_number: string | null; connector_type: string | null; connector_count: number | null; installation_power_kw: number | null; ocpp_version: string | null; technical_specs: Record<string, unknown>; capabilities: Record<string, unknown>; max_power_kw: number | null; status: string; online: boolean; last_heartbeat_at: string | null; last_boot_at: string | null; last_status_notification_at: string | null; last_transaction_at: string | null; last_transaction_id: number | null; last_ocpp_error: string | null; removed_at: string | null; removed_by: string | null };
 type Connector = { id: string; organization_id: string; charger_id: string; connector_id: number; status: string; updated_at: string };
@@ -36,7 +38,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   if (!memberships?.length) return <OrganizationOnboarding email={user.email ?? "Conta Telektro"}/>;
 
   const organizationIds = memberships.map((membership) => membership.organization_id);
-  const { data: organizations, error: organizationsError } = await supabase.from("organizations").select("id, name, slug, account_type, resident_limit").in("id", organizationIds).order("name");
+  const { data: organizations, error: organizationsError } = await supabase.from("organizations").select("id, name, slug, account_type, resident_limit, subscription_status, trial_ends_at, current_period_end").in("id", organizationIds).order("name");
   if (organizationsError || !organizations?.length) return <SetupMessage title="Organização indisponível" message="Não conseguimos carregar as organizações vinculadas à sua conta."/>;
 
   const { org: requestedOrganizationId } = await searchParams;
@@ -50,6 +52,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
       supabase.from("sessions").select("id, charger_id, started_at, ended_at").eq("organization_id", activeOrganization.id).order("started_at", { ascending: false }).limit(20),
     ]);
     return <ResidentHome email={user.email ?? ""} organizationName={activeOrganization.name} chargers={residentChargers.data ?? []} sessions={residentSessions.data ?? []}/>;
+  }
+
+  if (!organizationHasAccess(activeOrganization)) {
+    if (activeOrganization.account_type === "residencial" && await reconcileSubscription(activeOrganization.id)) redirect("/");
+    return <SubscribeScreen organizationId={activeOrganization.id} paymentsEnabled={mercadoPagoConfigured()} organizationName={activeOrganization.name} email={user.email ?? ""} trialEnded={activeOrganization.subscription_status === "trialing"}/>;
   }
 
   const isCondoAdmin = activeOrganization.account_type === "condominio" && ["owner", "admin"].includes(activeMembership?.role ?? "");
@@ -100,7 +107,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   const capacityKw = sites.reduce((total, site) => total + Number(site.max_power_kw ?? 0), 0);
 
   return <Dashboard email={user.email ?? ""} organizations={availableOrganizations} organization={activeOrganization}
-    role={activeMembership?.role ?? "viewer"} accountType={activeOrganization.account_type} residents={residents} invites={invites} sites={sites} chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} capacityKw={capacityKw}
+    role={activeMembership?.role ?? "viewer"} accountType={activeOrganization.account_type} trialDaysLeft={trialDaysLeft(activeOrganization)} residents={residents} invites={invites} sites={sites} chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} capacityKw={capacityKw}
     totalChargers={chargersResult.count ?? 0} onlineChargers={onlineResult.count ?? 0} activeSessions={activeSessions.length}
     sessionRows={activeSessions} completedSessionRows={completedSessions} meterReadings={meterReadings} commandRows={commandRows} dataLoadedAt={new Date().toISOString()}/>;
 }
