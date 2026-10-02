@@ -204,3 +204,7 @@ html[data-theme="light"] .app-shell .ring-arc { stroke: #0f9d6e; filter: none; }
 .app-shell .trial-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .app-shell .trial-subscribe { display: grid; gap: 6px; }
 .app-shell .trial-subscribe .primary-button { min-height: 38px; padding: 0 18px; }
+.pix-pay { display: grid; gap: 8px; }
+.pix-box { display: grid; gap: 8px; max-width: 280px; padding: 12px; border-radius: 12px; border: 1px solid rgb(127 127 127 / 30%); }
+.pix-box img { background: #fff; border-radius: 8px; padding: 4px; justify-self: center; }
+.pix-box textarea { width: 100%; font-size: 11px; resize: none; }
