@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Building2, Check, Gauge, Home, PlugZap, QrCode, ShieldCheck, Smartphone, Zap } from "lucide-react";
 import { HeroCarousel } from "./hero-carousel";
 import { WhatsAppButton } from "./whatsapp-button";
-import { SITE_DESCRIPTION, SITE_URL, WHATSAPP_NUMBER } from "@/lib/site";
+import { COMPANY_NOTE, SITE_DESCRIPTION, SITE_URL, WHATSAPP_NUMBER } from "@/lib/site";
 import "./landing.css";
 
 const check = <Check size={16} aria-hidden="true"/>;
@@ -117,7 +117,7 @@ export function Landing() {
       </main>
       <WhatsAppButton/>
 
-      <footer className="lp-wrap lp-foot"><span><Zap size={13} style={{verticalAlign:"-2px"}}/> Telektro, operação de recarga</span><Link href="/login">Entrar</Link></footer>
+      <footer className="lp-wrap lp-foot"><span><Zap size={13} style={{verticalAlign:"-2px"}}/> Telektro, operação de recarga</span><Link href="/login">Entrar</Link><small className="lp-company">{COMPANY_NOTE}</small></footer>
     </div>
   );
 }
