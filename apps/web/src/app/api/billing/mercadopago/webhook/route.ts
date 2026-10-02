@@ -45,7 +45,9 @@ export async function POST(request: Request) {
     const { error } = await supabase.from("organizations").update(update).eq("id", organizationId).eq("account_type", "residencial");
     if (error) return NextResponse.json({ error: "update_failed" }, { status: 500 });
     return NextResponse.json({ ok: true, status });
-  } catch {
+  } catch (error) {
+    // Unknown ids (e.g. the panel's "simulate notification" with a fake id) are not an error: ack so MP does not retry.
+    if (error instanceof Error && error.message === "mercadopago_404") return NextResponse.json({ ok: true, ignored: "unknown_resource" });
     return NextResponse.json({ error: "processing_failed" }, { status: 500 });
   }
 }
