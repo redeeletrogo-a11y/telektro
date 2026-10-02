@@ -22,8 +22,68 @@ export function trialDaysLeft(org: BillingOrganization, now = Date.now()) {
   return ms > 0 ? Math.ceil(ms / 86_400_000) : 0;
 }
 
-// HOOK FOR MERCADO PAGO: when the Mercado Pago subscription is wired, create the checkout/preapproval here
-// and return its URL. Credentials must come from server-side env vars (never NEXT_PUBLIC_*).
-export async function createSubscriptionCheckoutUrl(): Promise<string | null> {
+const MP_API = "https://api.mercadopago.com";
+export const RESIDENCIAL_PRICE_BRL = 19.9;
+
+export type MercadoPagoPreapproval = {
+  id: string;
+  status: string;
+  external_reference?: string | null;
+  next_payment_date?: string | null;
+  init_point?: string;
+};
+
+export function mercadoPagoConfigured() {
+  return Boolean(process.env.MERCADOPAGO_ACCESS_TOKEN);
+}
+
+async function mpFetch(path: string, init?: RequestInit) {
+  const token = process.env.MERCADOPAGO_ACCESS_TOKEN;
+  if (!token) throw new Error("mercadopago_not_configured");
+  const response = await fetch(`${MP_API}${path}`, {
+    ...init,
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    cache: "no-store",
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(`mercadopago_${response.status}`);
+  return body;
+}
+
+// Creates a pending monthly subscription (preapproval) and returns the checkout URL where the buyer enters payment.
+// The organization id travels in external_reference; the webhook uses it to activate the right organization.
+export async function createSubscriptionCheckoutUrl(args: { organizationId: string; origin: string }): Promise<string> {
+  const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET; // only needed on protected Vercel previews
+  const notificationUrl = new URL("/api/billing/mercadopago/webhook", args.origin);
+  if (bypass) notificationUrl.searchParams.set("x-vercel-protection-bypass", bypass);
+  const body = await mpFetch("/preapproval", {
+    method: "POST",
+    body: JSON.stringify({
+      reason: "Telektro Residencial",
+      external_reference: args.organizationId,
+      back_url: new URL("/", args.origin).toString(),
+      notification_url: notificationUrl.toString(),
+      status: "pending",
+      auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: RESIDENCIAL_PRICE_BRL, currency_id: "BRL" },
+    }),
+  });
+  if (!body.init_point) throw new Error("mercadopago_no_checkout_url");
+  return body.init_point as string;
+}
+
+export async function getPreapproval(id: string): Promise<MercadoPagoPreapproval> {
+  return mpFetch(`/preapproval/${encodeURIComponent(id)}`);
+}
+
+export async function getAuthorizedPaymentPreapprovalId(id: string): Promise<string | null> {
+  const body = await mpFetch(`/authorized_payments/${encodeURIComponent(id)}`);
+  return body.preapproval_id ? String(body.preapproval_id) : null;
+}
+
+// Mercado Pago preapproval status -> organizations.subscription_status. null = keep the current state (e.g. still pending).
+export function mapPreapprovalStatus(status: string): "active" | "past_due" | "canceled" | null {
+  if (status === "authorized") return "active";
+  if (status === "paused") return "past_due";
+  if (status === "cancelled") return "canceled";
   return null;
 }
