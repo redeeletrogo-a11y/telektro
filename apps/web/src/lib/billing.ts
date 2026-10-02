@@ -46,7 +46,10 @@ async function mpFetch(path: string, init?: RequestInit) {
     cache: "no-store",
   });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(`mercadopago_${response.status}`);
+  if (!response.ok) {
+    console.error("mercadopago_error", path, response.status, JSON.stringify(body).slice(0, 500));
+    throw new Error(`mercadopago_${response.status}`);
+  }
   return body;
 }
 
