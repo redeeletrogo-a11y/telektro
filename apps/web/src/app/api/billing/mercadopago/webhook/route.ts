@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { applyPixPayment } from "@/lib/pix";
 import { getAuthorizedPaymentPreapprovalId, getPreapproval, mapPreapprovalStatus } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,15 @@ export async function POST(request: Request) {
   const type = String(url.searchParams.get("type") ?? (body as { type?: unknown }).type ?? "");
   if (!process.env.MERCADOPAGO_WEBHOOK_SECRET || !process.env.SUPABASE_SERVICE_ROLE_KEY) return NextResponse.json({ error: "not_configured" }, { status: 503 });
   if (!dataId || !validSignature(request, dataId)) return NextResponse.json({ error: "invalid_signature" }, { status: 401 });
+  if (type === "payment") {
+    // Pix mensalidade: the payment is re-read from Mercado Pago and applied once (see lib/pix.ts).
+    try {
+      return NextResponse.json({ ok: true, pix: await applyPixPayment(dataId) });
+    } catch (error) {
+      if (error instanceof Error && error.message === "mercadopago_404") return NextResponse.json({ ok: true, ignored: "unknown_resource" });
+      return NextResponse.json({ error: "processing_failed" }, { status: 500 });
+    }
+  }
   if (!["subscription_preapproval", "subscription_authorized_payment"].includes(type)) return NextResponse.json({ ok: true, ignored: type });
 
   try {
