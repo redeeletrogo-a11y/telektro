@@ -1,9 +1,10 @@
 "use client";
 
+import "./dashboard-theme.css";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ResidentsPanel, type Invite, type Resident } from "@/components/residents-panel";
-import { Activity, ArrowRight, Building2, Cable, Check, Clock3, Copy, LayoutDashboard, MapPin, Play, PlugZap, RotateCcw, ShieldCheck, Square, Trash2, Users, Zap } from "lucide-react";
+import { Activity, ArrowRight, Building2, Check, Clock3, Copy, LayoutDashboard, MapPin, Play, PlugZap, RotateCcw, Square, Trash2, Users, Zap } from "lucide-react";
 import { createSite, registerCharger, registerRfidAuthorization, removeCharger, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, rotateChargerCredential, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
 
 type Organization = { id: string; name: string; slug: string; account_type?: string; resident_limit?: number | null };
@@ -17,6 +18,17 @@ type MeterReading = { session_id: string | null; measurand: string; value: numbe
 type CommandRecord = { id: string; charger_id: string; action: string; status: string; requested_at: string; completed_at: string | null; result: Record<string, unknown> | null };
 
 const initialState: FormState = {};
+
+function ChargeArt() {
+  return <svg className="charge-art" viewBox="0 0 400 200" preserveAspectRatio="xMaxYMid slice" aria-hidden="true" fill="none">
+    <defs><linearGradient id="ca-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#22e0a0" stopOpacity=".9"/><stop offset="1" stopColor="#22e0a0" stopOpacity="0"/></linearGradient></defs>
+    <circle cx="310" cy="95" r="110" stroke="#22e0a0" strokeOpacity=".10" strokeWidth="1.5"/>
+    <circle cx="310" cy="95" r="82" stroke="#22e0a0" strokeOpacity=".16" strokeWidth="1.5"/>
+    <circle cx="310" cy="95" r="54" stroke="#22e0a0" strokeOpacity=".28" strokeWidth="1.5"/>
+    <path d="M326 28 L282 108 H312 L296 168 L352 80 H320 Z" fill="url(#ca-g)" stroke="#6bf5c4" strokeWidth="1.5" strokeLinejoin="round"/>
+    <path d="M0 160 C80 140 120 190 200 170 S340 150 400 175" stroke="#22e0a0" strokeOpacity=".25" strokeWidth="1.5"/>
+  </svg>;
+}
 
 function Brand() {
   return <div className="brand"><div className="brand-mark"><Zap size={19} strokeWidth={2.1}/></div><div><div className="brand-name">TELEKTRO</div><div className="brand-subtitle">Energy operations</div></div></div>;
@@ -236,24 +248,21 @@ export function Dashboard({
 
       <div className="page-wrap">
         {trialDaysLeft !== null && <div className="trial-banner" role="status">Teste grátis: {trialDaysLeft} dia(s) restante(s). Depois, plano Residencial R$ 19,90/mês.</div>}
-        <div className="page-heading"><div><p className="eyebrow">OPERAÇÃO · WORKSPACE REAL</p><h1>{activeNav}</h1><p className="page-description">{organization.name} · dados carregados do Supabase com isolamento por organização.</p></div><div className="workspace-role"><ShieldCheck size={14}/>{role}</div></div>
+        <div className="dash-hello"><h1>{activeNav === "Visão geral" ? organization.name : activeNav}</h1><span className="role-chip">{role}</span></div>
 
         {activeNav === "Visão geral" ? <>
           <div className="workspace-stats" aria-label="Resumo da organização">
-            {stats.map(({ label, value, detail, icon: Icon }) => <article className="panel workspace-stat" key={label}><div className="workspace-stat-top"><span>{label}</span><Icon size={16}/></div><strong>{value}</strong><small>{detail}</small></article>)}
+            {stats.filter((item) => item.label !== "Limite dos locais").map(({ label, value, detail, icon: Icon }) => <article className="panel workspace-stat" key={label}><div className="workspace-stat-top"><span>{label}</span><Icon size={16}/></div><strong>{value}</strong><small>{detail}</small></article>)}
           </div>
           <SiteDemand sites={sites} chargers={chargers} sessions={sessionRows} meterReadings={meterReadings} now={clockNow}/>
-          <section className="panel operation-empty">
-            <div className="empty-symbol"><Cable size={21}/></div>
-            <div><p className="eyebrow">PRÓXIMA ETAPA</p><h2>{totalChargers ? "Carregadores cadastrados" : sites.length ? "Cadastre um carregador para conectar" : "Cadastre um local antes de conectar carregadores"}</h2><p>{totalChargers ? `${totalChargers} carregador(es) cadastrado(s); ${onlineChargers} online no último estado recebido do gateway.` : sites.length ? `${sites.length} local(is) já cadastrado(s). Agora você pode provisionar um carregador OCPP 1.6J.` : "Os locais guardam endereço, fuso horário e limite elétrico. Depois deles, você poderá cadastrar e provisionar carregadores OCPP 1.6J."}</p></div>
-            <button className="secondary-button" onClick={() => setActiveNav(sites.length ? "Carregadores" : "Locais")}>{sites.length ? "Cadastrar carregador" : "Cadastrar primeiro local"}<ArrowRight size={14}/></button>
-          </section>
+          <section className="charge-hero"><ChargeArt/><h2>{totalChargers ? "Carregadores cadastrados" : sites.length ? "Cadastre um carregador para conectar" : "Cadastre um local antes de conectar carregadores"}</h2><p>{totalChargers ? `${totalChargers} carregador(es) cadastrado(s); ${onlineChargers} online no último estado recebido do gateway.` : sites.length ? `${sites.length} local(is) já cadastrado(s). Agora você pode provisionar um carregador OCPP 1.6J.` : "Os locais guardam endereço, fuso horário e limite elétrico. Depois deles, você poderá cadastrar e provisionar carregadores OCPP 1.6J."}</p><button className="primary-button" onClick={() => setActiveNav(sites.length ? "Carregadores" : "Locais")}>{sites.length ? "Cadastrar carregador" : "Cadastrar primeiro local"}<ArrowRight size={14}/></button></section>
           <div className="section-row"><div><h2 className="section-title">Locais da organização</h2><p className="section-subtitle">Capacidade e localização configuradas para esta operação.</p></div><button className="link-button" onClick={() => setActiveNav("Locais")}>Ver locais <ArrowRight size={13}/></button></div>
           <SiteList sites={sites}/>
         </> : activeNav === "Moradores" ? <ResidentsPanel organizationId={organization.id} residents={residents} invites={invites} residentLimit={organization.resident_limit ?? null}/> : activeNav === "Energia" ? <SiteDemand sites={sites} chargers={chargers} sessions={sessionRows} meterReadings={meterReadings} now={clockNow} expanded/> : activeNav === "Locais" ? <div className="site-management">
           <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Locais cadastrados</h2><div className="panel-kicker">{sites.length} local(is) em {organization.name}</div></div><MapPin size={17}/></div><SiteList sites={sites}/></section>
           {canManageSites ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Adicionar local</h2><div className="panel-kicker">Cadastre os dados elétricos e de localização.</div></div></div><SiteForm organizationId={organization.id}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner ou admin para cadastrar locais nesta organização.</p></section>}
         </div> : activeNav === "Carregadores" ? <div className="site-management charger-management">
+          <section className="charge-hero charge-banner"><ChargeArt/><h2>{onlineChargers ? `${onlineChargers} carregador(es) online` : "Pronto para carregar"}</h2><p>{activeSessions ? `${activeSessions} recarga(s) em andamento` : "Toque em iniciar no carregador desejado."}</p></section>
           <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Carregadores cadastrados</h2><div className="panel-kicker">{chargers.length} equipamento(s) ativos nesta organização</div></div><PlugZap size={17}/></div><ChargerList chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} siteNames={siteNames} organizationId={organization.id} canControl={canControlChargers} canManage={canManageChargers} isOwner={role === "owner"} activeSessionChargerIds={new Set(sessionRows.map((session) => session.charger_id))} now={clockNow}/></section>
           {canManageChargers ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Provisionar carregador</h2><div className="panel-kicker">Crie uma credencial individual para autenticação OCPP.</div></div></div><ChargerForm organizationId={organization.id} sites={sites}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner, admin ou technician para cadastrar carregadores.</p></section>}
         </div> : <SessionList sessions={sessionRows} completedSessions={completedSessionRows} meterReadings={meterReadings} chargers={[...chargers, ...removedChargers]} siteNames={siteNames} now={clockNow}
@@ -353,9 +362,12 @@ function ChargerList({ chargers, removedChargers, connectors, authorizations, si
     const remoteAuthorization = charger.capabilities?.authorizeRemoteTxRequests as { state?: string; value?: string | null } | undefined;
     return <article className="panel site-row charger-row" key={charger.id}>
       <div className="site-row-icon"><PlugZap size={16}/></div>
-      <div className="site-row-main"><strong>{charger.charge_point_id}</strong><span>{[charger.vendor, charger.model].filter(Boolean).join(" · ") || "Fabricante e modelo não informados"}{charger.model_code ? ` · ${charger.model_code}` : ""} · {siteNames.get(charger.site_id) ?? "Local indisponível"}</span>{profileDetails && <small className="charger-profile-details">{profileDetails}</small>}</div>
+      <div className="site-row-main"><strong>{charger.charge_point_id}</strong><span>{siteNames.get(charger.site_id) ?? "Local indisponível"}</span></div>
       <span className={`status-badge ${charger.online ? "active" : "available"}`}><i className="status-dot"/>{charger.online ? charger.status : "Offline"}</span>
       {compatibilityPending && <span className="status-badge attention">Protocolo ainda não suportado</span>}
+      {canControl && <ChargerControl charger={charger} connectors={chargerConnectors} organizationId={organizationId}/>}
+      <details className="charger-more"><summary>Detalhes e configuração</summary>
+      {profileDetails && <small className="charger-profile-details">{[charger.vendor, charger.model].filter(Boolean).join(" · ")}{[charger.vendor, charger.model].filter(Boolean).length ? " · " : ""}{profileDetails}</small>}
       <div className="site-row-meta"><span>Potência máx. do modelo</span><strong>{charger.max_power_kw ? `${Number(charger.max_power_kw).toLocaleString("pt-BR")} kW` : "Não definida"}</strong></div>
       <div className="site-row-meta"><span>Limite da instalação</span><strong>{charger.installation_power_kw ? `${Number(charger.installation_power_kw).toLocaleString("pt-BR")} kW` : "Não informado"}</strong></div>
       <div className="site-row-meta"><span>Último heartbeat</span><strong>{charger.last_heartbeat_at ? new Date(charger.last_heartbeat_at).toLocaleString("pt-BR") : "Ainda sem conexão"}</strong></div>
@@ -369,9 +381,9 @@ function ChargerList({ chargers, removedChargers, connectors, authorizations, si
         <span>AuthorizeRemoteTxRequests: {remoteAuthorization?.state === "SUPPORTED" ? remoteAuthorization.value === "true" ? "ativado" : "desativado" : remoteAuthorization?.state === "UNSUPPORTED" ? "não informado pelo carregador" : "não consultado"}</span>
         {charger.last_ocpp_error && <span className="form-error">Último erro OCPP: {charger.last_ocpp_error}</span>}
       </div>
-      {canControl && <ChargerControl charger={charger} connectors={chargerConnectors} organizationId={organizationId}/>}
       {canManage && <><ConfigurationControl charger={charger} organizationId={organizationId}/><RfidAuthorizationManager charger={charger} authorizations={authorizations.filter((item) => item.charger_id === charger.id)} organizationId={organizationId}/></>}
       {isOwner && <><ChargerCredentialControl charger={charger} organizationId={organizationId}/><ChargerRemovalControl charger={charger} organizationId={organizationId} hasActiveSession={activeSessionChargerIds.has(charger.id)}/></>}
+      </details>
     </article>;
   })}</div>}</>;
 }
