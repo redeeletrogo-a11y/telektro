@@ -1,9 +1,12 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Dashboard } from "@/components/dashboard";
+import { ResidentHome } from "@/components/resident-home";
+import type { Invite, Resident } from "@/components/residents-panel";
 import { OrganizationOnboarding } from "@/components/organization-onboarding";
 
-type Organization = { id: string; name: string; slug: string };
+type Organization = { id: string; name: string; slug: string; account_type: string; resident_limit: number | null };
 type Site = { id: string; name: string; address: string | null; timezone: string; max_power_kw: number | null };
 type Charger = { id: string; organization_id: string; site_id: string; charge_point_id: string; vendor: string | null; model: string | null; firmware: string | null; model_code: string | null; serial_number: string | null; connector_type: string | null; connector_count: number | null; installation_power_kw: number | null; ocpp_version: string | null; technical_specs: Record<string, unknown>; capabilities: Record<string, unknown>; max_power_kw: number | null; status: string; online: boolean; last_heartbeat_at: string | null; last_boot_at: string | null; last_status_notification_at: string | null; last_transaction_at: string | null; last_transaction_id: number | null; last_ocpp_error: string | null; removed_at: string | null; removed_by: string | null };
 type Connector = { id: string; organization_id: string; charger_id: string; connector_id: number; status: string; updated_at: string };
@@ -27,16 +30,38 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
 
   const { data: memberships, error: membershipsError } = await supabase.from("memberships").select("organization_id, role").eq("user_id", user.id);
   if (membershipsError) return <SetupMessage title="Não foi possível carregar seu workspace" message="Atualize a página. Se o problema continuar, confira as migrations e as permissões RLS do projeto."/>;
+  const pendingInvite = (await cookies()).get("telektro_invite")?.value;
+  if (pendingInvite && /^[a-z0-9]{10,32}$/.test(pendingInvite)) redirect(`/convite/${pendingInvite}`);
   if (!memberships?.length) return <OrganizationOnboarding email={user.email ?? "Conta Telektro"}/>;
 
   const organizationIds = memberships.map((membership) => membership.organization_id);
-  const { data: organizations, error: organizationsError } = await supabase.from("organizations").select("id, name, slug").in("id", organizationIds).order("name");
+  const { data: organizations, error: organizationsError } = await supabase.from("organizations").select("id, name, slug, account_type, resident_limit").in("id", organizationIds).order("name");
   if (organizationsError || !organizations?.length) return <SetupMessage title="Organização indisponível" message="Não conseguimos carregar as organizações vinculadas à sua conta."/>;
 
   const { org: requestedOrganizationId } = await searchParams;
   const availableOrganizations = organizations as Organization[];
   const activeOrganization = availableOrganizations.find((organization) => organization.id === requestedOrganizationId) ?? availableOrganizations[0];
   const activeMembership = memberships.find((membership) => membership.organization_id === activeOrganization.id);
+
+  if (activeMembership?.role === "resident") {
+    const [residentChargers, residentSessions] = await Promise.all([
+      supabase.from("chargers").select("id, charge_point_id, model, status, online").eq("organization_id", activeOrganization.id).is("removed_at", null).order("charge_point_id"),
+      supabase.from("sessions").select("id, charger_id, started_at, ended_at").eq("organization_id", activeOrganization.id).order("started_at", { ascending: false }).limit(20),
+    ]);
+    return <ResidentHome email={user.email ?? ""} organizationName={activeOrganization.name} chargers={residentChargers.data ?? []} sessions={residentSessions.data ?? []}/>;
+  }
+
+  const isCondoAdmin = activeOrganization.account_type === "condominio" && ["owner", "admin"].includes(activeMembership?.role ?? "");
+  let residents: Resident[] = [];
+  let invites: Invite[] = [];
+  if (isCondoAdmin) {
+    const [residentsResult, invitesResult] = await Promise.all([
+      supabase.rpc("list_residents", { p_organization_id: activeOrganization.id }),
+      supabase.from("organization_invites").select("id, code, expires_at, revoked_at, accepted_count").eq("organization_id", activeOrganization.id).order("created_at", { ascending: false }).limit(20),
+    ]);
+    residents = (residentsResult.data ?? []) as Resident[];
+    invites = (invitesResult.data ?? []) as Invite[];
+  }
 
   const [sitesResult, chargerListResult, removedChargersResult, chargersResult, onlineResult, sessionsResult, historyResult, commandsResult, connectorResult, authorizationResult] = await Promise.all([
     supabase.from("sites").select("id, name, address, timezone, max_power_kw").eq("organization_id", activeOrganization.id).order("name"),
@@ -74,7 +99,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   const capacityKw = sites.reduce((total, site) => total + Number(site.max_power_kw ?? 0), 0);
 
   return <Dashboard email={user.email ?? ""} organizations={availableOrganizations} organization={activeOrganization}
-    role={activeMembership?.role ?? "viewer"} sites={sites} chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} capacityKw={capacityKw}
+    role={activeMembership?.role ?? "viewer"} accountType={activeOrganization.account_type} residents={residents} invites={invites} sites={sites} chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} capacityKw={capacityKw}
     totalChargers={chargersResult.count ?? 0} onlineChargers={onlineResult.count ?? 0} activeSessions={activeSessions.length}
     sessionRows={activeSessions} completedSessionRows={completedSessions} meterReadings={meterReadings} commandRows={commandRows} dataLoadedAt={new Date().toISOString()}/>;
 }
