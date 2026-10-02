@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ArrowRight, Building2, Check, Gauge, Home, PlugZap, QrCode, ShieldCheck, Smartphone, Zap } from "lucide-react";
 import { HeroCarousel } from "./hero-carousel";
+import { WhatsAppButton } from "./whatsapp-button";
+import { SITE_DESCRIPTION, SITE_URL, WHATSAPP_NUMBER } from "@/lib/site";
 import "./landing.css";
 
 const check = <Check size={16} aria-hidden="true"/>;
@@ -11,9 +13,27 @@ const plans = [
   { id: "eletroposto", icon: <PlugZap size={20}/>, name: "Eletroposto", tag: "Público", price: "R$ 149", unit: "/mês", text: "Até 2 carregadores AC. AC extra: + R$ 49 cada. DC: + R$ 99 cada.", items: ["Recarga por QR Code e controle de pagamento", "Status em tempo real via OCPP 1.6J", "Relatórios de sessões e receita", "+ 2% das recargas processadas"] },
 ];
 
+const faq = [
+  { q: "O que é um sistema de gestão de carregador elétrico?", a: "É um software que conecta o carregador de carro elétrico à internet via OCPP, para ligar, desligar e medir cada recarga pelo celular, com histórico e relatórios de consumo." },
+  { q: "O Telektro funciona com qualquer carregador?", a: "Funciona com carregadores compatíveis com o protocolo OCPP 1.6J, usado pela maioria dos fabricantes. Você cadastra o carregador no painel e aponta ele para o Telektro." },
+  { q: "Serve para condomínio e para eletroposto?", a: "Sim. Há planos para casa, condomínio (vários carregadores e moradores, controle de acesso e rateio) e eletroposto (recarga por QR Code, status em tempo real e relatórios de receita)." },
+  { q: "Quanto custa e tem teste grátis?", a: "O plano Residencial custa R$ 19,90 por mês e começa com 7 dias grátis. Os valores de Condomínio e Eletroposto estão na seção de planos." },
+];
+
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    { "@type": "Organization", "@id": `${SITE_URL}/#org`, name: "Telektro", url: SITE_URL, logo: `${SITE_URL}/icon.svg`, contactPoint: { "@type": "ContactPoint", contactType: "sales", telephone: `+${WHATSAPP_NUMBER}`, availableLanguage: "pt-BR" } },
+    { "@type": "WebSite", "@id": `${SITE_URL}/#site`, url: SITE_URL, name: "Telektro", inLanguage: "pt-BR", publisher: { "@id": `${SITE_URL}/#org` } },
+    { "@type": "SoftwareApplication", name: "Telektro", applicationCategory: "BusinessApplication", operatingSystem: "Web, Android, iOS (PWA)", description: SITE_DESCRIPTION, url: SITE_URL, offers: { "@type": "Offer", price: "19.90", priceCurrency: "BRL", description: "Plano Residencial, 7 dias grátis" } },
+    { "@type": "FAQPage", mainEntity: faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })) },
+  ],
+};
+
 export function Landing() {
   return (
     <div className="lp">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }}/>
       <header className="lp-nav">
         <div className="lp-wrap">
           <Link href="/" className="lp-logo" aria-label="Telektro">
@@ -88,7 +108,14 @@ export function Landing() {
           </div>
           <p className="lp-fine"><ShieldCheck size={14} style={{verticalAlign:"-2px"}}/> Taxas do gateway de pagamento não estão incluídas. Dados de cada cliente ficam isolados.</p>
         </div></section>
+        <section id="eletroposto-e-carregador" className="lp-sec lp-seo"><div className="lp-wrap">
+          <h2>Gestão de eletroposto e carregador elétrico</h2>
+          <p>O Telektro é um sistema de gestão de carregador de carro elétrico para quem tem um carregador em casa, administra um condomínio ou opera um eletroposto. Você acompanha cada recarga, mede o consumo em kWh e controla o acesso de moradores e clientes em um só painel.</p>
+          <p>Para eletroposto, o painel mostra o status dos carregadores em tempo real via OCPP 1.6J e gera relatórios de sessões. Para condomínio, o rateio de energia fica baseado na medição real de cada usuário. Em casa, você liga e desliga o carregador elétrico pelo celular.</p>
+          <div className="lp-faq">{faq.map((f) => <details key={f.q}><summary>{f.q}</summary><p>{f.a}</p></details>)}</div>
+        </div></section>
       </main>
+      <WhatsAppButton/>
 
       <footer className="lp-wrap lp-foot"><span><Zap size={13} style={{verticalAlign:"-2px"}}/> Telektro, operação de recarga</span><Link href="/login">Entrar</Link></footer>
     </div>
