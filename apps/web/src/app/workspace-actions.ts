@@ -513,8 +513,8 @@ export async function startSubscription(_previous: FormState, formData: FormData
   let checkoutUrl: string;
   try {
     checkoutUrl = await createSubscriptionCheckoutUrl({ organizationId, origin: `https://${host}` });
-  } catch {
-    return { error: "Não foi possível abrir o pagamento agora. Tente novamente em instantes." };
+  } catch (caught) {
+    return { error: `Não foi possível abrir o pagamento agora. Tente novamente em instantes. (${caught instanceof Error ? caught.message : "erro"})` };
   }
   redirect(checkoutUrl);
 }
