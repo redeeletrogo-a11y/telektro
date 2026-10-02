@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Landing } from "@/components/landing";
 import { Dashboard } from "@/components/dashboard";
+import { syncPendingTopups } from "@/lib/wallet";
 import { PIX_GRACE_DAYS, syncPendingPix } from "@/lib/pix";
 import { SubscribeScreen } from "@/components/subscribe-screen";
 import { mercadoPagoConfigured, organizationHasAccess, reconcileSubscription, trialDaysLeft } from "@/lib/billing";
@@ -59,7 +60,18 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
       supabase.from("chargers").select("id, charge_point_id, model, status, online").eq("organization_id", activeOrganization.id).is("removed_at", null).order("charge_point_id"),
       supabase.from("sessions").select("id, charger_id, started_at, ended_at").eq("organization_id", activeOrganization.id).order("started_at", { ascending: false }).limit(20),
     ]);
-    return <ResidentHome email={user.email ?? ""} organizationName={activeOrganization.name} chargers={residentChargers.data ?? []} sessions={residentSessions.data ?? []}/>;
+    let wallet: { balanceCents: number; ledger: { id: number; entry_type: string; amount_cents: number; created_at: string }[] } | null = null;
+    if (activeOrganization.account_type === "condominio") {
+      await syncPendingTopups(activeOrganization.id, user.id);
+      const [{ data: balance, error: balanceError }, { data: ledger }] = await Promise.all([
+        supabase.rpc("wallet_balance_cents", { p_organization_id: activeOrganization.id, p_user_id: user.id }),
+        supabase.from("wallet_ledger").select("id, entry_type, amount_cents, created_at").eq("organization_id", activeOrganization.id).eq("user_id", user.id).order("created_at", { ascending: false }).limit(10),
+      ]);
+      // Only show the wallet when the migration is applied and the condo turned it on.
+      const { data: walletOrg } = await supabase.from("organizations").select("wallet_enabled").eq("id", activeOrganization.id).maybeSingle();
+      if (!balanceError && walletOrg?.wallet_enabled) wallet = { balanceCents: Number(balance ?? 0), ledger: ledger ?? [] };
+    }
+    return <ResidentHome email={user.email ?? ""} organizationName={activeOrganization.name} chargers={residentChargers.data ?? []} sessions={residentSessions.data ?? []} organizationId={activeOrganization.id} wallet={wallet}/>;
   }
 
   if (!organizationHasAccess(activeOrganization)) {

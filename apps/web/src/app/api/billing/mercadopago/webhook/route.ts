@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { applyPixPayment } from "@/lib/pix";
+import { applyWalletPayment } from "@/lib/wallet";
 import { getAuthorizedPaymentPreapprovalId, getPreapproval, mapPreapprovalStatus } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +32,8 @@ export async function POST(request: Request) {
   if (type === "payment") {
     // Pix mensalidade: the payment is re-read from Mercado Pago and applied once (see lib/pix.ts).
     try {
-      return NextResponse.json({ ok: true, pix: await applyPixPayment(dataId) });
+      const pix = await applyPixPayment(dataId);
+      return NextResponse.json({ ok: true, pix: pix === "ignored" ? await applyWalletPayment(dataId) : pix });
     } catch (error) {
       if (error instanceof Error && error.message === "mercadopago_404") return NextResponse.json({ ok: true, ignored: "unknown_resource" });
       return NextResponse.json({ error: "processing_failed" }, { status: 500 });
