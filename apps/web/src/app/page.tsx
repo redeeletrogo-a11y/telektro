@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Landing } from "@/components/landing";
 import { Dashboard } from "@/components/dashboard";
 import { SubscribeScreen } from "@/components/subscribe-screen";
-import { organizationHasAccess, trialDaysLeft } from "@/lib/billing";
+import { mercadoPagoConfigured, organizationHasAccess, trialDaysLeft } from "@/lib/billing";
 import { ResidentHome } from "@/components/resident-home";
 import type { Invite, Resident } from "@/components/residents-panel";
 import { OrganizationOnboarding } from "@/components/organization-onboarding";
@@ -55,7 +55,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   }
 
   if (!organizationHasAccess(activeOrganization)) {
-    return <SubscribeScreen organizationName={activeOrganization.name} email={user.email ?? ""} trialEnded={activeOrganization.subscription_status === "trialing"}/>;
+    return <SubscribeScreen organizationId={activeOrganization.id} paymentsEnabled={mercadoPagoConfigured()} organizationName={activeOrganization.name} email={user.email ?? ""} trialEnded={activeOrganization.subscription_status === "trialing"}/>;
   }
 
   const isCondoAdmin = activeOrganization.account_type === "condominio" && ["owner", "admin"].includes(activeMembership?.role ?? "");

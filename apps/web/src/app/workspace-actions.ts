@@ -2,7 +2,9 @@
 
 import { createHash, randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { createSubscriptionCheckoutUrl, mercadoPagoConfigured } from "@/lib/billing";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupportedTimeZone } from "@/lib/time-zone";
 
@@ -494,4 +496,25 @@ export async function removeResident(organizationId: string, userId: string): Pr
   if (error) return { error: "Não foi possível remover o morador." };
   revalidatePath("/");
   return {};
+}
+
+export async function startSubscription(_previous: FormState, formData: FormData): Promise<FormState> {
+  const organizationId = String(formData.get("organization_id") ?? "");
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Sessão expirada. Entre novamente." };
+  const { data: membership } = await supabase.from("memberships").select("role")
+    .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
+  if (!membership || !["owner", "admin"].includes(membership.role)) return { error: "Só o responsável da conta pode assinar." };
+  if (!mercadoPagoConfigured()) return { error: "Pagamento online indisponível no momento." };
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  if (!host) return { error: "Não foi possível iniciar a assinatura." };
+  let checkoutUrl: string;
+  try {
+    checkoutUrl = await createSubscriptionCheckoutUrl({ organizationId, origin: `https://${host}` });
+  } catch {
+    return { error: "Não foi possível abrir o pagamento agora. Tente novamente em instantes." };
+  }
+  redirect(checkoutUrl);
 }
