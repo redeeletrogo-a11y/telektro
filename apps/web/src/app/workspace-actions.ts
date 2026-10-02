@@ -206,7 +206,7 @@ export async function requestRemoteStart(organizationId: string, chargerId: stri
   const rawConnectorId = String(_formData.get("connector_id") ?? "").trim();
   let connectorId: number | null = rawConnectorId ? Number(rawConnectorId) : null;
   if (rawConnectorId && (!Number.isInteger(connectorId) || Number(connectorId) < 1)) return { error: "Selecione um conector válido." };
-  const eligible = (connectors ?? []).filter((connector) => ["Available", "Preparing"].includes(connector.status));
+  const eligible = (connectors ?? []).filter((connector) => connector.connector_id >= 1 && ["Available", "Preparing"].includes(connector.status));
   if (connectorId !== null) {
     const connector = (connectors ?? []).find((item) => item.connector_id === connectorId);
     if (!connector || !["Available", "Preparing"].includes(connector.status)) return { error: "Este conector não está disponível para iniciar uma recarga." };
