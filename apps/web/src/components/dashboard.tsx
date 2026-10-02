@@ -6,7 +6,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ResidentsPanel, type Invite, type Resident } from "@/components/residents-panel";
 import { Activity, ArrowRight, Building2, Car, Check, Clock3, Copy, LayoutDashboard, MapPin, Moon, Sun, Play, PlugZap, RotateCcw, Square, Trash2, Users, Zap } from "lucide-react";
-import { createSite, registerCharger, registerRfidAuthorization, removeCharger, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, rotateChargerCredential, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
+import { createSite, registerCharger, registerRfidAuthorization, removeCharger, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, startSubscription, rotateChargerCredential, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
 
 type Organization = { id: string; name: string; slug: string; account_type?: string; resident_limit?: number | null };
 type Site = { id: string; name: string; address: string | null; timezone: string; max_power_kw: number | null };
@@ -21,6 +21,15 @@ type CommandRecord = { id: string; charger_id: string; action: string; status: s
 const initialState: FormState = {};
 
 const interfaceFont = Outfit({ subsets: ["latin"], display: "swap" });
+
+function TrialSubscribe({ organizationId }: { organizationId: string }) {
+  const [state, action, pending] = useActionState(startSubscription, {} as FormState);
+  return <form action={action} className="trial-subscribe">
+    <input type="hidden" name="organization_id" value={organizationId}/>
+    <button className="primary-button" type="submit" disabled={pending}>{pending ? "Abrindo pagamento..." : "Assinar agora"}</button>
+    {state.error && <small className="form-error" role="alert">{state.error}</small>}
+  </form>;
+}
 
 function ThemeToggle() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -268,7 +277,7 @@ export function Dashboard({
       </header>
 
       <div className="page-wrap">
-        {trialDaysLeft !== null && <div className="trial-banner" role="status">Teste grátis: {trialDaysLeft} dia(s) restante(s). Depois, plano Residencial R$ 19,90/mês.</div>}
+        {trialDaysLeft !== null && <div className="trial-banner" role="status"><span>Teste grátis: {trialDaysLeft} dia(s) restante(s). Depois, plano Residencial R$ 19,90/mês.</span>{canManageSites && <TrialSubscribe organizationId={organization.id}/>}</div>}
         <div className="dash-hello"><h1>{activeNav === "Visão geral" ? organization.name : activeNav}</h1><span className="role-chip">{role}</span></div>
 
         {activeNav === "Visão geral" ? <>

@@ -199,3 +199,8 @@ html[data-theme="light"] .app-shell .charge-live span:last-child { color: #0d2b2
 html[data-theme="light"] .app-shell .charge-ring { color: #0f9d6e; }
 html[data-theme="light"] .app-shell .ring-track { stroke: rgb(15 157 110 / 22%); }
 html[data-theme="light"] .app-shell .ring-arc { stroke: #0f9d6e; filter: none; }
+
+/* Assinar durante o teste */
+.app-shell .trial-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.app-shell .trial-subscribe { display: grid; gap: 6px; }
+.app-shell .trial-subscribe .primary-button { min-height: 38px; padding: 0 18px; }
