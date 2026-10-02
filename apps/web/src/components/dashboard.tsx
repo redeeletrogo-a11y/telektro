@@ -1,10 +1,11 @@
 "use client";
 
 import "./dashboard-theme.css";
+import { Outfit } from "next/font/google";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ResidentsPanel, type Invite, type Resident } from "@/components/residents-panel";
-import { Activity, ArrowRight, Building2, Check, Clock3, Copy, LayoutDashboard, MapPin, Play, PlugZap, RotateCcw, Square, Trash2, Users, Zap } from "lucide-react";
+import { Activity, ArrowRight, Building2, Car, Check, Clock3, Copy, LayoutDashboard, MapPin, Play, PlugZap, RotateCcw, Square, Trash2, Users, Zap } from "lucide-react";
 import { createSite, registerCharger, registerRfidAuthorization, removeCharger, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, rotateChargerCredential, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
 
 type Organization = { id: string; name: string; slug: string; account_type?: string; resident_limit?: number | null };
@@ -18,6 +19,18 @@ type MeterReading = { session_id: string | null; measurand: string; value: numbe
 type CommandRecord = { id: string; charger_id: string; action: string; status: string; requested_at: string; completed_at: string | null; result: Record<string, unknown> | null };
 
 const initialState: FormState = {};
+
+const interfaceFont = Outfit({ subsets: ["latin"], display: "swap" });
+
+function ChargeRing() {
+  return <span className="charge-ring" aria-hidden="true"><svg viewBox="0 0 44 44"><circle className="ring-track" cx="22" cy="22" r="19"/><circle className="ring-arc" cx="22" cy="22" r="19"/></svg><Car size={18}/></span>;
+}
+
+function elapsedLabel(startedAt: number | null, now: number) {
+  if (startedAt === null || !now) return "";
+  const total = Math.max(0, Math.floor((now - startedAt) / 1000));
+  return `${Math.floor(total / 3600).toString().padStart(2, "0")}:${Math.floor((total % 3600) / 60).toString().padStart(2, "0")}:${(total % 60).toString().padStart(2, "0")}`;
+}
 
 function Brand() {
   return <div className="brand"><div className="brand-mark"><Zap size={19} strokeWidth={2.1}/></div><div><div className="brand-name">TELEKTRO</div><div className="brand-subtitle">Energy operations</div></div></div>;
@@ -198,6 +211,9 @@ export function Dashboard({
   const canManageChargers = role === "owner" || role === "admin" || role === "technician";
   const canControlChargers = role === "owner" || role === "admin" || role === "operator" || role === "technician";
   const siteNames = new Map(sites.map((site) => [site.id, site.name]));
+  const startedTimes = sessionRows.map((session) => session.started_at ? new Date(session.started_at).getTime() : Number.NaN).filter(Number.isFinite);
+  const liveElapsed = elapsedLabel(startedTimes.length ? Math.min(...startedTimes) : null, clockNow);
+  const liveBadge = activeSessions > 0 ? <div className="charge-live"><ChargeRing/><span>Carregando{liveElapsed ? ` · ${liveElapsed}` : ""}</span></div> : null;
   const stats = [
     { label: "Locais", value: sites.length, detail: "cadastrados na organização", icon: MapPin },
     { label: "Carregadores", value: totalChargers, detail: `${onlineChargers} online`, icon: PlugZap },
@@ -205,7 +221,7 @@ export function Dashboard({
     { label: "Limite dos locais", value: `${capacityKw.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} kW`, detail: "soma dos limites elétricos cadastrados", icon: Zap },
   ];
 
-  return <div className="app-shell">
+  return <div className={`app-shell ${interfaceFont.className}`}>
     <aside className="sidebar">
       <Brand/>
       <div className="nav-label">Operação</div>
@@ -244,14 +260,14 @@ export function Dashboard({
             {stats.filter((item) => item.label !== "Limite dos locais").map(({ label, value, detail, icon: Icon }) => <article className="panel workspace-stat" key={label}><div className="workspace-stat-top"><span>{label}</span><Icon size={16}/></div><strong>{value}</strong><small>{detail}</small></article>)}
           </div>
           <SiteDemand sites={sites} chargers={chargers} sessions={sessionRows} meterReadings={meterReadings} now={clockNow}/>
-          <section className="charge-hero"><h2>{totalChargers ? "Carregadores cadastrados" : sites.length ? "Cadastre um carregador para conectar" : "Cadastre um local antes de conectar carregadores"}</h2><p>{totalChargers ? `${totalChargers} carregador(es) cadastrado(s); ${onlineChargers} online no último estado recebido do gateway.` : sites.length ? `${sites.length} local(is) já cadastrado(s). Agora você pode provisionar um carregador OCPP 1.6J.` : "Os locais guardam endereço, fuso horário e limite elétrico. Depois deles, você poderá cadastrar e provisionar carregadores OCPP 1.6J."}</p><button className="primary-button" onClick={() => setActiveNav(sites.length ? "Carregadores" : "Locais")}>{sites.length ? "Cadastrar carregador" : "Cadastrar primeiro local"}<ArrowRight size={14}/></button></section>
+          <section className="charge-hero">{liveBadge}<h2>{totalChargers ? "Carregadores cadastrados" : sites.length ? "Cadastre um carregador para conectar" : "Cadastre um local antes de conectar carregadores"}</h2><p>{totalChargers ? `${totalChargers} carregador(es) cadastrado(s); ${onlineChargers} online no último estado recebido do gateway.` : sites.length ? `${sites.length} local(is) já cadastrado(s). Agora você pode provisionar um carregador OCPP 1.6J.` : "Os locais guardam endereço, fuso horário e limite elétrico. Depois deles, você poderá cadastrar e provisionar carregadores OCPP 1.6J."}</p><button className="primary-button" onClick={() => setActiveNav(sites.length ? "Carregadores" : "Locais")}>{sites.length ? "Cadastrar carregador" : "Cadastrar primeiro local"}<ArrowRight size={14}/></button></section>
           <div className="section-row"><div><h2 className="section-title">Locais da organização</h2><p className="section-subtitle">Capacidade e localização configuradas para esta operação.</p></div><button className="link-button" onClick={() => setActiveNav("Locais")}>Ver locais <ArrowRight size={13}/></button></div>
           <SiteList sites={sites}/>
         </> : activeNav === "Moradores" ? <ResidentsPanel organizationId={organization.id} residents={residents} invites={invites} residentLimit={organization.resident_limit ?? null}/> : activeNav === "Energia" ? <SiteDemand sites={sites} chargers={chargers} sessions={sessionRows} meterReadings={meterReadings} now={clockNow} expanded/> : activeNav === "Locais" ? <div className="site-management">
           <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Locais cadastrados</h2><div className="panel-kicker">{sites.length} local(is) em {organization.name}</div></div><MapPin size={17}/></div><SiteList sites={sites}/></section>
           {canManageSites ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Adicionar local</h2><div className="panel-kicker">Cadastre os dados elétricos e de localização.</div></div></div><SiteForm organizationId={organization.id}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner ou admin para cadastrar locais nesta organização.</p></section>}
         </div> : activeNav === "Carregadores" ? <div className="site-management charger-management">
-          <section className="charge-hero charge-banner"><h2>{onlineChargers ? `${onlineChargers} carregador(es) online` : "Pronto para carregar"}</h2><p>{activeSessions ? `${activeSessions} recarga(s) em andamento` : "Toque em iniciar no carregador desejado."}</p></section>
+          <section className="charge-hero charge-banner">{liveBadge}<h2>{onlineChargers ? `${onlineChargers} carregador(es) online` : "Pronto para carregar"}</h2><p>{activeSessions ? `${activeSessions} recarga(s) em andamento` : "Toque em iniciar no carregador desejado."}</p></section>
           <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Carregadores cadastrados</h2><div className="panel-kicker">{chargers.length} equipamento(s) ativos nesta organização</div></div><PlugZap size={17}/></div><ChargerList chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} siteNames={siteNames} organizationId={organization.id} canControl={canControlChargers} canManage={canManageChargers} isOwner={role === "owner"} activeSessionChargerIds={new Set(sessionRows.map((session) => session.charger_id))} now={clockNow}/></section>
           {canManageChargers ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Provisionar carregador</h2><div className="panel-kicker">Crie uma credencial individual para autenticação OCPP.</div></div></div><ChargerForm organizationId={organization.id} sites={sites}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner, admin ou technician para cadastrar carregadores.</p></section>}
         </div> : <SessionList sessions={sessionRows} completedSessions={completedSessionRows} meterReadings={meterReadings} chargers={[...chargers, ...removedChargers]} siteNames={siteNames} now={clockNow}
