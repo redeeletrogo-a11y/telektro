@@ -75,3 +75,6 @@
 .lp-faq details { border:1px solid var(--lp-line); border-radius:14px; padding:14px 16px; background:var(--lp-card); }
 .lp-faq summary { cursor:pointer; font-weight:700; color:var(--lp-ink); }
 .lp-faq details p { margin:10px 0 0; }
+.lp-company { flex-basis:100%; color:var(--lp-mut); opacity:.75; font-size:11px; line-height:1.5; }
+.company-note, .lp-company { text-wrap: balance; }
+.lp-foot { padding-bottom: 96px; }
