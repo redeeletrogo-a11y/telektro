@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 // Access rules for subscription gating. Keep in sync with public.org_has_access() in the database.
 export type BillingOrganization = {
   account_type: string;
@@ -91,4 +92,23 @@ export function mapPreapprovalStatus(status: string): "active" | "past_due" | "c
   if (status === "paused") return "past_due";
   if (status === "cancelled") return "canceled";
   return null;
+}
+
+// Safety net when the webhook did not arrive: look the organization's preapproval up at Mercado Pago and sync the status.
+// Only the organization id the caller already has access to is used, and the state always comes from Mercado Pago.
+export async function reconcileSubscription(organizationId: string): Promise<boolean> {
+  if (!mercadoPagoConfigured() || !process.env.SUPABASE_SERVICE_ROLE_KEY) return false;
+  try {
+    const found = await mpFetch(`/preapproval/search?external_reference=${encodeURIComponent(organizationId)}&limit=10`);
+    const results = (Array.isArray(found.results) ? found.results : []) as MercadoPagoPreapproval[];
+    const authorized = results.find((item) => item.external_reference === organizationId && item.status === "authorized");
+    if (!authorized) return false;
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+    const update: Record<string, string | null> = { subscription_status: "active", subscription_provider: "mercadopago", subscription_external_id: authorized.id };
+    if (authorized.next_payment_date) update.current_period_end = authorized.next_payment_date;
+    const { error } = await supabase.from("organizations").update(update).eq("id", organizationId).eq("account_type", "residencial");
+    return !error;
+  } catch {
+    return false;
+  }
 }
