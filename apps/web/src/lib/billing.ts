@@ -38,8 +38,14 @@ export function mercadoPagoConfigured() {
   return Boolean(process.env.MERCADOPAGO_ACCESS_TOKEN);
 }
 
-export async function mpFetch(path: string, init?: RequestInit) {
-  const token = process.env.MERCADOPAGO_ACCESS_TOKEN;
+// Cada aplicacao do Mercado Pago (residencial, condominio, eletroposto) pode ter credenciais proprias.
+// O eletroposto usa MERCADOPAGO_ELETROPOSTO_ACCESS_TOKEN e, se ausente, cai no token padrao.
+export function eletropostoAccessToken() {
+  return process.env.MERCADOPAGO_ELETROPOSTO_ACCESS_TOKEN || process.env.MERCADOPAGO_ACCESS_TOKEN || "";
+}
+
+export async function mpFetch(path: string, init?: RequestInit, tokenOverride?: string) {
+  const token = tokenOverride ?? process.env.MERCADOPAGO_ACCESS_TOKEN;
   if (!token) throw new Error("mercadopago_not_configured");
   const response = await fetch(`${MP_API}${path}`, {
     ...init,
