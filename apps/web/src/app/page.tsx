@@ -55,8 +55,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   const activeMembership = memberships.find((membership) => membership.organization_id === activeOrganization.id);
 
   if (activeMembership?.role === "resident") {
-    const [residentChargers, residentSessions] = await Promise.all([
+    const [residentChargers, residentConnectors, residentSessions] = await Promise.all([
       supabase.from("chargers").select("id, charge_point_id, model, status, online").eq("organization_id", activeOrganization.id).is("removed_at", null).order("charge_point_id"),
+      supabase.from("connectors").select("charger_id, connector_id, status").eq("organization_id", activeOrganization.id).order("connector_id"),
       supabase.from("sessions").select("id, charger_id, started_at, ended_at").eq("organization_id", activeOrganization.id).order("started_at", { ascending: false }).limit(20),
     ]);
     let usage: { ended_at: string; kwh: number; price_per_kwh: number; amount: number }[] | null = null;
@@ -64,7 +65,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
       const { data: usageRows, error: usageError } = await supabase.rpc("my_condo_usage", { p_organization_id: activeOrganization.id, p_month: new Date().toISOString().slice(0, 7) + "-01" });
       if (!usageError) usage = (usageRows ?? []).map((row: { ended_at: string; kwh: string | number; price_per_kwh: string | number; amount: string | number }) => ({ ended_at: row.ended_at, kwh: Number(row.kwh), price_per_kwh: Number(row.price_per_kwh), amount: Number(row.amount) }));
     }
-    return <ResidentHome email={user.email ?? ""} organizationName={activeOrganization.name} chargers={residentChargers.data ?? []} sessions={residentSessions.data ?? []} usage={usage}/>;
+    return <ResidentHome email={user.email ?? ""} organizationName={activeOrganization.name} chargers={residentChargers.data ?? []} connectors={residentConnectors.data ?? []} canControl={activeOrganization.account_type === "condominio"} sessions={residentSessions.data ?? []} usage={usage}/>;
   }
 
   if (!organizationHasAccess(activeOrganization)) {
