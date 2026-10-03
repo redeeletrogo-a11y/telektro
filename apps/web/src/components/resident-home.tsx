@@ -17,7 +17,7 @@ function StartButton({ charger, connectors, busy }: { charger: ChargerRow; conne
   return <form action={action} className="resident-control">
     {usable.length > 1 && <label>Conector<select name="connector_id" defaultValue={usable[0].connector_id}>{usable.map((item) => <option key={item.connector_id} value={item.connector_id}>{item.connector_id}</option>)}</select></label>}
     <button className="secondary-button command-button" type="submit" disabled={!charger.online || pending || busy || usable.length === 0}><Play size={13}/>{pending ? "Enviando…" : "Iniciar recarga"}</button>
-    {!pending && charger.online && usable.length === 0 && <small className="field-help">Conecte o carro ao carregador para iniciar.</small>}
+    {!pending && !busy && charger.online && usable.length === 0 && <small className="field-help">Conecte o carro ao carregador para iniciar.</small>}
     {state.error && <small className="form-error" role="alert">{state.error}</small>}{state.success && <small className="form-success" role="status">{state.success}</small>}
   </form>;
 }
