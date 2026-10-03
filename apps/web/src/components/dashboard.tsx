@@ -219,17 +219,6 @@ export function Dashboard({
   const router = useRouter();
   const [activeNav, setActiveNav] = useState("Visão geral");
   const [moreOpen, setMoreOpen] = useState(false);
-  const isCondoManager = accountType === "condominio" && canManageSites;
-  const mobileHome = { name: "Visão geral", label: "Início", icon: <LayoutDashboard/> };
-  const mobileSites = { name: "Locais", label: "Locais", icon: <MapPin/> };
-  const mobileChargers = { name: "Carregadores", label: "Carregadores", icon: <PlugZap/> };
-  const mobileSessions = { name: "Sessões", label: "Sessões", icon: <Activity/> };
-  const mobileEnergy = { name: "Energia", label: "Energia", icon: <Zap/> };
-  const mobileResidents = { name: "Moradores", label: "Moradores", icon: <Users/> };
-  const mobileBilling = { name: "Cobrança", label: "Cobrança", icon: <Zap/> };
-  const mobilePrimary = isCondoManager ? [mobileHome, mobileChargers, mobileSessions, mobileResidents] : [mobileHome, mobileSites, mobileChargers, mobileSessions];
-  const mobileMore = isCondoManager ? [mobileSites, mobileEnergy, mobileBilling] : [mobileEnergy];
-  const moreActive = mobileMore.some((item) => item.name === activeNav);
   const [clockNow, setClockNow] = useState(0);
   useEffect(() => {
     const initialTick = window.setTimeout(() => setClockNow(Date.now()), 0);
@@ -249,6 +238,17 @@ export function Dashboard({
     };
   }, [router]);
   const canManageSites = role === "owner" || role === "admin";
+  const isCondoManager = accountType === "condominio" && canManageSites;
+  const mobileHome = { name: "Visão geral", label: "Início", icon: <LayoutDashboard/> };
+  const mobileSites = { name: "Locais", label: "Locais", icon: <MapPin/> };
+  const mobileChargers = { name: "Carregadores", label: "Carregadores", icon: <PlugZap/> };
+  const mobileSessions = { name: "Sessões", label: "Sessões", icon: <Activity/> };
+  const mobileEnergy = { name: "Energia", label: "Energia", icon: <Zap/> };
+  const mobileResidents = { name: "Moradores", label: "Moradores", icon: <Users/> };
+  const mobileBilling = { name: "Cobrança", label: "Cobrança", icon: <Zap/> };
+  const mobilePrimary = isCondoManager ? [mobileHome, mobileChargers, mobileSessions, mobileResidents] : [mobileHome, mobileSites, mobileChargers, mobileSessions];
+  const mobileMore = isCondoManager ? [mobileSites, mobileEnergy, mobileBilling] : [mobileEnergy];
+  const moreActive = mobileMore.some((item) => item.name === activeNav);
   const canManageChargers = role === "owner" || role === "admin" || role === "technician";
   const canControlChargers = role === "owner" || role === "admin" || role === "operator" || role === "technician";
   const siteNames = new Map(sites.map((site) => [site.id, site.name]));
