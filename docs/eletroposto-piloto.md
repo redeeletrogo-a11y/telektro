@@ -56,3 +56,11 @@ select public_code from public.eletroposto_points order by created_at desc limit
 - Cartão, conta do motorista, recibo por e-mail, painel do dono com lista de pagamentos.
 - Obrigações fiscais/legais da operação de eletroposto: validar com o contador.
 - Teste real no carregador: o `RemoteStop` não garante parar no kWh exato; a margem (5%) precisa ser calibrada com o intervalo de `MeterValues` do equipamento.
+
+## Aplicação própria do Mercado Pago (opcional)
+
+O eletroposto pode usar uma aplicação do Mercado Pago só dele, para separar os pagamentos de residencial e condomínio:
+
+- `MERCADOPAGO_ELETROPOSTO_ACCESS_TOKEN`: token de produção da aplicação do eletroposto (cria o Pix, relê o pagamento e devolve a sobra). Se não existir, usa `MERCADOPAGO_ACCESS_TOKEN`.
+- `MERCADOPAGO_ELETROPOSTO_WEBHOOK_SECRET`: segredo do webhook dessa aplicação (URL `/api/billing/mercadopago/webhook`, evento "Pagamentos"). O webhook aceita o segredo padrão ou este.
+- Se o pagamento notificado não pertence à aplicação do eletroposto (leitura 401/403/404 com token próprio), o fluxo segue como mensalidade, sem efeito no eletroposto.
