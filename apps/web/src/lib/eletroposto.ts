@@ -48,7 +48,7 @@ export async function getPointInfo(code: string): Promise<PointInfo | null> {
   const now = Date.now();
   const valid = (tariffs ?? []).filter((t) => new Date(t.valid_from).getTime() <= now && (!t.valid_until || new Date(t.valid_until).getTime() > now) && (t.site_id === null || t.site_id === charger.site_id));
   const tariff = valid.find((t) => t.site_id === charger.site_id) ?? valid[0] ?? null;
-  const fresh = charger.online && charger.last_heartbeat_at && new Date(charger.last_heartbeat_at).getTime() > now - 180_000;
+  const fresh = charger.online && charger.last_heartbeat_at && new Date(charger.last_heartbeat_at).getTime() > now - 75_000;
   const status = String(connector?.status ?? charger.status);
   let reason: string | null = null;
   if (!tariff) reason = "Este ponto ainda não tem tarifa definida.";
@@ -78,6 +78,9 @@ export type CreateResult = { token: string } | { error: string };
 // Cria o pagamento (valida no banco) e o Pix no Mercado Pago. O valor vem do banco, nunca do navegador depois de validado.
 export async function createEletropostoPayment(args: { code: string; name: string; email: string; phone: string; amount: number; ipHash: string; origin: string }): Promise<CreateResult> {
   const supabase = serviceClient();
+  // Janela de frescor do heartbeat mais curta que a do banco (180 s): evita aceitar Pix com carregador recém-caído.
+  const pre = await getPointInfo(args.code).catch(() => null);
+  if (pre && !pre.available && pre.reason) return { error: pre.reason };
   const { data, error } = await supabase.rpc("eletroposto_create_payment", { p_code: args.code, p_name: args.name, p_email: args.email, p_phone: args.phone, p_amount: args.amount, p_ip_hash: args.ipHash });
   if (error) {
     const key = Object.keys(createErrorMessages).find((k) => error.message?.includes(k));
