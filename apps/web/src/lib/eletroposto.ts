@@ -178,8 +178,10 @@ export type PublicStatus = {
 export async function getPublicStatus(token: string, advance = true): Promise<PublicStatus | null> {
   if (!tokenPattern.test(token)) return null;
   const supabase = serviceClient();
-  const base = await supabase.from("eletroposto_payments").select("id").eq("public_token", token).maybeSingle();
+  const base = await supabase.from("eletroposto_payments").select("id, status, mp_payment_id").eq("public_token", token).maybeSingle();
   if (!base.data) return null;
+  // Rede de seguranca: se o webhook atrasou ou nao chegou, releia o Pix no Mercado Pago (idempotente; so enquanto aguarda pagamento).
+  if (advance && base.data.status === "awaiting_payment" && base.data.mp_payment_id) { try { await applyEletropostoPayment(String(base.data.mp_payment_id)); } catch { /* o webhook ainda pode concluir */ } }
   if (advance) { try { await settleRefunds(base.data.id); } catch { /* o estado atual ainda e mostrado */ } }
   const { data: p } = await supabase.from("eletroposto_payments").select("status, cap_amount, price_per_kwh, session_fee, energy_wh, charged_amount, refund_amount, refund_reason, qr_code, qr_code_base64, expires_at, charger_id, session_id").eq("id", base.data.id).single();
   if (!p) return null;
