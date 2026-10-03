@@ -475,7 +475,7 @@ export async function createResidentInvite(organizationId: string): Promise<{ er
   if (!uuidPattern.test(organizationId)) return { error: "Organização inválida." };
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("create_resident_invite", { p_organization_id: organizationId });
-  if (error) return { error: "Não foi possível criar o convite. Só o síndico de um condomínio pode convidar moradores." };
+  if (error) return { error: "Não foi possível criar o convite. Só a pessoa responsável pelo condomínio pode convidar moradores." };
   revalidatePath("/");
   return { code: String(data) };
 }
