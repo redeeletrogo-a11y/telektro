@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
-import { mpFetch } from "@/lib/billing";
+import { eletropostoAccessToken, mpFetch } from "@/lib/billing";
+
+const epFetch = (path: string, init?: RequestInit) => mpFetch(path, init, eletropostoAccessToken());
 import { serviceClient } from "@/lib/pix";
 
 // Eletroposto pre-pago por QR (piloto). Toda a regra de dinheiro fica no banco (migration 202610030020) e aqui,
@@ -90,7 +92,7 @@ export async function createEletropostoPayment(args: { code: string; name: strin
     const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
     const notificationUrl = new URL("/api/billing/mercadopago/webhook", args.origin);
     if (bypass) notificationUrl.searchParams.set("x-vercel-protection-bypass", bypass);
-    const payment = await mpFetch("/v1/payments", {
+    const payment = await epFetch("/v1/payments", {
       method: "POST",
       headers: { "X-Idempotency-Key": paymentId },
       body: JSON.stringify({
@@ -117,7 +119,13 @@ export async function createEletropostoPayment(args: { code: string; name: strin
 // Chamado pelo webhook do Mercado Pago. Retorna null se NAO for um pagamento de eletroposto (sem tocar no banco),
 // para o fluxo de mensalidade continuar igual. O pagamento e sempre relido no Mercado Pago (nunca confia no corpo da notificacao).
 export async function applyEletropostoPayment(paymentId: string): Promise<string | null> {
-  const payment = await mpFetch(`/v1/payments/${encodeURIComponent(paymentId)}`);
+  let payment;
+  try { payment = await epFetch(`/v1/payments/${encodeURIComponent(paymentId)}`); }
+  catch (error) {
+    // Pagamento de outra aplicacao do Mercado Pago (ex.: mensalidade): nao e do eletroposto, segue o outro fluxo.
+    if (error instanceof Error && ["mercadopago_404", "mercadopago_403", "mercadopago_401"].includes(error.message) && eletropostoAccessToken() !== (process.env.MERCADOPAGO_ACCESS_TOKEN ?? "")) return null;
+    throw error;
+  }
   const reference = String(payment.external_reference ?? "");
   if (!reference.startsWith(EP_REF_PREFIX)) return null;
   const id = reference.slice(EP_REF_PREFIX.length);
@@ -155,7 +163,7 @@ export async function settleRefunds(onlyId?: string): Promise<number> {
     }
     try {
       const full = refund >= Number(row.cap_amount);
-      const result = await mpFetch(`/v1/payments/${encodeURIComponent(String(row.mp_payment_id))}/refunds`, {
+      const result = await epFetch(`/v1/payments/${encodeURIComponent(String(row.mp_payment_id))}/refunds`, {
         method: "POST",
         headers: { "X-Idempotency-Key": `ep-refund-${row.id}` },
         body: JSON.stringify(full ? {} : { amount: refund }),
