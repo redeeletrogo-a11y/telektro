@@ -224,3 +224,8 @@ html[data-theme="light"] .app-shell .ring-arc { stroke: #0f9d6e; filter: none; }
   .print-only { display: block; }
 }
 .wallet-balance { font-size: 32px; font-weight: 600; margin: 4px 0 12px; }
+.resident-block .rfid-row { font-size: 13px; color: var(--muted, #78878d); padding: 4px 0; }
+.resident-block .rfid-manager { padding-left: 0; }
+.resident-block .rfid-manager input { font-size: 13px; height: 36px; }
+.resident-block .rfid-manager > small { font-size: 12px; }
+.resident-row small { color: var(--muted, #78878d); }

@@ -31,14 +31,15 @@ export function ResidentsPanel({ organizationId, residents, invites, residentLim
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
+  const [tagError, setTagError] = useState("");
   const [tagFor, setTagFor] = useState<string | null>(null);
   const [shownCode, setShownCode] = useState<string | null>(null);
   const activeInvites = invites.filter((invite) => !invite.revoked_at && new Date(invite.expires_at) > new Date());
   const full = residentLimit !== null && residents.length >= residentLimit;
-  const run = (job: () => Promise<{ error?: string; code?: string }>) => startTransition(async () => {
-    setError("");
+  const run = (job: () => Promise<{ error?: string; code?: string }>, scope: "invite" | "tag" = "invite") => startTransition(async () => {
+    setError(""); setTagError("");
     const result = await job();
-    if (result.error) setError(result.error);
+    if (result.error) (scope === "tag" ? setTagError : setError)(result.error);
     if (result.code) setShownCode(result.code);
     router.refresh();
   });
@@ -53,14 +54,14 @@ export function ResidentsPanel({ organizationId, residents, invites, residentLim
         return <div className="resident-block" key={resident.user_id}>
         <div className="resident-row">
           <span>{resident.email}<small> · desde {new Date(resident.joined_at).toLocaleDateString("pt-BR")}</small></span>
-          <span><button type="button" className="secondary-button" disabled={pending} onClick={() => setTagFor(tagFor === resident.user_id ? null : resident.user_id)}>Cartão RFID</button> <button type="button" className="secondary-button" disabled={pending} onClick={() => { if (confirm(`Remover ${resident.email}? Os cartões dele deixam de valer.`)) run(() => removeResident(organizationId, resident.user_id)); }}><Trash2 size={13}/>Remover</button></span>
+          <span><button type="button" className="secondary-button" disabled={pending} onClick={() => setTagFor(tagFor === resident.user_id ? null : resident.user_id)}>Cartão RFID</button> <button type="button" className="secondary-button" disabled={pending} onClick={() => { if (confirm(`Remover ${resident.email}? Os cartões dele deixam de valer.`)) run(() => removeResident(organizationId, resident.user_id), "tag"); }}><Trash2 size={13}/>Remover</button></span>
         </div>
-        {mine.map((tag) => <div className="rfid-row" key={tag.id}><span>{tag.label || "Cartão"} · impressão {tag.id_tag_hash.slice(0, 8)}</span><button type="button" className="credential-copy" disabled={pending} onClick={() => run(() => revokeResidentTag(tag.id))}>Revogar</button></div>)}
+        {mine.map((tag) => <div className="rfid-row" key={tag.id}><span>{tag.label || "Cartão"} · impressão {tag.id_tag_hash.slice(0, 8)}</span><button type="button" className="credential-copy" disabled={pending} onClick={() => run(() => revokeResidentTag(tag.id), "tag")}>Revogar</button></div>)}
         {tagFor === resident.user_id && <form className="rfid-manager" onSubmit={(event) => {
           event.preventDefault();
           const form = event.currentTarget;
           const data = new FormData(form);
-          run(async () => { const result = await registerResidentTag(organizationId, resident.user_id, String(data.get("id_tag") ?? ""), String(data.get("label") ?? "")); if (!result.error) { form.reset(); setTagFor(null); } return result; });
+          run(async () => { const result = await registerResidentTag(organizationId, resident.user_id, String(data.get("id_tag") ?? ""), String(data.get("label") ?? "")); if (!result.error) { form.reset(); setTagFor(null); } return result; }, "tag");
         }}>
           <input name="id_tag" maxLength={20} autoComplete="off" placeholder="Identificador impresso do cartão" required/>
           <input name="label" maxLength={60} autoComplete="off" placeholder="Apelido (ex.: apto 12)"/>
@@ -68,6 +69,7 @@ export function ResidentsPanel({ organizationId, residents, invites, residentLim
           <small>Vale em todos os carregadores do condomínio e a recarga é cobrada deste morador. Guardamos só o hash.</small>
         </form>}
       </div>; })}
+      {tagError && <p className="form-error" role="alert">{tagError}</p>}
       {!residents.length && <p className="field-help">Nenhum morador ainda. Gere um convite e compartilhe o QR ou o link.</p>}
     </section>
     <section className="panel" style={{ padding: 16 }}>
