@@ -168,7 +168,7 @@ export async function settleRefunds(onlyId?: string): Promise<number> {
         headers: { "X-Idempotency-Key": `ep-refund-${row.id}` },
         body: JSON.stringify(full ? {} : { amount: refund }),
       });
-      await supabase.from("eletroposto_payments").update({ status: "settled", refund_id: result?.id ? String(result.id) : null, settled_at: nowIso, last_error: null, updated_at: nowIso }).eq("id", row.id).eq("status", "settling");
+      await supabase.from("eletroposto_payments").update({ status: "settled", refund_id: result?.id ? String(result.id) : null, settled_at: nowIso, last_error: null, needs_attention: false, attention_reason: null, updated_at: nowIso }).eq("id", row.id).eq("status", "settling");
       done += 1;
     } catch (caught) {
       // Fica em "settling" e a proxima varredura tenta de novo; o dono ve o alerta.
