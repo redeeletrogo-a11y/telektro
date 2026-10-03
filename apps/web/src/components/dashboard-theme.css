@@ -233,8 +233,8 @@ html[data-theme="light"] .app-shell .ring-arc { stroke: #0f9d6e; filter: none; }
 /* Menu "Mais" no celular */
 .mobile-more, .mobile-more-backdrop { display: none; }
 @media (max-width: 780px) {
-  .mobile-more-backdrop { position: fixed; inset: 0; z-index: 26; display: block; border: 0; background: rgb(0 0 0 / 35%); }
-  .mobile-more { position: fixed; right: 10px; bottom: calc(66px + env(safe-area-inset-bottom)); z-index: 27; display: grid; min-width: 180px; gap: 2px; padding: 6px; border: 1px solid rgb(255 255 255 / 10%); border-radius: 14px; background: rgb(8 24 20 / 97%); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+  .mobile-more-backdrop { position: fixed; inset: 0; z-index: 46; display: block; border: 0; background: rgb(0 0 0 / 35%); }
+  .mobile-more { position: fixed; right: 10px; bottom: calc(66px + env(safe-area-inset-bottom)); z-index: 47; display: grid; min-width: 180px; gap: 2px; padding: 6px; border: 1px solid rgb(255 255 255 / 10%); border-radius: 14px; background: rgb(8 24 20 / 97%); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
   .mobile-more button { display: flex; align-items: center; gap: 12px; border: 0; border-radius: 10px; padding: 12px 14px; color: #c5d8d0; background: transparent; font-size: 14px; text-align: left; }
   .mobile-more button.active { color: #22e0a0; background: rgb(34 224 160 / 10%); }
   .mobile-more svg { width: 18px; height: 18px; }
