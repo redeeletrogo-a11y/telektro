@@ -27,7 +27,7 @@ export function OrganizationOnboarding({ email }: { email: string }) {
       <form action={action} className="login-form">
         <fieldset className="account-types"><legend>Tipo de conta</legend>
           <label className={`account-type ${type === "residencial" ? "selected" : ""}`}><input type="radio" name="account_type" value="residencial" checked={type === "residencial"} onChange={() => setType("residencial")}/><strong>Residencial</strong><span>Sua casa, seus carregadores. R$ 19,90/mês.</span></label>
-          <label className={`account-type ${type === "condominio" ? "selected" : ""}`}><input type="radio" name="account_type" value="condominio" checked={type === "condominio"} onChange={() => setType("condominio")}/><strong>Condomínio</strong><span>Síndico administra e convida moradores. R$ 199/mês até 5 usuários, +R$ 19,90 por usuário extra.</span></label>
+          <label className={`account-type ${type === "condominio" ? "selected" : ""}`}><input type="radio" name="account_type" value="condominio" checked={type === "condominio"} onChange={() => setType("condominio")}/><strong>Condomínio</strong><span>A pessoa responsável administra e convida moradores. R$ 199/mês até 5 usuários, +R$ 19,90 por usuário extra.</span></label>
           <label className="account-type disabled"><input type="radio" name="account_type" value="eletroposto" disabled/><strong>Eletroposto</strong><span>Em breve. Fale com a Telektro.</span></label>
         </fieldset>
         <label htmlFor="organization-name">{type === "condominio" ? "Nome do condomínio" : "Nome da conta"}</label>

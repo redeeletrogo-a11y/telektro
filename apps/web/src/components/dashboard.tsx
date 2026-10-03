@@ -7,7 +7,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CondoBilling } from "@/components/condo-billing";
 import { ResidentsPanel, type Invite, type Resident, type ResidentTag } from "@/components/residents-panel";
-import { Activity, ArrowRight, Building2, Car, Check, Clock3, Copy, LayoutDashboard, MapPin, Moon, Sun, Play, PlugZap, RotateCcw, Square, Trash2, Users, Zap } from "lucide-react";
+import { Activity, ArrowRight, Building2, Car, Check, Clock3, Copy, LayoutDashboard, MapPin, Menu, Moon, Sun, Play, PlugZap, RotateCcw, Square, Trash2, Users, Zap } from "lucide-react";
 import { createSite, registerCharger, registerRfidAuthorization, removeCharger, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, startSubscription, rotateChargerCredential, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
 
 type Organization = { id: string; name: string; slug: string; account_type?: string; resident_limit?: number | null };
@@ -218,6 +218,7 @@ export function Dashboard({
 }) {
   const router = useRouter();
   const [activeNav, setActiveNav] = useState("Visão geral");
+  const [moreOpen, setMoreOpen] = useState(false);
   const [clockNow, setClockNow] = useState(0);
   useEffect(() => {
     const initialTick = window.setTimeout(() => setClockNow(Date.now()), 0);
@@ -237,6 +238,17 @@ export function Dashboard({
     };
   }, [router]);
   const canManageSites = role === "owner" || role === "admin";
+  const isCondoManager = accountType === "condominio" && canManageSites;
+  const mobileHome = { name: "Visão geral", label: "Início", icon: <LayoutDashboard/> };
+  const mobileSites = { name: "Locais", label: "Locais", icon: <MapPin/> };
+  const mobileChargers = { name: "Carregadores", label: "Carregadores", icon: <PlugZap/> };
+  const mobileSessions = { name: "Sessões", label: "Sessões", icon: <Activity/> };
+  const mobileEnergy = { name: "Energia", label: "Energia", icon: <Zap/> };
+  const mobileResidents = { name: "Moradores", label: "Moradores", icon: <Users/> };
+  const mobileBilling = { name: "Cobrança", label: "Cobrança", icon: <Zap/> };
+  const mobilePrimary = isCondoManager ? [mobileHome, mobileChargers, mobileSessions, mobileResidents] : [mobileHome, mobileSites, mobileChargers, mobileSessions];
+  const mobileMore = isCondoManager ? [mobileSites, mobileEnergy, mobileBilling] : [mobileEnergy];
+  const moreActive = mobileMore.some((item) => item.name === activeNav);
   const canManageChargers = role === "owner" || role === "admin" || role === "technician";
   const canControlChargers = role === "owner" || role === "admin" || role === "operator" || role === "technician";
   const siteNames = new Map(sites.map((site) => [site.id, site.name]));
@@ -307,7 +319,16 @@ export function Dashboard({
         <p className="footnote">Dados atualizados automaticamente a cada 20 s enquanto a página está aberta. Última consulta: {clockNow ? new Date(dataLoadedAt).toLocaleTimeString("pt-BR") : "carregando"}. Leituras OCPP podem chegar com atraso.</p>
       </div>
     </main>
-    <nav className="mobile-nav" aria-label="Navegação móvel"><button className={activeNav === "Visão geral" ? "active" : ""} onClick={() => setActiveNav("Visão geral")}><LayoutDashboard/>Início</button><button className={activeNav === "Locais" ? "active" : ""} onClick={() => setActiveNav("Locais")}><MapPin/>Locais</button><button className={activeNav === "Carregadores" ? "active" : ""} onClick={() => setActiveNav("Carregadores")}><PlugZap/>Carregadores</button><button className={activeNav === "Sessões" ? "active" : ""} onClick={() => setActiveNav("Sessões")}><Activity/>Sessões</button></nav>
+    <nav className="mobile-nav" aria-label="Navegação móvel">
+      {mobilePrimary.map((item) => <button key={item.name} className={activeNav === item.name ? "active" : ""} onClick={() => { setActiveNav(item.name); setMoreOpen(false); }}>{item.icon}{item.label}</button>)}
+      <button className={moreActive || moreOpen ? "active" : ""} aria-expanded={moreOpen} aria-controls="mobile-more" onClick={() => setMoreOpen((open) => !open)}><Menu/>Mais</button>
+    </nav>
+    {moreOpen && <>
+      <button className="mobile-more-backdrop" aria-label="Fechar menu" onClick={() => setMoreOpen(false)}/>
+      <div className="mobile-more" id="mobile-more" role="menu">
+        {mobileMore.map((item) => <button key={item.name} role="menuitem" className={activeNav === item.name ? "active" : ""} onClick={() => { setActiveNav(item.name); setMoreOpen(false); }}>{item.icon}{item.label}</button>)}
+      </div>
+    </>}
   </div>;
 }
 
