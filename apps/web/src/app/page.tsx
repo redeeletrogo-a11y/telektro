@@ -58,7 +58,6 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
     const [residentChargers, residentSessions] = await Promise.all([
       supabase.from("chargers").select("id, charge_point_id, model, status, online").eq("organization_id", activeOrganization.id).is("removed_at", null).order("charge_point_id"),
       supabase.from("sessions").select("id, charger_id, started_at, ended_at").eq("organization_id", activeOrganization.id).order("started_at", { ascending: false }).limit(20),
-      supabase.from("resident_tags").select("id, user_id, label, id_tag_hash, enabled").eq("organization_id", activeOrganization.id).eq("enabled", true).order("created_at", { ascending: false }),
     ]);
     let usage: { ended_at: string; kwh: number; price_per_kwh: number; amount: number }[] | null = null;
     if (activeOrganization.account_type === "condominio") {
