@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { mercadoPagoConfigured } from "@/lib/billing";
+import { eletropostoAccessToken } from "@/lib/billing";
 import { createEletropostoPayment, getPublicStatus, hashIp, isValidCode, isValidToken, parseAmount, requestStop, type PublicStatus } from "@/lib/eletroposto";
 
 export type StartState = { error?: string };
@@ -16,7 +16,7 @@ export async function startEletropostoPayment(code: string, _previous: StartStat
   const name = String(formData.get("name") ?? "").trim().slice(0, 120);
   const email = String(formData.get("email") ?? "").trim().slice(0, 200);
   const phone = String(formData.get("phone") ?? "").trim().slice(0, 30);
-  if (!mercadoPagoConfigured()) return { error: "Pagamento online indisponível no momento." };
+  if (!eletropostoAccessToken()) return { error: "Pagamento online indisponível no momento." };
   const requestHeaders = await headers();
   const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
   if (!host) return { error: "Não foi possível iniciar o pagamento." };
