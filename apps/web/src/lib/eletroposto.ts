@@ -149,7 +149,7 @@ export async function applyEletropostoPayment(paymentId: string): Promise<string
 export async function settleRefunds(onlyId?: string): Promise<number> {
   const supabase = serviceClient();
   await supabase.rpc("eletroposto_advance", { p_id: onlyId ?? null });
-  let query = supabase.from("eletroposto_payments").select("id, mp_payment_id, cap_amount, charged_amount, refund_amount").eq("status", "settling").limit(25);
+  let query = supabase.from("eletroposto_payments").select("id, mp_payment_id, cap_amount, charged_amount, refund_amount, paid_at").eq("status", "settling").limit(25);
   if (onlyId) query = query.eq("id", onlyId);
   const { data: rows } = await query;
   let done = 0;
@@ -161,6 +161,8 @@ export async function settleRefunds(onlyId?: string): Promise<number> {
       done += 1;
       continue;
     }
+    // O Mercado Pago recusa reembolso de Pix logo apos a aprovacao; espera ~60 s antes da 1a tentativa (a proxima visita/varredura tenta).
+    if (row.paid_at && Date.now() - new Date(String(row.paid_at)).getTime() < 60_000) continue;
     try {
       const full = refund >= Number(row.cap_amount);
       const result = await epFetch(`/v1/payments/${encodeURIComponent(String(row.mp_payment_id))}/refunds`, {
