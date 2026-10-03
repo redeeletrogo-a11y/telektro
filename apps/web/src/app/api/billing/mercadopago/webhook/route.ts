@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { applyEletropostoPayment } from "@/lib/eletroposto";
 import { applyPixPayment } from "@/lib/pix";
 import { getAuthorizedPaymentPreapprovalId, getPreapproval, mapPreapprovalStatus } from "@/lib/billing";
 
@@ -31,6 +32,9 @@ export async function POST(request: Request) {
   if (type === "payment") {
     // Pix mensalidade: the payment is re-read from Mercado Pago and applied once (see lib/pix.ts).
     try {
+      // Pagamento de eletroposto (external_reference "ep:...") tem fluxo proprio; qualquer outro segue como mensalidade.
+      const eletroposto = await applyEletropostoPayment(dataId);
+      if (eletroposto !== null) return NextResponse.json({ ok: true, eletroposto });
       return NextResponse.json({ ok: true, pix: await applyPixPayment(dataId) });
     } catch (error) {
       if (error instanceof Error && error.message === "mercadopago_404") return NextResponse.json({ ok: true, ignored: "unknown_resource" });
