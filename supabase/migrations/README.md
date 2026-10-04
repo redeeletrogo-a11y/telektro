@@ -26,3 +26,5 @@ Estes arquivos SQL ficam no projeto local e são versionados no GitHub. O painel
 Não execute novamente arquivos marcados como aplicados. Migrations podem conter operações que falham ou alteram dados se repetidas.
 
 Neste projeto, as migrations foram executadas pelo SQL Editor e a tabela de histórico do Supabase CLI ainda não existe. A migration 007 foi aplicada pelo proprietário no SQL Editor em 2026-09-30. Antes de passar a usar `supabase db push`, será necessário sincronizar o histórico para o CLI não tentar reaplicar os arquivos antigos.
+
+- `202610030022_eletroposto_cartao.sql`: taxa por meio (Pix 5%, cartão 9%), colunas do cartão no pagamento e `eletroposto_create_payment(..., p_method)`. Rodar em 3 partes (colunas, função, permissões) antes do deploy do PR do cartão.
