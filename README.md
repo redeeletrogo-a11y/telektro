@@ -58,3 +58,5 @@ A migration inicial cria organizações, memberships, locais, carregadores, cone
 - `pnpm typecheck` — TypeScript dos aplicativos
 - `pnpm test` — testes do protocolo no gateway
 - `pnpm build` — build de produção do dashboard
+
+<!-- redeploy -->
