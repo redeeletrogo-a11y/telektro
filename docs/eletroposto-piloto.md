@@ -74,3 +74,5 @@ O eletroposto pode usar uma aplicação do Mercado Pago só dele, para separar o
 - Chargeback (webhook `charged_back`): marca `needs_attention` com `attention_reason = 'chargeback'`.
 - Taxa da plataforma (migration 202610030022): `platform_fee_pix_pct` (padrão 5) e `platform_fee_card_pct` (padrão 9) por ponto, gravadas em cada pagamento como `fee_pct` e calculadas na liquidação em `fee_amount` sobre o valor efetivamente cobrado. Não há repasse automático; é registro para o repasse ao proprietário. Tarifas do Mercado Pago (online): Pix 0,99%; crédito à vista 4,98% na hora, 4,49% em 14 dias, 3,98% em 30 dias; conferir no painel da conta.
 - Ordem de rollout: rodar a migration 202610030022 (em 3 partes) ANTES do deploy; o código novo lê as colunas novas.
+
+<!-- rebuild preview -->
