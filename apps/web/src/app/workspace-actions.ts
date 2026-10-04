@@ -506,8 +506,9 @@ export async function startSubscription(_previous: FormState, formData: FormData
     .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
   if (!membership || !["owner", "admin"].includes(membership.role)) return { error: "Só o responsável da conta pode assinar." };
   if (!mercadoPagoConfigured()) return { error: "Pagamento online indisponível no momento." };
-  const { data: orgRow } = await supabase.from("organizations").select("subscription_status, trial_ends_at")
+  const { data: orgRow } = await supabase.from("organizations").select("subscription_status, trial_ends_at, account_type")
     .eq("id", organizationId).maybeSingle();
+  if (!orgRow || orgRow.account_type !== "residencial") return { error: "A assinatura online vale só para conta residencial." };
   const trialEndsAt = orgRow?.subscription_status === "trialing" ? (orgRow.trial_ends_at as string | null) : null;
   const requestHeaders = await headers();
   const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
