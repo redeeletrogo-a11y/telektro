@@ -26,6 +26,28 @@ export async function startEletropostoPayment(code: string, _previous: StartStat
   redirect(`/carregar/pagamento/${result.token}`);
 }
 
+export type CardPayload = { amount: string; name: string; email: string; phone: string; consent: boolean; token: string; paymentMethodId: string; issuerId?: string | null; deviceId?: string | null };
+export type CardResult = { error: string } | { token: string };
+
+// Cartao: o navegador so envia o token do cartao (gerado pelo Mercado Pago); o valor e validado de novo no servidor/banco.
+export async function startEletropostoCard(code: string, input: CardPayload): Promise<CardResult> {
+  if (!isValidCode(code)) return { error: "Ponto de recarga inválido." };
+  if (!input.consent) return { error: "Aceite os termos para continuar." };
+  const amount = parseAmount(String(input.amount ?? ""));
+  if (amount === null) return { error: "Informe um valor válido em reais." };
+  if (!eletropostoAccessToken()) return { error: "Pagamento online indisponível no momento." };
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  if (!host) return { error: "Não foi possível iniciar o pagamento." };
+  const ip = (requestHeaders.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
+  const result = await createEletropostoPayment({
+    code, amount, ipHash: hashIp(ip), origin: `https://${host}`,
+    name: String(input.name ?? "").trim().slice(0, 120), email: String(input.email ?? "").trim().slice(0, 200), phone: String(input.phone ?? "").trim().slice(0, 30),
+    card: { token: String(input.token ?? ""), paymentMethodId: String(input.paymentMethodId ?? ""), issuerId: input.issuerId ? String(input.issuerId) : null, deviceId: input.deviceId ? String(input.deviceId) : null },
+  });
+  return result;
+}
+
 export async function eletropostoStatus(token: string): Promise<PublicStatus | null> {
   if (!isValidToken(token)) return null;
   return getPublicStatus(token);

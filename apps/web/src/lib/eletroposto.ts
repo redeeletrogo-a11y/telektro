@@ -73,15 +73,31 @@ export const createErrorMessages: Record<string, string> = {
   NO_TARIFF: "Este ponto ainda não tem tarifa definida.",
 };
 
+// Dados extras recomendados pelo Mercado Pago (qualidade da integracao): item e nome do pagador melhoram a aprovacao e a antifraude.
+function mpPayerAndItems(name: string, email: string, amount: number, place: string) {
+  const parts = name.trim().split(/\s+/);
+  const firstName = parts[0] ?? "";
+  const lastName = parts.length > 1 ? parts.slice(1).join(" ") : parts[0] ?? "";
+  return {
+    payer: { email: process.env.MERCADOPAGO_PAYER_EMAIL_OVERRIDE || email, first_name: firstName.slice(0, 60), last_name: lastName.slice(0, 60) },
+    additional_info: { items: [{ id: "recarga-eletroposto", title: "Recarga eletroposto", description: `Recarga eletroposto ${place}`.slice(0, 200), category_id: "services", quantity: 1, unit_price: amount }] },
+  };
+}
+
 export type CreateResult = { token: string } | { error: string };
+export type CardInput = { token: string; paymentMethodId: string; issuerId: string | null; deviceId: string | null };
+const cardTokenPattern = /^[A-Za-z0-9_-]{16,128}$/;
+const cardMethodPattern = /^[a-z0-9_]{2,30}$/;
 
 // Cria o pagamento (valida no banco) e o Pix no Mercado Pago. O valor vem do banco, nunca do navegador depois de validado.
-export async function createEletropostoPayment(args: { code: string; name: string; email: string; phone: string; amount: number; ipHash: string; origin: string }): Promise<CreateResult> {
+export async function createEletropostoPayment(args: { code: string; name: string; email: string; phone: string; amount: number; ipHash: string; origin: string; card?: CardInput }): Promise<CreateResult> {
+  const method = args.card ? "card" : "pix";
+  if (args.card && (!cardTokenPattern.test(args.card.token) || !cardMethodPattern.test(args.card.paymentMethodId))) return { error: "Dados do cartão inválidos. Tente de novo." };
   const supabase = serviceClient();
   // Janela de frescor do heartbeat mais curta que a do banco (180 s): evita aceitar Pix com carregador recém-caído.
   const pre = await getPointInfo(args.code).catch(() => null);
   if (pre && !pre.available && pre.reason) return { error: pre.reason };
-  const { data, error } = await supabase.rpc("eletroposto_create_payment", { p_code: args.code, p_name: args.name, p_email: args.email, p_phone: args.phone, p_amount: args.amount, p_ip_hash: args.ipHash });
+  const { data, error } = await supabase.rpc("eletroposto_create_payment", { p_code: args.code, p_name: args.name, p_email: args.email, p_phone: args.phone, p_amount: args.amount, p_ip_hash: args.ipHash, ...(method === "card" ? { p_method: "card" } : {}) });
   if (error) {
     const key = Object.keys(createErrorMessages).find((k) => error.message?.includes(k));
     return { error: key ? createErrorMessages[key] : "Não foi possível iniciar o pagamento agora." };
@@ -90,6 +106,7 @@ export async function createEletropostoPayment(args: { code: string; name: strin
   const paymentId = String(row?.payment_id ?? "");
   const token = String(row?.public_token ?? "");
   if (!uuidPattern.test(paymentId) || !tokenPattern.test(token)) return { error: "Não foi possível iniciar o pagamento agora." };
+  if (args.card) return createCardReservation(paymentId, token, { ...args, card: args.card, place: pre?.siteName || pre?.chargerName || "Telektro" });
   try {
     const { data: stored } = await supabase.from("eletroposto_payments").select("cap_amount, expires_at").eq("id", paymentId).single();
     const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
@@ -105,7 +122,7 @@ export async function createEletropostoPayment(args: { code: string; name: strin
         external_reference: `${EP_REF_PREFIX}${paymentId}`,
         notification_url: notificationUrl.toString(),
         date_of_expiration: new Date(stored!.expires_at).toISOString().replace("Z", "+00:00"),
-        payer: { email: process.env.MERCADOPAGO_PAYER_EMAIL_OVERRIDE || args.email },
+        ...mpPayerAndItems(args.name, args.email, Number(stored!.cap_amount), pre?.siteName || pre?.chargerName || "Telektro"),
       }),
     });
     const tx = payment?.point_of_interaction?.transaction_data ?? {};
@@ -116,6 +133,58 @@ export async function createEletropostoPayment(args: { code: string; name: strin
   } catch {
     await supabase.from("eletroposto_payments").update({ status: "expired", updated_at: new Date().toISOString() }).eq("id", paymentId).eq("status", "awaiting_payment");
     return { error: "Não foi possível gerar o Pix agora. Tente novamente em instantes." };
+  }
+}
+
+// Cartao: reserva o valor maximo (capture=false, 1x). So a reserva autorizada libera a recarga; no fim captura-se SO o consumo.
+async function createCardReservation(paymentId: string, token: string, args: { name: string; email: string; origin: string; card: CardInput; place: string }): Promise<CreateResult> {
+  const supabase = serviceClient();
+  const fail = async (message: string): Promise<CreateResult> => {
+    await supabase.from("eletroposto_payments").update({ status: "expired", updated_at: new Date().toISOString() }).eq("id", paymentId).eq("status", "awaiting_payment");
+    return { error: message };
+  };
+  try {
+    const { data: stored } = await supabase.from("eletroposto_payments").select("cap_amount").eq("id", paymentId).single();
+    const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+    const notificationUrl = new URL("/api/billing/mercadopago/webhook", args.origin);
+    if (bypass) notificationUrl.searchParams.set("x-vercel-protection-bypass", bypass);
+    const headers: Record<string, string> = { "X-Idempotency-Key": `ep-card-${paymentId}` };
+    if (args.card.deviceId && /^[A-Za-z0-9_-]{8,128}$/.test(args.card.deviceId)) headers["X-meli-session-id"] = args.card.deviceId;
+    const payment = await epFetch("/v1/payments", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        transaction_amount: Number(stored!.cap_amount),
+        capture: false,
+        installments: 1,
+        token: args.card.token,
+        payment_method_id: args.card.paymentMethodId,
+        ...(args.card.issuerId && /^[0-9]{1,10}$/.test(args.card.issuerId) ? { issuer_id: Number(args.card.issuerId) } : {}),
+        description: "Telektro - recarga de veículo elétrico (reserva do valor máximo, cobra só o consumo)",
+        statement_descriptor: "TELEKTRO",
+        external_reference: `${EP_REF_PREFIX}${paymentId}`,
+        notification_url: notificationUrl.toString(),
+        binary_mode: true,
+        ...mpPayerAndItems(args.name, args.email, Number(stored!.cap_amount), args.place),
+      }),
+    });
+    if (!payment?.id) throw new Error("card_no_id");
+    const card = payment.card ?? {};
+    const { error: updateError } = await supabase.from("eletroposto_payments").update({
+      mp_payment_id: String(payment.id), card_last4: /^[0-9]{4}$/.test(String(card.last_four_digits ?? "")) ? String(card.last_four_digits) : null,
+      card_brand: String(payment.payment_method_id ?? "").slice(0, 30) || null, updated_at: new Date().toISOString(),
+    }).eq("id", paymentId).eq("status", "awaiting_payment");
+    if (updateError) throw new Error("update_failed");
+    if (payment.status === "rejected") {
+      await supabase.from("eletroposto_payments").update({ last_error: `card_rejected:${String(payment.status_detail ?? "").slice(0, 60)}` }).eq("id", paymentId);
+      return await fail("O cartão foi recusado. Confira os dados ou tente outro cartão.");
+    }
+    // Reserva autorizada: libera a recarga agora (mesmo caminho do Pix). Pendente: o webhook/pagina concluem depois.
+    if (payment.status === "authorized") await applyEletropostoPayment(String(payment.id));
+    return { token };
+  } catch (error) {
+    try { await supabase.from("eletroposto_payments").update({ last_error: `card_error:${error instanceof Error ? error.message.slice(0, 80) : "unknown"}` }).eq("id", paymentId); } catch { /* segue */ }
+    return await fail("Não foi possível reservar o valor no cartão agora. Tente de novo ou use o Pix.");
   }
 }
 
@@ -132,11 +201,19 @@ export async function applyEletropostoPayment(paymentId: string): Promise<string
   const reference = String(payment.external_reference ?? "");
   if (!reference.startsWith(EP_REF_PREFIX)) return null;
   const id = reference.slice(EP_REF_PREFIX.length);
-  if (!uuidPattern.test(id) || payment.payment_method_id !== "pix") return "ignored";
+  if (!uuidPattern.test(id)) return "ignored";
   const supabase = serviceClient();
-  const { data: row } = await supabase.from("eletroposto_payments").select("id, mp_payment_id, cap_amount, status").eq("id", id).maybeSingle();
+  const { data: row } = await supabase.from("eletroposto_payments").select("id, mp_payment_id, cap_amount, status, payment_method").eq("id", id).maybeSingle();
   if (!row || row.mp_payment_id !== String(payment.id)) return "ignored";
-  if (payment.status !== "approved") {
+  const isCard = row.payment_method === "card";
+  if (isCard === (payment.payment_method_id === "pix")) return "ignored";
+  if (isCard && payment.status === "charged_back") {
+    await supabase.from("eletroposto_payments").update({ needs_attention: true, attention_reason: "chargeback", updated_at: new Date().toISOString() }).eq("id", id);
+    return "chargeback";
+  }
+  // Pix paga = approved. Cartao com reserva = authorized (capture=false); approved so aparece se alguem capturou por fora.
+  const paidStatus = isCard ? ["authorized", "approved"].includes(String(payment.status)) : payment.status === "approved";
+  if (!paidStatus) {
     if (["cancelled", "expired", "rejected"].includes(String(payment.status))) await supabase.from("eletroposto_payments").update({ status: "expired", updated_at: new Date().toISOString() }).eq("id", id).eq("status", "awaiting_payment");
     return "pending";
   }
@@ -152,15 +229,34 @@ export async function applyEletropostoPayment(paymentId: string): Promise<string
 export async function settleRefunds(onlyId?: string): Promise<number> {
   const supabase = serviceClient();
   await supabase.rpc("eletroposto_advance", { p_id: onlyId ?? null });
-  let query = supabase.from("eletroposto_payments").select("id, mp_payment_id, cap_amount, charged_amount, refund_amount, paid_at").eq("status", "settling").limit(25);
+  let query = supabase.from("eletroposto_payments").select("id, mp_payment_id, cap_amount, charged_amount, refund_amount, paid_at, payment_method, fee_pct").eq("status", "settling").limit(25);
   if (onlyId) query = query.eq("id", onlyId);
   const { data: rows } = await query;
   let done = 0;
   for (const row of rows ?? []) {
     const refund = Math.round(Number(row.refund_amount ?? 0) * 100) / 100;
+    const charged = Math.round(Number(row.charged_amount ?? 0) * 100) / 100;
     const nowIso = new Date().toISOString();
+    // Taxa da plataforma: snapshot do percentual do ponto sobre o valor efetivamente cobrado.
+    const feeAmount = row.fee_pct === null || row.fee_pct === undefined ? null : Math.round(charged * Number(row.fee_pct)) / 100;
+    if (row.payment_method === "card") {
+      // Cartao: captura so o consumo (parcial) ou cancela a reserva se nada foi consumido. Sem reembolso, a sobra volta ao limite.
+      try {
+        if (charged > 0) {
+          await epFetch(`/v1/payments/${encodeURIComponent(String(row.mp_payment_id))}`, { method: "PUT", headers: { "X-Idempotency-Key": `ep-capture-${row.id}` }, body: JSON.stringify({ transaction_amount: charged, capture: true }) });
+        } else {
+          await epFetch(`/v1/payments/${encodeURIComponent(String(row.mp_payment_id))}`, { method: "PUT", headers: { "X-Idempotency-Key": `ep-cancel-${row.id}` }, body: JSON.stringify({ status: "cancelled" }) });
+        }
+        await supabase.from("eletroposto_payments").update({ status: "settled", fee_amount: feeAmount, settled_at: nowIso, last_error: null, needs_attention: false, attention_reason: null, updated_at: nowIso }).eq("id", row.id).eq("status", "settling");
+        done += 1;
+      } catch (caught) {
+        // A reserva vale 5 dias: a proxima visita/varredura tenta de novo e o dono ve o alerta.
+        await supabase.from("eletroposto_payments").update({ last_error: caught instanceof Error ? caught.message.slice(0, 120) : "capture_failed", needs_attention: true, attention_reason: "card_capture_failed", updated_at: nowIso }).eq("id", row.id);
+      }
+      continue;
+    }
     if (refund <= 0) {
-      await supabase.from("eletroposto_payments").update({ status: "settled", settled_at: nowIso, updated_at: nowIso }).eq("id", row.id).eq("status", "settling");
+      await supabase.from("eletroposto_payments").update({ status: "settled", fee_amount: feeAmount, settled_at: nowIso, updated_at: nowIso }).eq("id", row.id).eq("status", "settling");
       done += 1;
       continue;
     }
@@ -173,7 +269,7 @@ export async function settleRefunds(onlyId?: string): Promise<number> {
         headers: { "X-Idempotency-Key": `ep-refund-${row.id}` },
         body: JSON.stringify(full ? {} : { amount: refund }),
       });
-      await supabase.from("eletroposto_payments").update({ status: "settled", refund_id: result?.id ? String(result.id) : null, settled_at: nowIso, last_error: null, needs_attention: false, attention_reason: null, updated_at: nowIso }).eq("id", row.id).eq("status", "settling");
+      await supabase.from("eletroposto_payments").update({ status: "settled", fee_amount: feeAmount, refund_id: result?.id ? String(result.id) : null, settled_at: nowIso, last_error: null, needs_attention: false, attention_reason: null, updated_at: nowIso }).eq("id", row.id).eq("status", "settling");
       done += 1;
     } catch (caught) {
       // Fica em "settling" e a proxima varredura tenta de novo; o dono ve o alerta.
@@ -186,6 +282,7 @@ export async function settleRefunds(onlyId?: string): Promise<number> {
 export type PublicStatus = {
   status: string; cap: number; kwh: number | null; spent: number | null; charged: number | null; refund: number | null;
   qrCode: string | null; qrBase64: string | null; expiresAt: string | null; reason: string | null; canStop: boolean; chargerName: string; pricePerKwh: number;
+  method: "pix" | "card"; cardLast4: string | null; cardBrand: string | null;
 };
 
 export async function getPublicStatus(token: string, advance = true): Promise<PublicStatus | null> {
@@ -196,7 +293,7 @@ export async function getPublicStatus(token: string, advance = true): Promise<Pu
   // Rede de seguranca: se o webhook atrasou ou nao chegou, releia o Pix no Mercado Pago (idempotente; so enquanto aguarda pagamento).
   if (advance && base.data.status === "awaiting_payment" && base.data.mp_payment_id) { try { await applyEletropostoPayment(String(base.data.mp_payment_id)); } catch { /* o webhook ainda pode concluir */ } }
   if (advance) { try { await settleRefunds(base.data.id); } catch { /* o estado atual ainda e mostrado */ } }
-  const { data: p } = await supabase.from("eletroposto_payments").select("status, cap_amount, price_per_kwh, session_fee, energy_wh, charged_amount, refund_amount, refund_reason, qr_code, qr_code_base64, expires_at, charger_id, session_id").eq("id", base.data.id).single();
+  const { data: p } = await supabase.from("eletroposto_payments").select("status, cap_amount, price_per_kwh, session_fee, energy_wh, charged_amount, refund_amount, refund_reason, qr_code, qr_code_base64, expires_at, charger_id, session_id, payment_method, card_last4, card_brand").eq("id", base.data.id).single();
   if (!p) return null;
   const { data: charger } = await supabase.from("chargers").select("charge_point_id").eq("id", p.charger_id).maybeSingle();
   const kwh = p.energy_wh === null ? null : Number(p.energy_wh) / 1000;
@@ -207,6 +304,7 @@ export async function getPublicStatus(token: string, advance = true): Promise<Pu
     qrCode: p.status === "awaiting_payment" ? p.qr_code : null, qrBase64: p.status === "awaiting_payment" ? p.qr_code_base64 : null,
     expiresAt: p.expires_at, reason: p.refund_reason, canStop: p.status === "charging" && Boolean(p.session_id),
     chargerName: charger?.charge_point_id ?? "", pricePerKwh: Number(p.price_per_kwh),
+    method: p.payment_method === "card" ? "card" : "pix", cardLast4: p.card_last4 ?? null, cardBrand: p.card_brand ?? null,
   };
 }
 

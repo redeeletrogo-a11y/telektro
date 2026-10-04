@@ -14,7 +14,7 @@ export default async function ChargePage({ params }: { params: Promise<{ code: s
       <p className="eyebrow">RECARGA SEM APP</p>
       <h1>{info.siteName || info.chargerName}</h1>
       <p className="login-description">Carregador {info.chargerName}, conector {info.connectorId}. Tarifa: R$ {info.pricePerKwh?.toFixed(2).replace(".", ",") ?? "-"} por kWh.</p>
-      {info.available ? <StartForm code={info.code} min={info.minAmount} max={info.maxAmount} pricePerKwh={info.pricePerKwh!}/> : <p className="login-error" role="alert">{info.reason}</p>}
+      {info.available ? <StartForm code={info.code} min={info.minAmount} max={info.maxAmount} pricePerKwh={info.pricePerKwh!} cardPublicKey={process.env.NEXT_PUBLIC_MERCADOPAGO_ELETROPOSTO_PUBLIC_KEY ?? null}/> : <p className="login-error" role="alert">{info.reason}</p>}
     </>}
   </section></main>;
 }
