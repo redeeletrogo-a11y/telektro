@@ -44,6 +44,16 @@ export async function getStatement(organizationId: string, month: string): Promi
   return { rows: (data ?? []).map((row: { user_id: string; email: string; sessions: number; kwh: string | number; amount: string | number }) => ({ user_id: row.user_id, email: row.email, sessions: Number(row.sessions), kwh: Number(row.kwh), amount: Number(row.amount) })) };
 }
 
+export type ChargerSummaryRow = { charger_id: string; charge_point_id: string; sessions: number; kwh: number; amount: number };
+
+export async function getChargersSummary(organizationId: string, month: string): Promise<{ error?: string; rows?: ChargerSummaryRow[] }> {
+  if (!uuidPattern.test(organizationId) || !/^\d{4}-\d{2}$/.test(month)) return { error: "Mês inválido." };
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("condo_chargers_summary", { p_organization_id: organizationId, p_month: `${month}-01` });
+  if (error) return { error: "Não foi possível carregar o resumo." };
+  return { rows: (data ?? []).map((row: { charger_id: string; charge_point_id: string; sessions: number; kwh: string | number; amount: string | number }) => ({ charger_id: row.charger_id, charge_point_id: row.charge_point_id, sessions: Number(row.sessions), kwh: Number(row.kwh), amount: Number(row.amount) })) };
+}
+
 const tagUuid = /^[0-9a-f-]{36}$/i;
 
 export async function registerResidentTag(organizationId: string, userId: string, idTagRaw: string, label: string): Promise<{ error?: string }> {
