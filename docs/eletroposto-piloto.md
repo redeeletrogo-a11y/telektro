@@ -64,3 +64,13 @@ O eletroposto pode usar uma aplicação do Mercado Pago só dele, para separar o
 - `MERCADOPAGO_ELETROPOSTO_ACCESS_TOKEN`: token de produção da aplicação do eletroposto (cria o Pix, relê o pagamento e devolve a sobra). Se não existir, usa `MERCADOPAGO_ACCESS_TOKEN`.
 - `MERCADOPAGO_ELETROPOSTO_WEBHOOK_SECRET`: segredo do webhook dessa aplicação (URL `/api/billing/mercadopago/webhook`, evento "Pagamentos"). O webhook aceita o segredo padrão ou este.
 - Se o pagamento notificado não pertence à aplicação do eletroposto (leitura 401/403/404 com token próprio), o fluxo segue como mensalidade, sem efeito no eletroposto.
+
+## Cartão de crédito (reserva + captura parcial) e taxa da plataforma
+
+- Pix continua igual e é o meio padrão. O cartão aparece quando `NEXT_PUBLIC_MERCADOPAGO_ELETROPOSTO_PUBLIC_KEY` está definida (chave pública da aplicação do eletroposto, não é segredo).
+- Front: Card Payment Brick do Mercado Pago (Checkout Transparente) tokeniza o cartão no navegador; o servidor só recebe o token. 1x, só crédito. O device id (`MP_DEVICE_SESSION_ID`) vai no header `X-meli-session-id`.
+- Servidor: `POST /v1/payments` com `capture=false` reserva o valor máximo. Reserva `authorized` libera a recarga pelo mesmo `eletroposto_mark_paid` e RemoteStart do Pix.
+- Liquidação do cartão: captura parcial do consumo (`PUT /v1/payments/{id}` com `capture=true` e `transaction_amount` = valor cobrado). Se nada foi consumido (ou a recarga não iniciou), a reserva é cancelada. Não há reembolso: a sobra volta ao limite do cartão. A reserva expira em 5 dias; a varredura diária (`/api/eletroposto/sweep`) tenta capturar/cancelar de novo e o pagamento fica com `needs_attention` (`card_capture_failed`) se falhar.
+- Chargeback (webhook `charged_back`): marca `needs_attention` com `attention_reason = 'chargeback'`.
+- Taxa da plataforma (migration 202610030022): `platform_fee_pix_pct` (padrão 5) e `platform_fee_card_pct` (padrão 9) por ponto, gravadas em cada pagamento como `fee_pct` e calculadas na liquidação em `fee_amount` sobre o valor efetivamente cobrado. Não há repasse automático; é registro para o repasse ao proprietário. Tarifas do Mercado Pago (online): Pix 0,99%; crédito à vista 4,98% na hora, 4,49% em 14 dias, 3,98% em 30 dias; conferir no painel da conta.
+- Ordem de rollout: rodar a migration 202610030022 (em 3 partes) ANTES do deploy; o código novo lê as colunas novas.
