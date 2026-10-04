@@ -83,3 +83,84 @@ export async function saveEletropostoTariff(organizationId: string, _previous: F
   revalidatePath("/");
   return { success: "Tarifa salva. Vale para as próximas recargas." };
 }
+
+export type SalesPeriod = "hoje" | "7d" | "30d" | "mes";
+export type SalesRow = { id: string; at: string; charger: string; payer: string; method: string; reserved: number; charged: number; kwh: number; fee: number; status: string; label: string };
+export type SalesSummary = {
+  sold: { count: number; kwh: number; gross: number; fee: number; net: number };
+  notSold: { count: number; expired: number; refundedFull: number; failed: number };
+  inProgress: number; attention: number;
+  byCharger: { charger: string; count: number; kwh: number; gross: number; net: number }[];
+};
+export type SalesResult = { error?: string; summary?: SalesSummary; rows?: SalesRow[]; from?: string; truncated?: boolean };
+
+const TZ_OFFSET = "-03:00"; // America/Fortaleza (sem horario de verao)
+
+function periodStart(period: SalesPeriod) {
+  const nowLocal = new Date(Date.now() - 3 * 3600_000);
+  const day = nowLocal.toISOString().slice(0, 10);
+  if (period === "hoje") return new Date(`${day}T00:00:00${TZ_OFFSET}`);
+  if (period === "mes") return new Date(`${day.slice(0, 8)}01T00:00:00${TZ_OFFSET}`);
+  const days = period === "7d" ? 6 : 29;
+  return new Date(new Date(`${day}T00:00:00${TZ_OFFSET}`).getTime() - days * 86_400_000);
+}
+
+const activeStatuses = ["awaiting_payment", "paid", "starting", "charging", "settling"];
+
+function labelFor(row: { status: string; charged_amount: number | null; refund_reason: string | null; needs_attention: boolean | null }) {
+  if (row.needs_attention || row.status === "review") return "Precisa de atenção";
+  if (row.status === "settled") {
+    if (Number(row.charged_amount ?? 0) > 0) return "Vendido";
+    if (row.refund_reason === "start_rejected") return "Devolvido: carregador não iniciou";
+    return "Devolvido sem consumo";
+  }
+  if (row.status === "expired") return "Não pago / recusado";
+  if (activeStatuses.includes(row.status)) return "Em andamento";
+  return row.status;
+}
+
+// Vendas do eletroposto: so dono/admin da conta. Leitura com a chave de servidor, sempre filtrada pela conta.
+export async function getEletropostoSales(organizationId: string, period: SalesPeriod): Promise<SalesResult> {
+  const auth = await requireOwner(organizationId);
+  if ("error" in auth) return { error: auth.error };
+  if (!["hoje", "7d", "30d", "mes"].includes(period)) return { error: "Período inválido." };
+  const from = periodStart(period);
+  const service = serviceClient();
+  const limit = 1000;
+  const [{ data, error }, { data: chargerRows }] = await Promise.all([
+    service.from("eletroposto_payments")
+      .select("id, created_at, charger_id, payer_name, payment_method, cap_amount, status, charged_amount, refund_reason, energy_wh, fee_amount, needs_attention")
+      .eq("organization_id", organizationId).gte("created_at", from.toISOString()).order("created_at", { ascending: false }).limit(limit),
+    service.from("chargers").select("id, charge_point_id").eq("organization_id", organizationId),
+  ]);
+  if (error) return { error: "Não foi possível carregar as vendas agora." };
+  const names = new Map((chargerRows ?? []).map((row) => [row.id as string, row.charge_point_id as string]));
+  const summary: SalesSummary = { sold: { count: 0, kwh: 0, gross: 0, fee: 0, net: 0 }, notSold: { count: 0, expired: 0, refundedFull: 0, failed: 0 }, inProgress: 0, attention: 0, byCharger: [] };
+  const per = new Map<string, { charger: string; count: number; kwh: number; gross: number; net: number }>();
+  const rows: SalesRow[] = [];
+  for (const row of data ?? []) {
+    const charged = Number(row.charged_amount ?? 0);
+    const fee = Number(row.fee_amount ?? 0);
+    const kwh = Number(row.energy_wh ?? 0) / 1000;
+    const charger = names.get(row.charger_id as string) ?? "Carregador";
+    if (row.needs_attention || row.status === "review") summary.attention += 1;
+    if (row.status === "settled" && charged > 0) {
+      summary.sold.count += 1; summary.sold.kwh += kwh; summary.sold.gross += charged; summary.sold.fee += fee; summary.sold.net += charged - fee;
+      const item = per.get(charger) ?? { charger, count: 0, kwh: 0, gross: 0, net: 0 };
+      item.count += 1; item.kwh += kwh; item.gross += charged; item.net += charged - fee; per.set(charger, item);
+    } else if (row.status === "settled") {
+      summary.notSold.count += 1;
+      if (row.refund_reason === "start_rejected") summary.notSold.failed += 1; else summary.notSold.refundedFull += 1;
+    } else if (row.status === "expired") { summary.notSold.count += 1; summary.notSold.expired += 1; }
+    else if (activeStatuses.includes(row.status as string)) summary.inProgress += 1;
+    rows.push({
+      id: row.id as string, at: row.created_at as string, charger, payer: String(row.payer_name ?? "").split(" ")[0], method: row.payment_method === "card" ? "Cartão" : "Pix",
+      reserved: Number(row.cap_amount ?? 0), charged, kwh, fee,
+      status: row.status as string, label: labelFor({ status: row.status as string, charged_amount: row.charged_amount as number | null, refund_reason: row.refund_reason as string | null, needs_attention: row.needs_attention as boolean | null }),
+    });
+  }
+  summary.byCharger = [...per.values()].sort((a, b) => b.gross - a.gross);
+  const round = (n: number) => Math.round(n * 100) / 100;
+  summary.sold.gross = round(summary.sold.gross); summary.sold.fee = round(summary.sold.fee); summary.sold.net = round(summary.sold.net); summary.sold.kwh = Math.round(summary.sold.kwh * 100) / 100;
+  return { summary, rows, from: from.toISOString(), truncated: (data?.length ?? 0) >= limit };
+}
