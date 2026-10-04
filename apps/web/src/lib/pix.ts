@@ -115,6 +115,7 @@ export async function applyPixPayment(paymentId: string): Promise<"paid" | "expi
   const { data: claimed } = await supabase.from("pix_charges").update({ status: "paid", paid_at: new Date().toISOString(), period_start: periodStart.toISOString(), period_end: periodEnd.toISOString() })
     .eq("id", charge.id).eq("status", "pending").select("id");
   if (!claimed?.length) return "paid";
+  if (org.account_type === "condominio") await supabase.rpc("condo_close_cycle", { p_organization_id: charge.organization_id });
 
   const cardActive = org.subscription_provider === "mercadopago" && org.subscription_status === "active";
   if (!cardActive) {
