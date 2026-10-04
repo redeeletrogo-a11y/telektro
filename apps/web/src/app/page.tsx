@@ -4,6 +4,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Landing } from "@/components/landing";
 import { Dashboard } from "@/components/dashboard";
 import { PIX_GRACE_DAYS, syncPendingPix } from "@/lib/pix";
+import { serviceClient } from "@/lib/pix";
+import type { EpPoint } from "@/components/eletroposto-painel";
 import { SubscribeScreen } from "@/components/subscribe-screen";
 import { mercadoPagoConfigured, organizationHasAccess, reconcileSubscription, trialDaysLeft } from "@/lib/billing";
 import { ResidentHome } from "@/components/resident-home";
@@ -126,10 +128,20 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
     const { data: tariffRow } = await supabase.from("tariffs").select("price_per_kwh, session_fee").eq("organization_id", activeOrganization.id).eq("active", true).is("site_id", null).order("valid_from", { ascending: false }).limit(1).maybeSingle();
     if (tariffRow) condoTariff = { price_per_kwh: Number(tariffRow.price_per_kwh), session_fee: Number(tariffRow.session_fee) };
   }
+  let epPoints: EpPoint[] = [];
+  let epTariff: number | null = null;
+  if (activeOrganization.account_type === "eletroposto" && activeMembership) {
+    const [{ data: pointRows }, { data: tariffRow }] = await Promise.all([
+      serviceClient().from("eletroposto_points").select("id, public_code, charger_id, enabled, min_amount, max_amount").eq("organization_id", activeOrganization.id),
+      supabase.from("tariffs").select("price_per_kwh").eq("organization_id", activeOrganization.id).eq("active", true).is("site_id", null).order("valid_from", { ascending: false }).limit(1).maybeSingle(),
+    ]);
+    epPoints = (pointRows ?? []).map((row) => ({ id: row.id, public_code: row.public_code, charger_id: row.charger_id, enabled: row.enabled, min_amount: Number(row.min_amount), max_amount: Number(row.max_amount) }));
+    if (tariffRow) epTariff = Number(tariffRow.price_per_kwh);
+  }
   const capacityKw = sites.reduce((total, site) => total + Number(site.max_power_kw ?? 0), 0);
 
   return <Dashboard email={user.email ?? ""} organizations={availableOrganizations} organization={activeOrganization}
-    role={activeMembership?.role ?? "viewer"} accountType={activeOrganization.account_type} trialDaysLeft={trialDaysLeft(activeOrganization)} pixDueDays={pixDueDays(activeOrganization)} condoTariff={condoTariff} residents={residents} residentTags={residentTags} invites={invites} sites={sites} chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} capacityKw={capacityKw}
+    role={activeMembership?.role ?? "viewer"} accountType={activeOrganization.account_type} trialDaysLeft={trialDaysLeft(activeOrganization)} pixDueDays={pixDueDays(activeOrganization)} condoTariff={condoTariff} epPoints={epPoints} epTariff={epTariff} residents={residents} residentTags={residentTags} invites={invites} sites={sites} chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} capacityKw={capacityKw}
     totalChargers={chargersResult.count ?? 0} onlineChargers={onlineResult.count ?? 0} activeSessions={activeSessions.length}
     sessionRows={activeSessions} completedSessionRows={completedSessions} meterReadings={meterReadings} commandRows={commandRows} dataLoadedAt={new Date().toISOString()}/>;
 }
