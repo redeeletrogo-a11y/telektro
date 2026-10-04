@@ -175,11 +175,15 @@ async function createCardReservation(paymentId: string, token: string, args: { n
       card_brand: String(payment.payment_method_id ?? "").slice(0, 30) || null, updated_at: new Date().toISOString(),
     }).eq("id", paymentId).eq("status", "awaiting_payment");
     if (updateError) throw new Error("update_failed");
-    if (payment.status === "rejected") return await fail("O cartão foi recusado. Confira os dados ou tente outro cartão.");
+    if (payment.status === "rejected") {
+      await supabase.from("eletroposto_payments").update({ last_error: `card_rejected:${String(payment.status_detail ?? "").slice(0, 60)}` }).eq("id", paymentId);
+      return await fail("O cartão foi recusado. Confira os dados ou tente outro cartão.");
+    }
     // Reserva autorizada: libera a recarga agora (mesmo caminho do Pix). Pendente: o webhook/pagina concluem depois.
     if (payment.status === "authorized") await applyEletropostoPayment(String(payment.id));
     return { token };
-  } catch {
+  } catch (error) {
+    try { await supabase.from("eletroposto_payments").update({ last_error: `card_error:${error instanceof Error ? error.message.slice(0, 80) : "unknown"}` }).eq("id", paymentId); } catch { /* segue */ }
     return await fail("Não foi possível reservar o valor no cartão agora. Tente de novo ou use o Pix.");
   }
 }
