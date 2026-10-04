@@ -7,7 +7,8 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CondoBilling } from "@/components/condo-billing";
 import { ResidentsPanel, type Invite, type Resident, type ResidentTag } from "@/components/residents-panel";
-import { Activity, ArrowRight, Building2, Car, Check, Clock3, Copy, LayoutDashboard, MapPin, Menu, Moon, Sun, Play, PlugZap, RotateCcw, Square, Trash2, Users, Zap } from "lucide-react";
+import { Activity, ArrowRight, Building2, Car, Check, Clock3, Copy, LayoutDashboard, MapPin, Menu, Moon, Sun, Play, PlugZap, QrCode, RotateCcw, Square, Trash2, Users, Zap } from "lucide-react";
+import { EletropostoPainel, type EpPoint } from "@/components/eletroposto-painel";
 import { createSite, registerCharger, registerRfidAuthorization, removeCharger, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, startSubscription, rotateChargerCredential, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
 
 type Organization = { id: string; name: string; slug: string; account_type?: string; resident_limit?: number | null };
@@ -188,7 +189,7 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
 }
 
 export function Dashboard({
-  email, organizations, organization, role, accountType, trialDaysLeft, pixDueDays, condoTariff, residents, residentTags, invites, sites, chargers, removedChargers, connectors, authorizations, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, completedSessionRows, meterReadings, commandRows, dataLoadedAt,
+  email, organizations, organization, role, accountType, trialDaysLeft, pixDueDays, condoTariff, epPoints = [], epTariff = null, residents, residentTags, invites, sites, chargers, removedChargers, connectors, authorizations, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, completedSessionRows, meterReadings, commandRows, dataLoadedAt,
 }: {
   email: string;
   organizations: Organization[];
@@ -198,6 +199,8 @@ export function Dashboard({
   trialDaysLeft: number | null;
   pixDueDays: number | null;
   condoTariff: { price_per_kwh: number; session_fee: number } | null;
+  epPoints?: EpPoint[];
+  epTariff?: number | null;
   residents: Resident[];
   residentTags: ResidentTag[];
   invites: Invite[];
@@ -245,9 +248,10 @@ export function Dashboard({
   const mobileSessions = { name: "Sessões", label: "Sessões", icon: <Activity/> };
   const mobileEnergy = { name: "Energia", label: "Energia", icon: <Zap/> };
   const mobileResidents = { name: "Moradores", label: "Moradores", icon: <Users/> };
+  const mobileQr = { name: "QR e placas", label: "QR", icon: <QrCode/> };
   const mobileBilling = { name: "Cobrança", label: "Cobrança", icon: <Zap/> };
-  const mobilePrimary = isCondoManager ? [mobileHome, mobileChargers, mobileSessions, mobileResidents] : [mobileHome, mobileSites, mobileChargers, mobileSessions];
-  const mobileMore = isCondoManager ? [mobileSites, mobileEnergy, mobileBilling] : [mobileEnergy];
+  const mobilePrimary = isCondoManager ? [mobileHome, mobileChargers, mobileSessions, mobileResidents] : accountType === "eletroposto" ? [mobileHome, mobileQr, mobileChargers, mobileSessions] : [mobileHome, mobileSites, mobileChargers, mobileSessions];
+  const mobileMore = isCondoManager ? [mobileSites, mobileEnergy, mobileBilling] : accountType === "eletroposto" ? [mobileSites, mobileEnergy] : [mobileEnergy];
   const moreActive = mobileMore.some((item) => item.name === activeNav);
   const canManageChargers = role === "owner" || role === "admin" || role === "technician";
   const canControlChargers = role === "owner" || role === "admin" || role === "operator" || role === "technician";
@@ -268,6 +272,7 @@ export function Dashboard({
       <div className="nav-label">Operação</div>
       <nav className="nav-list" aria-label="Navegação principal">
         <button className={`nav-item ${activeNav === "Visão geral" ? "active" : ""}`} onClick={() => setActiveNav("Visão geral")}><LayoutDashboard size={16}/>Visão geral</button>
+        {accountType === "eletroposto" && <button className={`nav-item ${activeNav === "QR e placas" ? "active" : ""}`} onClick={() => setActiveNav("QR e placas")}><QrCode size={16}/>QR e placas<span className="nav-count">{epPoints.length}</span></button>}
         <button className={`nav-item ${activeNav === "Locais" ? "active" : ""}`} onClick={() => setActiveNav("Locais")}><MapPin size={16}/>Locais<span className="nav-count">{sites.length}</span></button>
         <button className={`nav-item ${activeNav === "Carregadores" ? "active" : ""}`} onClick={() => setActiveNav("Carregadores")}><PlugZap size={16}/>Carregadores<span className="nav-count">{chargers.length}</span></button>
         <button className={`nav-item ${activeNav === "Sessões" ? "active" : ""}`} onClick={() => setActiveNav("Sessões")}><Activity size={16}/>Sessões<span className="nav-count">{activeSessions}</span></button>
@@ -307,7 +312,8 @@ export function Dashboard({
           <section className="charge-hero">{liveBadge}<h2>{totalChargers ? "Carregadores cadastrados" : sites.length ? "Cadastre um carregador para conectar" : "Cadastre um local antes de conectar carregadores"}</h2><p>{totalChargers ? `${totalChargers} carregador(es) cadastrado(s); ${onlineChargers} online no último estado recebido do gateway.` : sites.length ? `${sites.length} local(is) já cadastrado(s). Agora você pode provisionar um carregador OCPP 1.6J.` : "Os locais guardam endereço, fuso horário e limite elétrico. Depois deles, você poderá cadastrar e provisionar carregadores OCPP 1.6J."}</p><button className="primary-button" onClick={() => setActiveNav(sites.length ? "Carregadores" : "Locais")}>{sites.length ? "Cadastrar carregador" : "Cadastrar primeiro local"}<ArrowRight size={14}/></button></section>
           <div className="section-row"><div><h2 className="section-title">Locais da organização</h2><p className="section-subtitle">Capacidade e localização configuradas para esta operação.</p></div><button className="link-button" onClick={() => setActiveNav("Locais")}>Ver locais <ArrowRight size={13}/></button></div>
           <SiteList sites={sites}/>
-        </> : activeNav === "Moradores" ? <ResidentsPanel organizationId={organization.id} residents={residents} invites={invites} tags={residentTags} residentLimit={organization.resident_limit ?? null}/> : activeNav === "Cobrança" && accountType === "condominio" ? <CondoBilling organizationId={organization.id} organizationName={organization.name} tariff={condoTariff}/> : activeNav === "Energia" ? <SiteDemand sites={sites} chargers={chargers} sessions={sessionRows} meterReadings={meterReadings} now={clockNow} expanded/> : activeNav === "Locais" ? <div className="site-management">
+        </> : activeNav === "QR e placas" ? <EletropostoPainel organizationId={organization.id} chargers={chargers.map((charger) => ({ id: charger.id, charge_point_id: charger.charge_point_id, site_id: charger.site_id, model: charger.model, online: charger.online }))} points={epPoints} tariffPrice={epTariff} canManage={canManageSites}/>
+        : activeNav === "Moradores" ? <ResidentsPanel organizationId={organization.id} residents={residents} invites={invites} tags={residentTags} residentLimit={organization.resident_limit ?? null}/> : activeNav === "Cobrança" && accountType === "condominio" ? <CondoBilling organizationId={organization.id} organizationName={organization.name} tariff={condoTariff}/> : activeNav === "Energia" ? <SiteDemand sites={sites} chargers={chargers} sessions={sessionRows} meterReadings={meterReadings} now={clockNow} expanded/> : activeNav === "Locais" ? <div className="site-management">
           <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Locais cadastrados</h2><div className="panel-kicker">{sites.length} local(is) em {organization.name}</div></div><MapPin size={17}/></div><SiteList sites={sites}/></section>
           {canManageSites ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Adicionar local</h2><div className="panel-kicker">Cadastre os dados elétricos e de localização.</div></div></div><SiteForm organizationId={organization.id}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner ou admin para cadastrar locais nesta organização.</p></section>}
         </div> : activeNav === "Carregadores" ? <div className="site-management charger-management">
