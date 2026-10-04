@@ -26,8 +26,7 @@ export async function createOrganization(_previous: FormState, formData: FormDat
   const name = String(formData.get("name") ?? "").trim();
   const slug = String(formData.get("slug") ?? "").trim().toLowerCase();
   const accountType = String(formData.get("account_type") ?? "residencial");
-  if (accountType === "eletroposto") return { error: "O plano Eletroposto ainda não está disponível. Fale com a Telektro." };
-  if (!["residencial", "condominio"].includes(accountType)) return { error: "Escolha o tipo de conta." };
+  if (!["residencial", "condominio", "eletroposto"].includes(accountType)) return { error: "Escolha o tipo de conta." };
   if (name.length < 1 || name.length > 120) return { error: "O nome deve ter entre 1 e 120 caracteres." };
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return { error: "Use letras minúsculas, números e hífens no identificador." };
 

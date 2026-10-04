@@ -244,3 +244,22 @@ html[data-theme="light"] .app-shell .ring-arc { stroke: #0f9d6e; filter: none; }
 html[data-theme="light"] .mobile-more { border-color: rgb(13 43 34 / 10%); background: rgb(255 255 255 / 98%); }
 html[data-theme="light"] .mobile-more button { color: #35584a; }
 html[data-theme="light"] .mobile-more button.active { color: #0f9d6e; background: rgb(15 157 110 / 10%); }
+
+/* Painel do eletroposto (QR por carregador) */
+.ep-panel { display: grid; gap: 14px; }
+.ep-card { padding: 16px; display: grid; gap: 12px; }
+.ep-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.ep-card h3 { margin: 0; font-size: 15px; }
+.ep-chip { font-size: 11px; font-weight: 650; padding: 3px 9px; border-radius: 99px; background: #e8f1ef; color: #0f6b5d; }
+.ep-chip.off { background: #f1ecec; color: #8a4040; }
+.ep-chip.warn { background: #fdf3e0; color: #8a5a00; }
+.ep-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ep-actions a, .ep-actions button { min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: inherit; font: inherit; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; cursor: pointer; }
+.ep-actions .ep-primary { background: #0f7a6a; color: #fff; border-color: #0f7a6a; }
+.ep-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+.ep-form label { display: grid; gap: 4px; font-size: 12px; }
+.ep-form input { min-height: 40px; width: 110px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+.ep-note { margin: 0; font-size: 12px; color: #5b6b75; }
+.ep-msg { font-size: 12px; margin: 0; }
+.ep-msg.err { color: #b3261e; }
+.ep-msg.ok { color: #0f6b5d; }
