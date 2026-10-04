@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Landing } from "@/components/landing";
 import { Dashboard } from "@/components/dashboard";
-import { PIX_GRACE_DAYS, syncPendingPix } from "@/lib/pix";
+import { getCondoInvoice, PIX_GRACE_DAYS, syncPendingPix } from "@/lib/pix";
 import { serviceClient } from "@/lib/pix";
 import type { EpPoint } from "@/components/eletroposto-painel";
 import { SubscribeScreen } from "@/components/subscribe-screen";
@@ -72,7 +72,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
 
   if (!organizationHasAccess(activeOrganization)) {
     if (activeOrganization.account_type === "residencial" && (await reconcileSubscription(activeOrganization.id) || await syncPendingPix(activeOrganization.id))) redirect("/");
-    return <SubscribeScreen organizationId={activeOrganization.id} paymentsEnabled={mercadoPagoConfigured()} organizationName={activeOrganization.name} email={user.email ?? ""} trialEnded={activeOrganization.subscription_status === "trialing"}/>;
+    if (activeOrganization.account_type === "condominio" && (await syncPendingPix(activeOrganization.id))) redirect("/");
+    const condoInvoice = activeOrganization.account_type === "condominio" ? await getCondoInvoice(activeOrganization.id) : null;
+    return <SubscribeScreen accountType={activeOrganization.account_type} condoTotal={condoInvoice?.total ?? null} condoResidents={condoInvoice?.residents ?? null} organizationId={activeOrganization.id} paymentsEnabled={mercadoPagoConfigured()} organizationName={activeOrganization.name} email={user.email ?? ""} trialEnded={activeOrganization.subscription_status === "trialing"}/>;
   }
 
   const isCondoAdmin = activeOrganization.account_type === "condominio" && ["owner", "admin"].includes(activeMembership?.role ?? "");
