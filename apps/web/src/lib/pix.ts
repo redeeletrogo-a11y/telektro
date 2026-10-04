@@ -19,6 +19,16 @@ function addMonths(date: Date, months: number) {
   return next;
 }
 
+export type CondoInvoice = { residents: number; extra_residents: number; base: number; extra_amount: number; energy_prev_month: number; fee: number; fee_month: string | null; total: number };
+
+// Condominio: valor da fatura calculado no banco (R$199 ate 5 moradores + R$19,90 por extra + 1% da energia do mes anterior).
+export async function getCondoInvoice(organizationId: string): Promise<CondoInvoice | null> {
+  const { data, error } = await serviceClient().rpc("condo_invoice", { p_organization_id: organizationId });
+  if (error || !data) return null;
+  const d = data as Record<string, string | number | null>;
+  return { residents: Number(d.residents), extra_residents: Number(d.extra_residents), base: Number(d.base), extra_amount: Number(d.extra_amount), energy_prev_month: Number(d.energy_prev_month), fee: Number(d.fee), fee_month: (d.fee_month as string | null) ?? null, total: Number(d.total) };
+}
+
 // Creates (or reuses) the open Pix charge of an organization. The amount is always the server-side price.
 export async function createPixCharge(args: { organizationId: string; userId: string; payerEmail: string; origin: string }): Promise<PixCharge> {
   const supabase = serviceClient();
@@ -28,9 +38,18 @@ export async function createPixCharge(args: { organizationId: string; userId: st
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (open) return { ...open, amount: Number(open.amount) } as PixCharge;
 
+  const { data: orgType } = await supabase.from("organizations").select("account_type").eq("id", args.organizationId).maybeSingle();
+  let price = RESIDENCIAL_PRICE_BRL;
+  let details: CondoInvoice | null = null;
+  if (orgType?.account_type === "condominio") {
+    details = await getCondoInvoice(args.organizationId);
+    if (!details) throw new Error("condo_invoice_failed");
+    price = details.total;
+  } else if (orgType?.account_type !== "residencial") throw new Error("account_type_not_billable");
+  const description = details ? "Telektro Condominio - mensalidade" : "Telektro Residencial - mensalidade";
   const expiresAt = new Date(Date.now() + PIX_EXPIRES_HOURS * 3_600_000);
   const chargeId = randomUUID();
-  const { error: insertError } = await supabase.from("pix_charges").insert({ id: chargeId, organization_id: args.organizationId, amount: RESIDENCIAL_PRICE_BRL, status: "pending", expires_at: expiresAt.toISOString(), created_by: args.userId });
+  const { error: insertError } = await supabase.from("pix_charges").insert({ id: chargeId, organization_id: args.organizationId, amount: price, details, status: "pending", expires_at: expiresAt.toISOString(), created_by: args.userId });
   if (insertError) throw new Error("pix_charge_insert_failed");
   try {
     const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
@@ -40,8 +59,8 @@ export async function createPixCharge(args: { organizationId: string; userId: st
       method: "POST",
       headers: { "X-Idempotency-Key": chargeId },
       body: JSON.stringify({
-        transaction_amount: RESIDENCIAL_PRICE_BRL,
-        description: "Telektro Residencial - mensalidade",
+        transaction_amount: price,
+        description,
         payment_method_id: "pix",
         external_reference: chargeId,
         notification_url: notificationUrl.toString(),
@@ -54,7 +73,7 @@ export async function createPixCharge(args: { organizationId: string; userId: st
     const row = { mp_payment_id: String(payment.id), qr_code: String(data.qr_code), qr_code_base64: data.qr_code_base64 ? String(data.qr_code_base64) : null, ticket_url: data.ticket_url ? String(data.ticket_url) : null };
     const { error } = await supabase.from("pix_charges").update(row).eq("id", chargeId);
     if (error) throw new Error("pix_charge_update_failed");
-    return { id: chargeId, ...row, expires_at: expiresAt.toISOString(), amount: RESIDENCIAL_PRICE_BRL };
+    return { id: chargeId, ...row, expires_at: expiresAt.toISOString(), amount: price };
   } catch (caught) {
     await supabase.from("pix_charges").delete().eq("id", chargeId).eq("status", "pending");
     throw caught;
@@ -82,7 +101,7 @@ export async function applyPixPayment(paymentId: string): Promise<"paid" | "expi
 
   const { data: org } = await supabase.from("organizations").select("account_type, subscription_status, subscription_provider, trial_ends_at")
     .eq("id", charge.organization_id).maybeSingle();
-  if (!org || org.account_type !== "residencial") return "ignored";
+  if (!org || !["residencial", "condominio"].includes(org.account_type)) return "ignored";
   const { data: lastPaid } = await supabase.from("pix_charges").select("period_end").eq("organization_id", charge.organization_id).eq("status", "paid")
     .order("period_end", { ascending: false }).limit(1).maybeSingle();
   // The period starts after the free trial and after any period already paid, so nothing is lost or charged twice.
@@ -101,7 +120,7 @@ export async function applyPixPayment(paymentId: string): Promise<"paid" | "expi
   if (!cardActive) {
     const graceEnd = new Date(periodEnd.getTime() + PIX_GRACE_DAYS * 86_400_000);
     const { error } = await supabase.from("organizations").update({ subscription_status: "past_due", subscription_provider: "mercadopago_pix", current_period_end: graceEnd.toISOString() })
-      .eq("id", charge.organization_id).eq("account_type", "residencial");
+      .eq("id", charge.organization_id).in("account_type", ["residencial", "condominio"]);
     if (error) {
       await supabase.from("pix_charges").update({ status: "pending", paid_at: null, period_start: null, period_end: null }).eq("id", charge.id);
       throw new Error("org_update_failed");
