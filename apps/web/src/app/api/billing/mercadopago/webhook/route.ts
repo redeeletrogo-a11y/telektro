@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { applyEletropostoPayment } from "@/lib/eletroposto";
 import { applyPixPayment } from "@/lib/pix";
 import { getAuthorizedPaymentPreapprovalId, getPreapproval, mapPreapprovalStatus } from "@/lib/billing";
 
@@ -9,10 +10,14 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 
 // Mercado Pago signs notifications: x-signature "ts=<ts>,v1=<hmac>" over "id:<data.id>;request-id:<x-request-id>;ts:<ts>;".
 function validSignature(request: Request, dataId: string) {
-  const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+  // Cada aplicacao do Mercado Pago tem o seu segredo; aceita o padrao ou o do eletroposto.
+  return [process.env.MERCADOPAGO_WEBHOOK_SECRET, process.env.MERCADOPAGO_ELETROPOSTO_WEBHOOK_SECRET].some((secret) => Boolean(secret) && signatureMatches(request, dataId, secret as string));
+}
+
+function signatureMatches(request: Request, dataId: string, secret: string) {
   const header = request.headers.get("x-signature") ?? "";
   const requestId = request.headers.get("x-request-id") ?? "";
-  if (!secret || !header) return false;
+  if (!header) return false;
   const parts = Object.fromEntries(header.split(",").map((part) => part.trim().split("=").map((v) => v.trim()) as [string, string]));
   if (!parts.ts || !parts.v1) return false;
   const manifest = `id:${dataId.toLowerCase()};request-id:${requestId};ts:${parts.ts};`;
@@ -26,11 +31,14 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({} as Record<string, unknown>));
   const dataId = String(url.searchParams.get("data.id") ?? (body as { data?: { id?: unknown } }).data?.id ?? "");
   const type = String(url.searchParams.get("type") ?? (body as { type?: unknown }).type ?? "");
-  if (!process.env.MERCADOPAGO_WEBHOOK_SECRET || !process.env.SUPABASE_SERVICE_ROLE_KEY) return NextResponse.json({ error: "not_configured" }, { status: 503 });
+  if (!(process.env.MERCADOPAGO_WEBHOOK_SECRET || process.env.MERCADOPAGO_ELETROPOSTO_WEBHOOK_SECRET) || !process.env.SUPABASE_SERVICE_ROLE_KEY) return NextResponse.json({ error: "not_configured" }, { status: 503 });
   if (!dataId || !validSignature(request, dataId)) return NextResponse.json({ error: "invalid_signature" }, { status: 401 });
   if (type === "payment") {
     // Pix mensalidade: the payment is re-read from Mercado Pago and applied once (see lib/pix.ts).
     try {
+      // Pagamento de eletroposto (external_reference "ep:...") tem fluxo proprio; qualquer outro segue como mensalidade.
+      const eletroposto = await applyEletropostoPayment(dataId);
+      if (eletroposto !== null) return NextResponse.json({ ok: true, eletroposto });
       return NextResponse.json({ ok: true, pix: await applyPixPayment(dataId) });
     } catch (error) {
       if (error instanceof Error && error.message === "mercadopago_404") return NextResponse.json({ ok: true, ignored: "unknown_resource" });
