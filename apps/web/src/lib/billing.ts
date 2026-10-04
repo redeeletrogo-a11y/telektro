@@ -8,9 +8,10 @@ export type BillingOrganization = {
 };
 
 export const RESIDENCIAL_PRICE_LABEL = "R$ 19,90/mês";
+export const CONDO_PRICE_LABEL = "R$ 199,00/mês (até 5 moradores, +R$ 19,90 por morador extra)";
 
 export function organizationHasAccess(org: BillingOrganization, now = Date.now()) {
-  if (org.account_type !== "residencial") return true;
+  if (org.account_type === "eletroposto") return true;
   if (org.subscription_status === "active") return true;
   if (org.subscription_status === "trialing") return org.trial_ends_at ? new Date(org.trial_ends_at).getTime() > now : false;
   if (org.current_period_end) return new Date(org.current_period_end).getTime() > now;
@@ -18,7 +19,7 @@ export function organizationHasAccess(org: BillingOrganization, now = Date.now()
 }
 
 export function trialDaysLeft(org: BillingOrganization, now = Date.now()) {
-  if (org.account_type !== "residencial" || org.subscription_status !== "trialing" || !org.trial_ends_at) return null;
+  if (org.account_type === "eletroposto" || org.subscription_status !== "trialing" || !org.trial_ends_at) return null;
   const ms = new Date(org.trial_ends_at).getTime() - now;
   return ms > 0 ? Math.ceil(ms / 86_400_000) : 0;
 }
