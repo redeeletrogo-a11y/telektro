@@ -22,6 +22,8 @@ export default async function PlacaPage({ params }: { params: Promise<{ code: st
   if (!point) notFound();
   const { data: membership } = await supabase.from("memberships").select("role").eq("organization_id", point.organization_id).eq("user_id", user.id).maybeSingle();
   if (!membership || !["owner", "admin"].includes(membership.role)) notFound();
+  const { data: org } = await serviceClient().from("organizations").select("account_type").eq("id", point.organization_id).maybeSingle();
+  if (!org || org.account_type !== "eletroposto") notFound();
   const info = await getPointInfo(code);
   const url = `${SITE_URL}/carregar/${code}`;
   const qr = await QRCode.toDataURL(url, { width: 900, margin: 1, errorCorrectionLevel: "M" });
