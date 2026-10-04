@@ -46,8 +46,8 @@ export function EletropostoVendas({ organizationId }: { organizationId: string }
       </section>
       <section className="panel ep-card">
         <h3>Por carregador</h3>
-        {summary.byCharger.length === 0 ? <p className="ep-note">Nenhuma venda neste período.</p> : <div className="ep-table-wrap"><table className="ep-table"><thead><tr><th>Carregador</th><th>Vendas</th><th>kWh</th><th>Bruta</th><th>Líquido</th></tr></thead><tbody>
-          {summary.byCharger.map((item) => <tr key={item.charger}><td>{item.charger}</td><td>{item.count}</td><td>{item.kwh.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}</td><td>{money(item.gross)}</td><td>{money(item.net)}</td></tr>)}
+        {summary.byCharger.length === 0 ? <p className="ep-note">Nenhuma venda neste período.</p> : <div className="ep-table-wrap"><table className="ep-table ep-stack"><thead><tr><th>Carregador</th><th>Vendas</th><th>kWh</th><th>Bruta</th><th>Líquido</th></tr></thead><tbody>
+          {summary.byCharger.map((item) => <tr key={item.charger}><td data-label="Carregador">{item.charger}</td><td data-label="Vendas">{item.count}</td><td data-label="kWh">{item.kwh.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}</td><td data-label="Bruta">{money(item.gross)}</td><td data-label="Líquido">{money(item.net)}</td></tr>)}
         </tbody></table></div>}
       </section>
       <section className="panel ep-card">
