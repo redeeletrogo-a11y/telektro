@@ -14,7 +14,7 @@ async function ownerOf(organizationId: string) {
   const { data: membership } = await supabase.from("memberships").select("role").eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
   if (!membership || !["owner", "admin"].includes(membership.role)) return { error: "Só o responsável da conta pode pagar." } as const;
   const { data: org } = await supabase.from("organizations").select("account_type").eq("id", organizationId).maybeSingle();
-  if (org?.account_type !== "residencial") return { error: "Pix disponível só para o plano Residencial por enquanto." } as const;
+  if (org?.account_type !== "residencial" && org?.account_type !== "condominio") return { error: "Pix disponível só para os planos Residencial e Condomínio." } as const;
   return { user } as const;
 }
 
