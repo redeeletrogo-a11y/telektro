@@ -10,7 +10,7 @@ const check = <Check size={16} aria-hidden="true"/>;
 const plans = [
   { id: "casa", icon: <Home size={20}/>, name: "Residencial", tag: "Casa", price: "R$ 19,90", unit: "/mês", text: "Para quem tem carro elétrico em casa e quer controlar tudo pelo celular.", items: ["Iniciar, parar e acompanhar a recarga pelo celular", "Medição de kWh por sessão", "Histórico de recargas", "Instalável no celular (PWA)"] },
   { id: "condominio", icon: <Building2 size={20}/>, name: "Condomínio", tag: "Mais procurado", hl: true, price: "R$ 199", unit: "/mês", text: "Até 5 carregadores por local. Carregador extra: + R$ 19,90/mês cada.", items: ["Vários carregadores e usuários em um painel", "Controle de acesso por morador", "Módulo de cobrança e rateio: + R$ 49,90/mês", "Se o app receber o pagamento: + 1% das recargas", "Exportação de consumo para a administração"] },
-  { id: "eletroposto", icon: <PlugZap size={20}/>, name: "Eletroposto", tag: "Público", price: "R$ 149", unit: "/mês", text: "Até 2 carregadores AC. AC extra: + R$ 49 cada. DC: + R$ 99 cada.", items: ["Recarga por QR Code e controle de pagamento", "Status em tempo real via OCPP 1.6J", "Relatórios de sessões e receita", "+ 2% das recargas processadas"] },
+  { id: "eletroposto", icon: <PlugZap size={20}/>, name: "Eletroposto", tag: "Público", price: "R$ 149", unit: "/mês", text: "Até 2 carregadores AC. AC extra: + R$ 49 cada. DC: + R$ 99 cada.", items: ["Recarga por QR Code e controle de pagamento", "Status em tempo real via OCPP 1.6J", "Relatórios de sessões e receita", "Taxas competitivas"] },
 ];
 
 const faq = [
