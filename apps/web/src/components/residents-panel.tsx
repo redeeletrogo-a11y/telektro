@@ -35,7 +35,9 @@ export function ResidentsPanel({ organizationId, residents, invites, residentLim
   const [tagFor, setTagFor] = useState<string | null>(null);
   const [shownCode, setShownCode] = useState<string | null>(null);
   const activeInvites = invites.filter((invite) => !invite.revoked_at && new Date(invite.expires_at) > new Date());
-  const full = residentLimit !== null && residents.length >= residentLimit;
+  const included = residentLimit ?? 5;
+  const extraResidents = Math.max(0, residents.length - included);
+  const full = residents.length >= 100;
   const run = (job: () => Promise<{ error?: string; code?: string }>, scope: "invite" | "tag" = "invite") => startTransition(async () => {
     setError(""); setTagError("");
     const result = await job();
@@ -46,9 +48,10 @@ export function ResidentsPanel({ organizationId, residents, invites, residentLim
   return <div className="residents-panel">
     <section className="panel" style={{ padding: 16 }}>
       <h2 className="panel-title">Moradores</h2>
-      <div className="panel-kicker">{residents.length}{residentLimit !== null ? ` de ${residentLimit}` : ""} moradores cadastrados</div>
+      <div className="panel-kicker">{residents.length} moradores cadastrados · {included} incluídos na mensalidade</div>
+      {extraResidents > 0 && <p className="field-help" role="status">{extraResidents} morador(es) acima do plano: +R$ {(extraResidents * 19.9).toFixed(2).replace(".", ",")} na próxima fatura (R$ 19,90 por morador extra, conta o maior número de moradores do período).</p>}
       {residentLimit !== null && residentLimit > 0 && <div className="limit-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, (residents.length / residentLimit) * 100)}%` }}/></div>}
-      {full && <p className="form-error" role="status">Limite de moradores atingido. Para aumentar, fale com a Telektro.</p>}
+      {full && <p className="form-error" role="status">Limite de 100 moradores atingido. Para aumentar, fale com a Telektro.</p>}
       {residents.map((resident) => {
         const mine = tags.filter((tag) => tag.user_id === resident.user_id && tag.enabled);
         return <div className="resident-block" key={resident.user_id}>
