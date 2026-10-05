@@ -283,3 +283,7 @@ html[data-theme="light"] .mobile-more button.active { color: #0f9d6e; background
   .ep-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ep-actions a, .ep-actions button { flex: 1 1 auto; }
 }
+.ep-form select,.ep-month input { min-height: 42px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); padding: 8px 10px; font: inherit; max-width: 100%; }
+.ep-form input { overflow-wrap: anywhere; }
+.ep-month { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+@media (max-width: 600px) { .ep-card-head { flex-wrap: wrap; gap: 12px; } }
