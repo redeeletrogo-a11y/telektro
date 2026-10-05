@@ -287,3 +287,6 @@ html[data-theme="light"] .mobile-more button.active { color: #0f9d6e; background
 .ep-form input { overflow-wrap: anywhere; }
 .ep-month { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; }
 @media (max-width: 600px) { .ep-card-head { flex-wrap: wrap; gap: 12px; } }
+
+/* Read-only preview has no app install flow. Keep the global install CTA out of demo screenshots. */
+body:has(.repasse-preview) .pwa-install-button { display: none; }
