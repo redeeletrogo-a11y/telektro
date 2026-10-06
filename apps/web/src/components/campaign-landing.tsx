@@ -91,6 +91,7 @@ export function CampaignLanding({ profile }: { profile: Profile }) {
             <h1 id="campaign-title">{content.title}</h1>
             <p className="lp-lead">{content.description}</p>
             <p className="campaign-price">{content.price}<small>/mês</small></p>
+            {profile === "condominio" && <p className="campaign-caption" style={{ margin: "-6px 0 18px" }}>Gestão até 5 moradores. Morador extra tem taxa adicional.</p>}
             {cta("hero")}
             <p className="campaign-caption">Fale sobre seu projeto e peça uma demonstração.</p>
             <ul className="campaign-list">{content.benefits.map((benefit) => <li key={benefit}><Check size={18} aria-hidden="true"/><span>{benefit}</span></li>)}</ul>
