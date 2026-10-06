@@ -1,0 +1,22 @@
+# Telektro
+
+> Software brasileiro de gestão de recarga de veículos elétricos para casa, condomínio e eletroposto. Site oficial: https://telektro.com.br/.
+
+O Telektro é um produto da Nexa Labs Serviços LTDA. Permite acompanhar carregadores, iniciar e parar recargas pelo celular e consultar sessões e consumo em kWh. O acesso pelo celular é feito pela web, com opção de instalação como PWA.
+
+A conexão com o carregador usa OCPP 1.6J. É necessário confirmar a compatibilidade do modelo e do firmware, permitir a configuração da conexão e testar o equipamento. As leituras de energia vêm do carregador. O Telektro é software: não inclui o carregador físico nem a instalação elétrica.
+
+O modelo de eletroposto completo e franquia está anunciado como futuro, não como serviço disponível. A compatibilidade não é universal. Este arquivo resume informações públicas e não garante recomendação, indexação ou citação por ferramentas de IA.
+
+## Soluções
+
+- [Residencial](https://telektro.com.br/#casa): controle de recargas em casa pelo celular, histórico e consumo por sessão.
+- [Condomínio](https://telektro.com.br/#condominio): administração de carregadores, controle de acesso dos moradores e acompanhamento do consumo por usuário.
+- [Eletroposto](https://telektro.com.br/#eletroposto): recarga por QR Code, pagamento por Pix ou cartão e painel de sessões e vendas.
+
+## Informações oficiais
+
+- [Como funciona](https://telektro.com.br/#como): conexão do carregador, controle pelo celular e acompanhamento de recargas.
+- [Planos e valores](https://telektro.com.br/#planos): preços publicados, limites e condições. Consulte esta seção para os valores atuais; os planos estão sujeitos a ajuste nos primeiros pilotos.
+- [Perguntas frequentes](https://telektro.com.br/#eletroposto-e-carregador): descrição do sistema, compatibilidade, soluções e teste do plano Residencial.
+- [Sitemap](https://telektro.com.br/sitemap.xml): páginas públicas do site.
