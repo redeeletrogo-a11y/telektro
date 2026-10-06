@@ -9,7 +9,8 @@ const money = (value: number) => value.toLocaleString('pt-BR', { style: 'currenc
 const when = (iso: string) => new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Fortaleza' });
 function PixForm({ organizationId, profile }: { organizationId: string; profile: PayoutProfile | null }) {
   const [state, action, pending] = useActionState(savePayoutProfile.bind(null, organizationId), {} as FormState);
-  return <form action={action} className="ep-form">
+  // Keep the saved values visible instead of resetting to the initial profile.
+  return <form action={action} onReset={event => event.preventDefault()} className="ep-form">
     <label>Tipo de chave<select name="pix_kind" defaultValue={profile?.pix_kind ?? 'email'}><option value="email">E-mail</option><option value="cpf">CPF</option><option value="cnpj">CNPJ</option><option value="telefone">Telefone</option><option value="aleatoria">Aleatória</option></select></label>
     <label>Chave Pix<input name="pix_key" defaultValue={profile?.pix_key ?? ''} maxLength={200} autoComplete="off" required/></label>
     <label>Nome do titular<input name="holder_name" defaultValue={profile?.holder_name ?? ''} minLength={2} maxLength={120} autoComplete="off" required/></label>
