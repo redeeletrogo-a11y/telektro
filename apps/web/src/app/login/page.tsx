@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import { LoginForm } from "./login-form";
+
+export const metadata: Metadata = { title: "Entrar", robots: { index: false, follow: true }, alternates: { canonical: "/login" } };
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
