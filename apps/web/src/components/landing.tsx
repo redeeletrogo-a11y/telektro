@@ -15,7 +15,7 @@ const plans = [
 
 const faq = [
   { q: "O que é um sistema de gestão de carregador elétrico?", a: "É um software que conecta o carregador de carro elétrico à internet via OCPP, para ligar, desligar e medir cada recarga pelo celular, com histórico e relatórios de consumo." },
-  { q: "O Telektro funciona com qualquer carregador?", a: "Funciona com carregadores compatíveis com o protocolo OCPP 1.6J, usado pela maioria dos fabricantes. Você cadastra o carregador no painel e aponta ele para o Telektro." },
+  { q: "O Telektro funciona com qualquer carregador?", a: "O Telektro usa OCPP 1.6J. O carregador precisa permitir a configuração da conexão com a plataforma. Antes de contratar, confirme a compatibilidade do modelo e do firmware e faça um teste de conexão; os recursos dependem do equipamento." },
   { q: "Serve para condomínio e para eletroposto?", a: "Sim. Há planos para casa, condomínio (vários carregadores e moradores, controle de acesso e rateio) e eletroposto (recarga por QR Code, status em tempo real e relatórios de receita)." },
   { q: "Quanto custa e tem teste grátis?", a: "O plano Residencial custa R$ 19,90 por mês e começa com 7 dias grátis. Os valores de Condomínio e Eletroposto estão na seção de planos." },
 ];
@@ -23,10 +23,10 @@ const faq = [
 const structuredData = {
   "@context": "https://schema.org",
   "@graph": [
-    { "@type": "Organization", "@id": `${SITE_URL}/#org`, name: "Telektro", url: SITE_URL, logo: `${SITE_URL}/icon.svg`, contactPoint: { "@type": "ContactPoint", contactType: "sales", telephone: `+${WHATSAPP_NUMBER}`, availableLanguage: "pt-BR" } },
+    { "@type": "Organization", "@id": `${SITE_URL}/#org`, name: "Telektro", legalName: "Nexa Labs Serviços LTDA", url: SITE_URL, logo: `${SITE_URL}/icon.svg`, contactPoint: { "@type": "ContactPoint", contactType: "sales", telephone: `+${WHATSAPP_NUMBER}`, availableLanguage: "pt-BR" } },
     { "@type": "WebSite", "@id": `${SITE_URL}/#site`, url: SITE_URL, name: "Telektro", inLanguage: "pt-BR", publisher: { "@id": `${SITE_URL}/#org` } },
-    { "@type": "SoftwareApplication", name: "Telektro", applicationCategory: "BusinessApplication", operatingSystem: "Web, Android, iOS (PWA)", description: SITE_DESCRIPTION, url: SITE_URL, offers: { "@type": "Offer", price: "19.90", priceCurrency: "BRL", description: "Plano Residencial, 7 dias grátis" } },
-    { "@type": "FAQPage", mainEntity: faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })) },
+    { "@type": "SoftwareApplication", "@id": `${SITE_URL}/#software`, name: "Telektro", applicationCategory: "BusinessApplication", operatingSystem: "Web (PWA)", inLanguage: "pt-BR", publisher: { "@id": `${SITE_URL}/#org` }, description: SITE_DESCRIPTION, url: SITE_URL, offers: { "@type": "Offer", price: "19.90", priceCurrency: "BRL", description: "Plano Residencial, 7 dias grátis" } },
+    { "@type": "FAQPage", "@id": `${SITE_URL}/#faq`, inLanguage: "pt-BR", mainEntity: faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })) },
   ],
 };
 
@@ -111,7 +111,8 @@ export function Landing() {
         <section id="eletroposto-e-carregador" className="lp-sec lp-seo"><div className="lp-wrap">
           <h2>Gestão de eletroposto e carregador elétrico</h2>
           <p>O Telektro é um sistema de gestão de carregador de carro elétrico para quem tem um carregador em casa, administra um condomínio ou opera um eletroposto. Você acompanha cada recarga, mede o consumo em kWh e controla o acesso de moradores e clientes em um só painel.</p>
-          <p>Para eletroposto, o painel mostra o status dos carregadores em tempo real via OCPP 1.6J e gera relatórios de sessões. Para condomínio, o rateio de energia fica baseado na medição real de cada usuário. Em casa, você liga e desliga o carregador elétrico pelo celular.</p>
+          <p>Em casa, o Telektro permite iniciar e parar recargas pelo celular e consultar o histórico. No condomínio, a administração acompanha carregadores, acesso dos moradores e consumo por usuário. No eletroposto, o motorista acessa a recarga por QR Code e paga por Pix ou cartão; o operador acompanha sessões e vendas no painel.</p>
+          <p>O Telektro é o software de gestão, não o carregador físico nem a instalação elétrica. A conexão usa OCPP 1.6J e exige internet e um equipamento compatível. O consumo em kWh é calculado a partir das leituras enviadas pelo carregador; a disponibilidade dos recursos depende do modelo e da configuração.</p>
           <div className="lp-faq">{faq.map((f) => <details key={f.q}><summary>{f.q}</summary><p>{f.a}</p></details>)}</div>
         </div></section>
       </main>
