@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Check, MessageCircle, Zap } from "lucide-react";
+import { trackAdsConversion } from "@/lib/ads";
 import { COMPANY_NOTE } from "@/lib/site";
 import "./landing.css";
 
@@ -35,7 +36,6 @@ type AnalyticsWindow = Window & { gtag?: (...args: unknown[]) => void; dataLayer
 
 export function trackWhatsAppClick(profile: Profile, placement: "hero" | "details") {
   // No identifiers, messages, phone numbers or customer data enter the event.
-  // No tag is loaded here. Connect an approved Google tag before buying traffic.
   try {
     const analytics = window as AnalyticsWindow;
     const parameters = { profile, placement, transport_type: "beacon" };
@@ -44,6 +44,7 @@ export function trackWhatsAppClick(profile: Profile, placement: "hero" | "detail
     } else {
       (analytics.dataLayer ??= []).push({ event: "whatsapp_click", profile, placement });
     }
+    trackAdsConversion();
   } catch {
     // Analytics must never stop the customer opening WhatsApp.
   }
