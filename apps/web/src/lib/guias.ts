@@ -334,6 +334,88 @@ export const GUIAS: Guia[] = [
     },
     "updated": "outubro de 2026"
   },
+  {
+    "slug": "ratear-energia-carro-eletrico-moradores",
+    "title": "Como ratear a energia de recarga entre moradores",
+    "h1": "Como ratear a energia de recarga entre moradores",
+    "description": "Organize o rateio da recarga no condomínio com identificação do morador, medição em kWh, regra de cobrança e conferência mensal.",
+    "intro": "Quando vários moradores usam um carregador compartilhado, a conta precisa ligar cada recarga a quem usou. Um rateio claro começa com regras aprovadas, identificação do morador e registros de consumo que a administração consegue conferir.",
+    "sections": [
+      {
+        "h": "1. Defina a regra antes do uso",
+        "p": [
+          "O condomínio deve combinar quem pode carregar, como será calculado o valor, quando ele entra na cobrança e quem responde por manutenção e suporte. Confira convenção, regimento e aprovação necessária com a administração.",
+          "Não trate uma sugestão deste guia como regra jurídica. Quórum e exigências podem variar conforme a obra e o local. Em caso de dúvida, consulte a administradora ou um advogado."
+        ]
+      },
+      {
+        "h": "2. Registre quem fez cada recarga",
+        "p": [
+          "Uma sessão sem identificação dificulta atribuir o consumo. Cadastre os moradores autorizados e mantenha os acessos atualizados quando alguém sair ou mudar de unidade.",
+          "No Telektro, o condomínio convida moradores por link ou QR e acompanha o consumo por sessão. O morador pode solicitar início e parada pelo celular. O uso de RFID depende do equipamento e do cadastro configurado. Não compartilhe um acesso entre moradores se a cobrança precisa ser individual."
+        ]
+      },
+      {
+        "h": "3. Use energia medida, não só tempo",
+        "p": [
+          "Registre os kWh enviados pelo carregador em cada sessão. Tempo de conexão e potência nominal, isoladamente, não demonstram o consumo real: o carro pode reduzir a potência ou ficar conectado sem carregar.",
+          "Antes de usar os registros para cobrança, valide as leituras com o equipamento real. Sessões sem leitura final, valores incoerentes ou falhas precisam de conferência, não de um valor inventado para fechar o mês."
+        ]
+      },
+      {
+        "h": "4. Separe consumo e outros custos",
+        "p": [
+          "Uma regra possível é cobrar os kWh medidos multiplicados pelo valor por kWh definido pelo condomínio. A administração deve explicar a composição desse valor e como trata manutenção, software e outros custos.",
+          "Exemplo fictício: uma sessão de 12 kWh com valor definido de R$ 1,00/kWh resulta em R$ 12,00 de energia nessa regra. Isso não é preço do Telektro nem recomendação de tarifa. Custos adicionais só devem entrar conforme a regra aprovada e informada aos moradores."
+        ]
+      },
+      {
+        "h": "5. Confira o fechamento mensal",
+        "p": [
+          "O painel do condomínio no Telektro reúne consumo e informações para a administração acompanhar a cobrança. Antes de lançar os valores, confira período, morador, sessões e critério de preço.",
+          "Não confunda relatório com pagamento realizado. A cobrança condominial e o fluxo de repasse de um eletroposto público são operações diferentes. Confirme o que sua conta oferece e quem efetivamente cobra e recebe."
+        ],
+        "list": [
+          "Reconciliar sessões concluídas com o consumo registrado",
+          "Separar registros com falha para conferência",
+          "Aplicar o preço e o período previstos na regra",
+          "Entregar ao morador o detalhamento da sua cobrança",
+          "Guardar um histórico para contestação e ajustes"
+        ]
+      },
+      {
+        "h": "6. Proteja os dados dos moradores",
+        "p": [
+          "Disponibilize a cada morador o que ele precisa para conferir a própria cobrança. Evite divulgar dados de todos em grupos ou planilhas abertas. Mantenha os acessos administrativos restritos.",
+          "Se houver divergência, compare o registro da sessão, a medição e a regra de cálculo antes de corrigir a cobrança. Registre o ajuste para que a conferência do próximo mês não dependa da memória de alguém."
+        ]
+      }
+    ],
+    "faq": [
+      {
+        "q": "É melhor dividir a conta igualmente entre todos?",
+        "a": "Isso pode cobrar de quem não usou. Para atribuir o consumo, use identificação por morador e medição por sessão, dentro da regra aprovada pelo condomínio."
+      },
+      {
+        "q": "Posso cobrar só pelo tempo conectado?",
+        "a": "Tempo não mede energia por si só. Para uma cobrança baseada no consumo, use kWh medidos e valide as leituras do equipamento."
+      },
+      {
+        "q": "O valor de R$ 1,00/kWh é o preço do Telektro?",
+        "a": "Não. É apenas um exemplo fictício de cálculo. O condomínio define e informa seu critério; as condições do software são separadas."
+      },
+      {
+        "q": "O relatório confirma que o morador pagou?",
+        "a": "Não por si só. Relatório de consumo, lançamento da cobrança e confirmação de pagamento são etapas distintas e precisam ser conferidas."
+      }
+    ],
+    "cta": {
+      "text": "Quer organizar moradores, sessões e consumo em um só painel?",
+      "href": "/#condominio",
+      "label": "Ver plano Condomínio"
+    },
+    "updated": "outubro de 2026"
+  },
 ];
 
 export const getGuia = (slug: string) => GUIAS.find((g) => g.slug === slug);
