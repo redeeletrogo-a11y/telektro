@@ -290,3 +290,12 @@ html[data-theme="light"] .mobile-more button.active { color: #0f9d6e; background
 
 /* Read-only preview has no app install flow. Keep the global install CTA out of demo screenshots. */
 body:has(.repasse-preview) .pwa-install-button { display: none; }
+.app-shell .charger-quick-credential { order: 4; display: grid; flex: 1 1 100%; gap: 7px; border-top: 1px solid rgb(255 255 255 / 8%); padding-top: 12px; }
+.app-shell .charger-quick-credential > strong { color: #eaf7f2; font-size: 12px; }
+.app-shell .charger-quick-credential > small { color: #8fa99f; font-size: 10px; line-height: 1.45; }
+.app-shell .charger-quick-credential .charger-credential-control { display: flex; width: 100%; flex-basis: auto; padding-left: 0; }
+.app-shell .rotate-credential-button { display: flex; width: 100%; min-height: 48px; justify-content: center; border-radius: 14px; font-size: 14px; }
+.app-shell .charger-more { order: 5; }
+html[data-theme="light"] .app-shell .charger-quick-credential { border-top-color: rgb(13 43 34 / 10%); }
+html[data-theme="light"] .app-shell .charger-quick-credential > strong { color: #0d2b22; }
+html[data-theme="light"] .app-shell .charger-quick-credential > small { color: #5b7a6e; }
