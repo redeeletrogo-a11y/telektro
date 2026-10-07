@@ -165,6 +165,94 @@ export const GUIAS: Guia[] = [
     },
     "updated": "outubro de 2026"
   },
+  {
+    "slug": "ocpp-1-6j-compatibilidade-carregador",
+    "title": "OCPP 1.6J: como saber se seu carregador é compatível",
+    "h1": "OCPP 1.6J e compatibilidade de carregadores",
+    "description": "Entenda o que é OCPP 1.6J e o que confirmar no modelo e firmware para conectar um carregador ao Telektro.",
+    "intro": "OCPP é o protocolo de comunicação entre o carregador e a plataforma de gestão. A sigla na ficha técnica é um ponto de partida, não uma garantia de que qualquer equipamento terá todos os recursos. Veja o que perguntar ao fornecedor e como validar a conexão.",
+    "sections": [
+      {
+        "h": "1. O que o OCPP conecta",
+        "p": [
+          "A Open Charge Alliance descreve o OCPP como um protocolo de comunicação entre estações de recarga e sistemas de gestão, também chamados de CSMS. Ele não é o conector físico do carro e não define a potência da recarga.",
+          "O carregador envia informações e recebe comandos da plataforma. No Telektro, essa comunicação permite acompanhar o estado do equipamento, receber leituras e solicitar início ou parada, conforme os recursos e a configuração do modelo."
+        ]
+      },
+      {
+        "h": "2. Por que a versão 1.6J importa",
+        "p": [
+          "O OCPP 1.6 tem versões SOAP e JSON. O Telektro usa a versão JSON por WebSocket, conhecida como OCPP 1.6J. Pergunte pelo formato completo, não apenas se o carregador tem OCPP.",
+          "A Open Charge Alliance informa que OCPP 1.6 e OCPP 2.0.1 não são compatíveis entre si. Um equipamento que anuncia apenas 2.0.1 não fica automaticamente compatível com o Telektro; confirme se também oferece 1.6J e se essa opção pode ser configurada."
+        ]
+      },
+      {
+        "h": "3. Pergunte se o servidor pode ser alterado",
+        "p": [
+          "Alguns equipamentos vêm configurados para uma plataforma do fabricante. Antes da compra, confirme se o proprietário consegue informar o endereço do servidor externo e se isso depende de licença, suporte ou atualização.",
+          "Peça o manual de configuração do modelo e a versão de firmware. Não publique credenciais nem o endereço de conexão com dados de autenticação em fóruns ou grupos."
+        ],
+        "list": [
+          "O modelo suporta OCPP 1.6 JSON por WebSocket?",
+          "Posso configurar meu próprio CSMS?",
+          "Existe custo ou restrição para liberar essa função?",
+          "Qual firmware será entregue e quem configura a conexão?",
+          "Que leituras e comandos foram testados nessa versão?"
+        ]
+      },
+      {
+        "h": "4. Recursos precisam ser testados",
+        "p": [
+          "Ter OCPP não significa que todos os recursos previstos no protocolo estejam ativos no equipamento ou implementados pela plataforma. Valide início remoto, parada, estado dos conectores e leitura de energia.",
+          "A energia usada no painel depende das leituras que o carregador envia. Não deduza kWh apenas multiplicando potência nominal pelo tempo. A porcentagem da bateria também depende do que o equipamento e o veículo informam; não conte com ela sem teste."
+        ]
+      },
+      {
+        "h": "5. Faça um teste com o equipamento real",
+        "p": [
+          "Combine uma conexão de teste com o fornecedor e a equipe de suporte. Confira se o carregador aparece conectado, se o comando é aceito e se a sessão realmente começa e termina.",
+          "Compare as leituras de início, fim e consumo com os registros do equipamento. Teste também desconexão e retorno da rede, sem presumir que uma função offline existe. Um teste em simulador ajuda no software, mas não valida o firmware do carregador."
+        ]
+      },
+      {
+        "h": "6. Checklist antes de contratar",
+        "p": [
+          "Guarde modelo, firmware, manual e resultado dos testes. Isso evita comprar com base apenas em uma promessa genérica de compatibilidade."
+        ],
+        "list": [
+          "Versão OCPP e formato confirmados por escrito",
+          "Servidor externo configurável e custos esclarecidos",
+          "Rede de dados disponível no local",
+          "Início, parada e medição validados em recarga real",
+          "Suporte e responsabilidades combinados"
+        ]
+      }
+    ],
+    "faq": [
+      {
+        "q": "OCPP 1.6 é o mesmo que OCPP 1.6J?",
+        "a": "Não necessariamente. OCPP 1.6 tem versões SOAP e JSON; o Telektro usa JSON por WebSocket, chamada de 1.6J."
+      },
+      {
+        "q": "OCPP 2.0.1 funciona automaticamente no Telektro?",
+        "a": "Não. OCPP 1.6 e 2.0.1 não são compatíveis entre si. Confirme se o equipamento também suporta 1.6J."
+      },
+      {
+        "q": "Qualquer carregador com OCPP funciona?",
+        "a": "Não há garantia só pela sigla. É necessário confirmar modelo, firmware, configuração de servidor e testar os recursos usados."
+      },
+      {
+        "q": "O OCPP garante mostrar a bateria do carro?",
+        "a": "Não. A informação precisa ser fornecida pelo equipamento e pelo veículo. Confirme em teste e não trate esse dado como disponível em todos os modelos."
+      }
+    ],
+    "cta": {
+      "text": "Conheça os usos do Telektro e confirme seu equipamento antes de contratar.",
+      "href": "/",
+      "label": "Conhecer o Telektro"
+    },
+    "updated": "outubro de 2026"
+  },
 ];
 
 export const getGuia = (slug: string) => GUIAS.find((g) => g.slug === slug);
