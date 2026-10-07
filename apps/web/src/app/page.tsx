@@ -39,7 +39,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   catch { return <SetupMessage title="Conecte o Supabase" message="Confira NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY em apps/web/.env.local e reinicie o dashboard."/>; }
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return <Landing/>;
+  if (!user) return <>
+    <script dangerouslySetInnerHTML={{ __html: `try{var standalone=window.matchMedia("(display-mode: standalone)").matches||("standalone" in navigator&&Boolean(navigator.standalone));if(standalone&&window.location.pathname==="/")window.location.replace("/login")}catch(e){}` }}/>
+    <Landing/>
+  </>;
 
   const { data: memberships, error: membershipsError } = await supabase.from("memberships").select("organization_id, role").eq("user_id", user.id);
   if (membershipsError) return <SetupMessage title="Não foi possível carregar seu workspace" message="Atualize a página. Se o problema continuar, confira as migrations e as permissões RLS do projeto."/>;

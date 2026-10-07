@@ -92,41 +92,48 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
   const connectionUrl = gatewayBaseUrl && state.chargePointId ? `${gatewayBaseUrl}/ocpp/${state.chargePointId}` : null;
   function chooseProfile(value: string) {
     setProfile(value);
-    if (value === "byd-dolphin-ac") setFormValues((current) => ({
-      ...current,
-      vendor: "",
-      model: "Wallbox AC Tipo 2 (veículo BYD Dolphin)",
-      modelCode: "",
-      catalogCode: "",
-      maxPower: "",
-      connectorType: "Tipo 2 (AC)",
-      connectorCount: "1",
-      ocppVersion: "unknown",
-      voltage: "",
-      phases: "",
-      networkInterfaces: [],
-      hasRfid: "",
-      hasMeter: "",
-      hasDisplay: "",
-      authorizationMode: "",
-    }));
-    if (value === "weg-wemob-parking-g2") setFormValues((current) => ({
-      ...current,
-      vendor: "WEG",
-      model: "WEMOB PARKING Geração 2",
-      modelCode: "WEMOB-P-023-W-R-1T2",
-      catalogCode: "15846064",
-      connectorType: "Tipo 2 com cabo",
-      connectorCount: "1",
-      maxPower: "22",
-      ocppVersion: "1.6J",
-      voltage: "127/220 V ou 220/380 V",
-      phases: "Monofásica, bifásica ou trifásica",
-      networkInterfaces: ["Wi-Fi", "4G", "Ethernet"],
-      hasRfid: "yes",
-      hasMeter: "yes",
-      hasDisplay: "no",
-    }));
+    const empty = {
+      vendor: "", model: "", modelCode: "", catalogCode: "", serialNumber: "",
+      maxPower: "", installationPower: "", connectorType: "", connectorCount: "1",
+      ocppVersion: "1.6J", voltage: "", phases: "", networkInterfaces: [] as string[],
+      otherNetwork: "", hasRfid: "", hasMeter: "", hasDisplay: "", authorizationMode: "",
+    };
+    const profiles: Record<string, Partial<typeof empty>> = {
+      // Specs: https://www.neocharge.com.br/loja/carregador-carro-eletrico-wallbox-nc7-b-7-3kw.html
+      "neocharge-nc7-b": {
+        vendor: "NeoCharge", model: "Smart Wallbox NC7-b", modelCode: "NC7-b",
+        maxPower: "7.3", connectorType: "Tipo 2", connectorCount: "1",
+        ocppVersion: "1.6J", voltage: "220 Vca",
+      },
+      // Specs: https://static.weg.net/medias/downloadcenter/hf3/hd5/WEG-WEMOB-50105757-pt.pdf
+      "weg-wemob-wall-7kw": {
+        vendor: "WEG", model: "WEMOB WALL", modelCode: "WEMOB-W-007-W-R-1T2",
+        maxPower: "7.68", connectorType: "Tipo 2", connectorCount: "1", ocppVersion: "1.6J",
+      },
+      // Specs: https://bydenergia.com/produtos/carregadores-de-veiculos-eletricos/
+      "byd-evc-1sxp7": {
+        vendor: "BYD", model: "Wallbox BYD 7 kW", modelCode: "BYD-EVC-1SXP7",
+        maxPower: "7", connectorType: "Tipo 2", connectorCount: "1", ocppVersion: "1.6J",
+        networkInterfaces: ["4G", "Ethernet"], hasDisplay: "yes",
+      },
+      // Specs: https://bydenergia.com/produtos/carregadores-de-veiculos-eletricos/
+      "byd-evc-1sxp22": {
+        vendor: "BYD", model: "Wallbox BYD 22 kW", modelCode: "BYD-EVC-1SXP22",
+        maxPower: "22", connectorType: "Tipo 2", connectorCount: "1", ocppVersion: "1.6J",
+        networkInterfaces: ["4G", "Ethernet"], hasDisplay: "yes",
+      },
+      // This is a vehicle reference, not a confirmed charger model; verify the actual wallbox.
+      "byd-dolphin-ac": {
+        vendor: "", model: "Wallbox AC Tipo 2 (veículo BYD Dolphin)",
+        connectorType: "Tipo 2 (AC)", connectorCount: "1", ocppVersion: "unknown",
+      },
+      "weg-wemob-parking-g2": {
+        vendor: "WEG", model: "WEMOB PARKING Geração 2",
+        modelCode: "WEMOB-P-023-W-R-1T2", catalogCode: "15846064",
+        connectorType: "Tipo 2 com cabo", connectorCount: "1", maxPower: "23", ocppVersion: "1.6J",
+      },
+    };
+    setFormValues({ ...empty, ...profiles[value] });
   }
   function setValue(key: "vendor" | "model" | "modelCode" | "catalogCode" | "serialNumber" | "maxPower" | "installationPower" | "connectorType" | "connectorCount" | "ocppVersion" | "voltage" | "phases" | "otherNetwork" | "hasRfid" | "hasMeter" | "hasDisplay" | "authorizationMode", value: string) {
     setFormValues((current) => ({ ...current, [key]: value }));
@@ -139,8 +146,8 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
 
   return <form action={action} className="site-form">
     <label htmlFor="charger-profile">Modelo de referência <span>opcional · você pode cadastrar outras marcas</span></label>
-    <select id="charger-profile" value={profile} onChange={(event) => chooseProfile(event.currentTarget.value)}><option value="manual">Outro modelo — preencher dados</option><option value="weg-wemob-parking-g2">WEG WEMOB-P-023-W-R-1T2 · Parking Geração 2</option><option value="byd-dolphin-ac">BYD Dolphin · wallbox AC Tipo 2 (modelo a confirmar)</option></select>
-    <p className="form-help">O perfil só preenche os campos conhecidos. O cadastro aceita qualquer fabricante; para conectar, o equipamento precisa usar OCPP 1.6J, compatível com o gateway atual.</p>
+    <select id="charger-profile" value={profile} onChange={(event) => chooseProfile(event.currentTarget.value)}><option value="manual">Outro modelo — preencher dados</option><option value="neocharge-nc7-b">NeoCharge NC7-b · Smart Wallbox</option><option value="weg-wemob-wall-7kw">WEG WEMOB WALL · 7 kW</option><option value="weg-wemob-parking-g2">WEG WEMOB PARKING Geração 2 · 23 kW</option><option value="byd-evc-1sxp7">BYD-EVC-1SXP7 · 7 kW</option><option value="byd-evc-1sxp22">BYD-EVC-1SXP22 · 22 kW</option><option value="byd-dolphin-ac">BYD Dolphin · wallbox AC Tipo 2 (modelo a confirmar)</option></select>
+    <p className="form-help">Os dados do perfil são referências: confirme a etiqueta e o manual do equipamento. Ajuste a potência ao limite da instalação. Para conectar, o carregador precisa usar OCPP 1.6J, compatível com o gateway atual.</p>
     <div className="site-form-row">
       <div><label htmlFor="charger-id">ID OCPP / Charge Box ID</label><input id="charger-id" name="charge_point_id" autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={64} placeholder="Copie o ID configurado no carregador" required/><small className="form-help">Use exatamente o mesmo ID, respeitando maiúsculas e minúsculas.</small></div>
       <div><label htmlFor="charger-site">Local</label><select id="charger-site" name="site_id" defaultValue="" required><option value="" disabled>Selecione um local</option>{sites.map((site) => <option value={site.id} key={site.id}>{site.name}</option>)}</select></div>
@@ -161,8 +168,7 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
       <div><label htmlFor="charger-power">Potência máxima do modelo <span>kW · opcional</span></label><input id="charger-power" name="max_power_kw" value={formValues.maxPower} onChange={(event) => setValue("maxPower", event.currentTarget.value)} type="number" min="0.001" step="0.001" placeholder="Ex.: 22"/></div>
       <div><label htmlFor="charger-installed-power">Limite configurado na instalação <span>kW · opcional</span></label><input id="charger-installed-power" name="installation_power_kw" value={formValues.installationPower} onChange={(event) => setValue("installationPower", event.currentTarget.value)} type="number" min="0.001" step="0.001" placeholder="Confirme a alimentação elétrica"/></div>
     </div>
-    {profile === "weg-wemob-parking-g2" && <p className="form-help profile-note">Neste WEG, 22 kW é a potência máxima do modelo. A instalação pode entregar 4,06 kW (127 V), 7,04 kW (220 V mono/bifásico), 12,19 kW (220 V trifásico) ou 21,06 kW (380 V trifásico), conforme a rede local.</p>}
-    {profile === "byd-dolphin-ac" && <p className="form-help profile-note">O Dolphin é o veículo; o Telektro conecta à wallbox. O perfil informa apenas o conector Tipo 2 AC e deixa fabricante, potência e protocolo em aberto para confirmar pela etiqueta/manual. A ficha comercial consultada da BYD/E-Wolf EW1005 não lista OCPP; para conectar, confirme que a estação real suporta OCPP 1.6J e configure nela o endpoint, Charge Point ID e credencial exibidos após o cadastro.</p>}
+    {profile === "weg-wemob-parking-g2" && <p className="form-help profile-note">A WEG especifica até 23 kW para este modelo; a potência disponível depende da rede e da instalação. Informe o limite da instalação separadamente.</p>}
     <div className="site-form-row">
       <div><label htmlFor="charger-connector">Tipo de conector <span>opcional</span></label><input id="charger-connector" name="connector_type" value={formValues.connectorType} onChange={(event) => setValue("connectorType", event.currentTarget.value)} maxLength={80} placeholder="Ex.: Tipo 2, CCS2, NACS"/></div>
       <div><label htmlFor="charger-connectors">Quantidade de conectores <span>opcional</span></label><input id="charger-connectors" name="connector_count" value={formValues.connectorCount} onChange={(event) => setValue("connectorCount", event.currentTarget.value)} type="number" min="1" max="64" step="1"/></div>
