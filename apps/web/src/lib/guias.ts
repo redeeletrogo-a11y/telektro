@@ -253,6 +253,87 @@ export const GUIAS: Guia[] = [
     },
     "updated": "outubro de 2026"
   },
+  {
+    "slug": "carregador-carro-eletrico-casa-celular",
+    "title": "Carregador em casa: controle pelo celular e medição em kWh",
+    "h1": "Carregador em casa: controle e consumo pelo celular",
+    "description": "Veja como planejar a recarga em casa, confirmar a compatibilidade do carregador e acompanhar o consumo em kWh pelo celular.",
+    "intro": "Quem carrega o carro em casa precisa de uma instalação segura e de uma forma clara de acompanhar o consumo. Com um carregador compatível, um sistema de gestão pode reunir estado, sessões e comandos no celular. A escolha começa pela rede elétrica e pelo equipamento, não pelo aplicativo.",
+    "sections": [
+      {
+        "h": "1. Verifique a instalação da casa",
+        "p": [
+          "Peça a um profissional habilitado que avalie a rede, a entrada de energia, a distância até a vaga e as proteções necessárias. Siga o projeto, as normas aplicáveis e o manual do carregador escolhido.",
+          "O guia de instalação WEMOB WALL da WEG, por exemplo, exige pessoal qualificado e proteções próprias para aquele equipamento. Os requisitos de um modelo não devem ser copiados para outro. Não improvise extensões ou adaptações para uma instalação permanente."
+        ]
+      },
+      {
+        "h": "2. Potência não é a mesma coisa que consumo",
+        "p": [
+          "Potência, em kW, descreve a taxa de uso de energia. Consumo, em kWh, é a energia acumulada durante a recarga. Para saber quanto foi usado, consulte a medição da sessão.",
+          "O tempo de recarga depende do carro, do carregador, da instalação e das condições da sessão. Não use a potência anunciada para prometer um tempo fixo nem uma porcentagem de bateria."
+        ]
+      },
+      {
+        "h": "3. Confirme a conexão com o software",
+        "p": [
+          "O Telektro usa OCPP 1.6J. Seu carregador precisa permitir a configuração da conexão e ter modelo e firmware validados. Um equipamento com Wi-Fi, sozinho, não comprova compatibilidade.",
+          "Antes de comprar ou contratar, peça ao fornecedor o manual e confirme início remoto, parada e envio das leituras de energia. Faça uma recarga de teste com o aparelho real."
+        ]
+      },
+      {
+        "h": "4. O que acompanhar pelo celular",
+        "p": [
+          "No uso residencial, o Telektro permite acompanhar o carregador e solicitar início e parada de recargas pelo celular. A execução depende do equipamento conectado e da resposta aos comandos.",
+          "Os kWh apresentados vêm das leituras enviadas pelo carregador. Confira se a sessão termina com registros coerentes de início, fim e consumo. O software não substitui a medição da distribuidora nem mede, sozinho, a instalação inteira da casa."
+        ]
+      },
+      {
+        "h": "5. Estime o custo sem confundir com a conta total",
+        "p": [
+          "Para uma estimativa simples da energia de uma sessão, multiplique os kWh medidos pelo custo por kWh adotado. Esse cálculo é uma estimativa: a conta da distribuidora pode incluir tributos, bandeiras e outros componentes.",
+          "O consumo registrado pelo carregador não é uma medida direta da energia que ficou na bateria. Evite apresentar essa leitura como autonomia garantida. Para comparar meses, use a mesma base de cálculo e guarde os registros."
+        ]
+      },
+      {
+        "h": "6. Prepare a rotina de uso",
+        "p": [
+          "Combine com quem mora na casa como usar o equipamento e proteger o acesso ao painel. Em caso de falha elétrica, não tente corrigir pelo aplicativo: interrompa o uso e procure o responsável técnico."
+        ],
+        "list": [
+          "Instalação aprovada pelo profissional responsável",
+          "Modelo, firmware e OCPP 1.6J confirmados",
+          "Conexão de dados disponível na garagem",
+          "Início, parada e consumo conferidos em teste",
+          "Conta protegida e contato de suporte disponível"
+        ]
+      }
+    ],
+    "faq": [
+      {
+        "q": "Posso controlar qualquer carregador pelo celular?",
+        "a": "Não pelo Telektro. O equipamento precisa usar OCPP 1.6J, permitir configurar a conexão e ter os recursos validados."
+      },
+      {
+        "q": "Ter Wi-Fi basta para funcionar?",
+        "a": "Não. Wi-Fi é uma conexão de rede. A comunicação com o Telektro exige OCPP 1.6J e configuração compatível."
+      },
+      {
+        "q": "O painel mostra a conta inteira da casa?",
+        "a": "Não. O consumo da recarga vem das leituras do carregador. Ele não representa toda a energia usada na residência."
+      },
+      {
+        "q": "O Telektro instala o carregador?",
+        "a": "Não. É software de gestão. Projeto elétrico, instalação e equipamento são serviços e itens separados."
+      }
+    ],
+    "cta": {
+      "text": "Quer acompanhar seu carregador residencial pelo celular?",
+      "href": "/#residencial",
+      "label": "Ver plano Residencial"
+    },
+    "updated": "outubro de 2026"
+  },
 ];
 
 export const getGuia = (slug: string) => GUIAS.find((g) => g.slug === slug);
