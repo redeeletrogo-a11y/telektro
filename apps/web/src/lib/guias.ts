@@ -78,6 +78,93 @@ export const GUIAS: Guia[] = [
     ],
     cta: { text: "Quer ver como o Telektro organiza carregadores e moradores no condomínio?", href: "/#condominio", label: "Ver plano Condomínio" },
   },
+  {
+    "slug": "como-montar-eletroposto",
+    "title": "Como montar um eletroposto: planejamento, instalação e gestão",
+    "h1": "Como montar um eletroposto",
+    "description": "Planeje um eletroposto em comércio ou terreno: demanda, instalação elétrica, escolha do carregador, custos e gestão das recargas.",
+    "intro": "Um comércio, estacionamento ou terreno pode receber um ponto de recarga. Mas comprar o carregador é só uma parte do projeto. Antes de investir, avalie quem vai usar, por quanto tempo, quanto custa operar e como acompanhar cada recarga.",
+    "sections": [
+      {
+        "h": "1. Comece pelo público e pelo local",
+        "p": [
+          "Pense na rotina de quem passa pelo endereço: clientes que ficam algumas horas, moradores da região ou motoristas em viagem. O tempo de permanência ajuda a escolher o serviço e o equipamento.",
+          "Verifique acesso, horário de funcionamento, espaço para manobra, sinalização e quem atende se houver uma falha. Um terreno disponível, sozinho, não prova que haverá demanda."
+        ]
+      },
+      {
+        "h": "2. Avalie a rede elétrica antes de comprar",
+        "p": [
+          "Peça a um profissional habilitado um estudo da capacidade da instalação e das adaptações necessárias. Confirme com a distribuidora se a ligação atende ao projeto e quais mudanças serão exigidas.",
+          "Inclua no orçamento projeto, obras, proteções, aterramento e eventual adequação da entrada de energia. Siga o manual do modelo e as normas aplicáveis. Não escolha cabos ou disjuntores por uma receita genérica da internet."
+        ]
+      },
+      {
+        "h": "3. Escolha o carregador para o uso previsto",
+        "p": [
+          "Compare potência, conectores, assistência, garantia, conexão de dados e o que o veículo consegue receber. A potência anunciada não garante a mesma velocidade para todos os carros.",
+          "Se pretende gerir o ponto pelo Telektro, confirme OCPP 1.6J, liberdade para configurar um servidor externo e compatibilidade do firmware. O protocolo informado na ficha técnica não substitui um teste de conexão e recarga."
+        ]
+      },
+      {
+        "h": "4. Faça a conta da operação",
+        "p": [
+          "Não confunda faturamento com lucro. Estime custos fixos, energia, manutenção, taxas de pagamento e software. Compare cenários de utilização baixa, média e alta, sem tratar a melhor hipótese como receita garantida.",
+          "Segundo a ANEEL, a atividade de recarga pode ser explorada comercialmente com preços livremente negociados. Isso não dispensa projeto seguro nem a verificação das exigências locais com a prefeitura, distribuidora e profissionais responsáveis."
+        ],
+        "list": [
+          "Investimento inicial: equipamento, projeto, obras e sinalização",
+          "Custos recorrentes: energia, conectividade, manutenção e gestão",
+          "Receita estimada: energia vendida e preço ao cliente",
+          "Prazo de retorno: depende da procura e de todos os custos, não só do carregador"
+        ]
+      },
+      {
+        "h": "5. Organize pagamento e acompanhamento",
+        "p": [
+          "No Telektro, o eletroposto pode disponibilizar um QR para o motorista acessar a recarga pré-paga. A liberação depende da confirmação do pagamento e da resposta do carregador. O consumo medido serve de base para a cobrança.",
+          "O dono acompanha vendas e consumo no painel. O Telektro é software: não inclui equipamento, instalação nem garantia de demanda. Confirme condições comerciais, pagamento e repasse antes de contratar."
+        ]
+      },
+      {
+        "h": "6. Abra com um piloto validado",
+        "p": [
+          "Teste o caminho inteiro antes de divulgar: conexão, início e parada, medição, pagamento, sobra não consumida e falha de início. Combine quem presta suporte e como o cliente pede ajuda."
+        ],
+        "list": [
+          "Valide o modelo e o firmware com a plataforma",
+          "Conclua o projeto e a instalação com o responsável técnico",
+          "Defina preço, regras de uso e atendimento",
+          "Confira a recarga e a cobrança com o equipamento real",
+          "Acompanhe utilização e custos antes de ampliar"
+        ]
+      }
+    ],
+    "faq": [
+      {
+        "q": "Quanto custa montar um eletroposto?",
+        "a": "Não há um valor único. Potência, equipamento, obra e capacidade elétrica mudam o orçamento. Peça propostas para o mesmo escopo e inclua os custos de operação."
+      },
+      {
+        "q": "Posso cobrar pela recarga?",
+        "a": "A ANEEL permite exploração comercial da recarga com preços livremente negociados. Verifique também as exigências locais e as obrigações da sua operação com profissionais responsáveis."
+      },
+      {
+        "q": "Um eletroposto dá lucro garantido?",
+        "a": "Não. O resultado depende de demanda, preço, utilização e custos. Faça cenários e valide o ponto antes de ampliar."
+      },
+      {
+        "q": "O Telektro inclui o carregador?",
+        "a": "Não. É o software de gestão. Equipamento, instalação e compatibilidade devem ser avaliados separadamente."
+      }
+    ],
+    "cta": {
+      "text": "Quer conhecer a gestão das recargas para seu eletroposto?",
+      "href": "/#eletroposto",
+      "label": "Ver plano Eletroposto"
+    },
+    "updated": "outubro de 2026"
+  },
 ];
 
 export const getGuia = (slug: string) => GUIAS.find((g) => g.slug === slug);
