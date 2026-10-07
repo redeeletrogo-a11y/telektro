@@ -438,6 +438,7 @@ function ChargerList({ chargers, removedChargers, connectors, authorizations, si
       <span className={`status-badge ${charger.online ? "active" : "available"}`}><i className="status-dot"/>{charger.online ? charger.status : "Offline"}</span>
       {compatibilityPending && <span className="status-badge attention">Protocolo ainda não suportado</span>}
       {canControl && <ChargerControl charger={charger} connectors={chargerConnectors} organizationId={organizationId}/>}
+      {isOwner && <div className="charger-quick-credential"><strong>Credencial do carregador</strong><ChargerCredentialControl charger={charger} organizationId={organizationId}/><small id={`charger-credential-warning-${charger.id}`}>Ao confirmar, a senha atual deixa de funcionar e o carregador desconecta.</small></div>}
       <details className="charger-more"><summary>Detalhes e configuração</summary>
       {profileDetails && <small className="charger-profile-details">{[charger.vendor, charger.model].filter(Boolean).join(" · ")}{[charger.vendor, charger.model].filter(Boolean).length ? " · " : ""}{profileDetails}</small>}
       <div className="site-row-meta"><span>Potência máx. do modelo</span><strong>{charger.max_power_kw ? `${Number(charger.max_power_kw).toLocaleString("pt-BR")} kW` : "Não definida"}</strong></div>
@@ -454,7 +455,7 @@ function ChargerList({ chargers, removedChargers, connectors, authorizations, si
         {charger.last_ocpp_error && <span className="form-error">Último erro OCPP: {charger.last_ocpp_error}</span>}
       </div>
       {canManage && <><ConfigurationControl charger={charger} organizationId={organizationId}/><RfidAuthorizationManager charger={charger} authorizations={authorizations.filter((item) => item.charger_id === charger.id)} organizationId={organizationId}/></>}
-      {isOwner && <><ChargerCredentialControl charger={charger} organizationId={organizationId}/><ChargerRemovalControl charger={charger} organizationId={organizationId} hasActiveSession={activeSessionChargerIds.has(charger.id)}/></>}
+      {isOwner && <ChargerRemovalControl charger={charger} organizationId={organizationId} hasActiveSession={activeSessionChargerIds.has(charger.id)}/>}
       </details>
     </article>;
   })}</div>}</>;
@@ -534,7 +535,7 @@ function ChargerCredentialControl({ charger, organizationId }: { charger: Charge
     }
   }
   return <div className="charger-credential-control">
-    {!state.credential && <button type="button" className="secondary-button rotate-credential-button" onClick={() => { setConfirming(true); setCopyFeedback(""); }} disabled={pending}><RotateCcw size={13}/>Gerar nova credencial</button>}
+    {!state.credential && <button type="button" className="primary-button rotate-credential-button" onClick={() => { setConfirming(true); setCopyFeedback(""); }} disabled={pending} aria-describedby={`charger-credential-warning-${charger.id}`}><RotateCcw size={13}/>Gerar nova credencial</button>}
     {confirming && !state.credential && <div className="command-confirm-backdrop"><form action={action} className="command-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby={`rotate-credential-title-${charger.id}`} aria-describedby={`rotate-credential-description-${charger.id}`}>
       <h2 id={`rotate-credential-title-${charger.id}`}>Gerar nova credencial?</h2>
       <p id={`rotate-credential-description-${charger.id}`}>A senha antiga deixa de funcionar e o carregador desconecta. Será necessário atualizar a senha no equipamento para conectá-lo novamente.</p>
@@ -677,4 +678,4 @@ function CommandHistory({ commands, chargers }: { commands: CommandRecord[]; cha
     const actionName = command.action === "RemoteStartTransaction" ? "Iniciar recarga" : command.action === "RemoteStopTransaction" ? "Parar recarga" : command.action === "GetConfiguration" ? "Ler configuração OCPP" : command.action;
     return <div className="command-history-row" key={command.id}><span>{actionName} · {chargerNames.get(command.charger_id) ?? "Carregador"}{command.status === "rejected" && command.action === "RemoteStartTransaction" ? <small> O carregador não autorizou o início remoto. Verifique a configuração ou use o cartão RFID.</small> : reason && <small> {reason}</small>}</span><strong className={`command-state command-${command.status}`}>{labels[command.status] ?? command.status}</strong><small>{new Date(command.requested_at).toLocaleString("pt-BR")}</small></div>;
   })}</div>;
-}
+    }
