@@ -26,7 +26,7 @@ export function OrganizationOnboarding({ email }: { email: string }) {
       <p className="login-description">Escolha o tipo de conta. Você pode falar com a Telektro para mudar depois.</p>
       <form action={action} className="login-form">
         <fieldset className="account-types"><legend>Tipo de conta</legend>
-          <label className={`account-type ${type === "residencial" ? "selected" : ""}`}><input type="radio" name="account_type" value="residencial" checked={type === "residencial"} onChange={() => setType("residencial")}/><strong>Residencial</strong><span>Sua casa, seus carregadores. R$ 19,90/mês.</span></label>
+          <label className={`account-type ${type === "residencial" ? "selected" : ""}`}><input type="radio" name="account_type" value="residencial" checked={type === "residencial"} onChange={() => setType("residencial")}/><strong>Residencial</strong><span>Sua casa, seus carregadores. Grátis, cortesia da Telektro.</span></label>
           <label className={`account-type ${type === "condominio" ? "selected" : ""}`}><input type="radio" name="account_type" value="condominio" checked={type === "condominio"} onChange={() => setType("condominio")}/><strong>Condomínio</strong><span>A pessoa responsável administra e convida moradores. R$ 199/mês até 5 usuários, +R$ 19,90 por usuário extra.</span></label>
           <label className={`account-type ${type === "eletroposto" ? "selected" : ""}`}><input type="radio" name="account_type" value="eletroposto" checked={type === "eletroposto"} onChange={() => setType("eletroposto")}/><strong>Eletroposto</strong><span>Venda recargas com QR: o cliente paga por Pix ou cartão e o carregador libera sozinho.</span></label>
         </fieldset>

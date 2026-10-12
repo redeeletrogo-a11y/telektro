@@ -499,6 +499,8 @@ export async function removeResident(organizationId: string, userId: string): Pr
 
 export async function startSubscription(_previous: FormState, formData: FormData): Promise<FormState> {
   const organizationId = String(formData.get("organization_id") ?? "");
+  // Plano Residencial agora e gratuito: nao abre mais assinatura.
+  if (organizationId) return { error: "O plano Residencial é gratuito. Não há assinatura para pagar." };
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Sessão expirada. Entre novamente." };
