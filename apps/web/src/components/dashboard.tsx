@@ -11,7 +11,7 @@ import { Activity, ArrowRight, Building2, Car, Check, Clock3, Copy, LayoutDashbo
 import { EletropostoPainel, type EpPoint } from "@/components/eletroposto-painel";
 import { EletropostoRepasse } from "@/components/eletroposto-repasse";
 import { EletropostoVendas } from "@/components/eletroposto-vendas";
-import { createSite, registerCharger, registerRfidAuthorization, removeCharger, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, startSubscription, rotateChargerCredential, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
+import { createSite, registerCharger, registerRfidAuthorization, removeCharger, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, rotateChargerCredential, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
 
 type Organization = { id: string; name: string; slug: string; account_type?: string; resident_limit?: number | null };
 type Site = { id: string; name: string; address: string | null; timezone: string; max_power_kw: number | null };
@@ -26,15 +26,6 @@ type CommandRecord = { id: string; charger_id: string; action: string; status: s
 const initialState: FormState = {};
 
 const interfaceFont = Outfit({ subsets: ["latin"], display: "swap" });
-
-function TrialSubscribe({ organizationId }: { organizationId: string }) {
-  const [state, action, pending] = useActionState(startSubscription, {} as FormState);
-  return <form action={action} className="trial-subscribe">
-    <input type="hidden" name="organization_id" value={organizationId}/>
-    <button className="primary-button" type="submit" disabled={pending}>{pending ? "Abrindo pagamento..." : "Assinar agora"}</button>
-    {state.error && <small className="form-error" role="alert">{state.error}</small>}
-  </form>;
-}
 
 function ThemeToggle() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -312,7 +303,7 @@ export function Dashboard({
       </header>
 
       <div className="page-wrap">
-        {trialDaysLeft !== null && <div className="trial-banner" role="status"><span>Teste grátis: {trialDaysLeft} dia(s) restante(s). Depois, {accountType === "condominio" ? "plano Condomínio R$ 199,00/mês (até 5 moradores, +R$ 19,90 por morador extra, +1% da energia do mês anterior)." : "plano Residencial R$ 19,90/mês."}</span>{canManageSites && accountType !== "condominio" && <TrialSubscribe organizationId={organization.id}/>}{canManageSites && <PixPay organizationId={organization.id}/>}</div>}
+        {trialDaysLeft !== null && <div className="trial-banner" role="status"><span>Teste grátis: {trialDaysLeft} dia(s) restante(s). Depois, plano Condomínio R$ 199,00/mês (até 5 moradores, +R$ 19,90 por morador extra, +1% da energia do mês anterior).</span>{canManageSites && <PixPay organizationId={organization.id}/>}</div>}
         {pixDueDays !== null && pixDueDays <= 5 && <div className="trial-banner" role="status"><span>{pixDueDays >= 0 ? `Sua mensalidade Pix vence em ${pixDueDays} dia(s).` : `Mensalidade Pix vencida. Pague em até ${Math.max(0, 3 + pixDueDays)} dia(s) para não perder o acesso.`}</span>{canManageSites && <PixPay organizationId={organization.id} label="Gerar Pix do próximo mês"/>}</div>}
         <div className="dash-hello"><h1>{activeNav === "Visão geral" ? organization.name : activeNav}</h1><span className="role-chip">{role}</span></div>
 
@@ -684,4 +675,4 @@ function CommandHistory({ commands, chargers }: { commands: CommandRecord[]; cha
     const actionName = command.action === "RemoteStartTransaction" ? "Iniciar recarga" : command.action === "RemoteStopTransaction" ? "Parar recarga" : command.action === "GetConfiguration" ? "Ler configuração OCPP" : command.action;
     return <div className="command-history-row" key={command.id}><span>{actionName} · {chargerNames.get(command.charger_id) ?? "Carregador"}{command.status === "rejected" && command.action === "RemoteStartTransaction" ? <small> O carregador não autorizou o início remoto. Verifique a configuração ou use o cartão RFID.</small> : reason && <small> {reason}</small>}</span><strong className={`command-state command-${command.status}`}>{labels[command.status] ?? command.status}</strong><small>{new Date(command.requested_at).toLocaleString("pt-BR")}</small></div>;
   })}</div>;
-}
+    }
