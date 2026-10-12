@@ -26,6 +26,19 @@ kill_timeout = "30s"
     path = "/health"
     timeout = "5s"
 
+# TEMPORARY DIAGNOSTIC: plain ws:// on external port 8080 -> internal 9001.
+# Nothing listens on 9001 unless the secret ENABLE_INSECURE_WS=true is set.
+[[services]]
+  protocol = "tcp"
+  internal_port = 9001
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[services.ports]]
+    port = 8080
+    handlers = ["http"]
+
 [[vm]]
   cpu_kind = "shared"
   cpus = 1

@@ -1,4 +1,5 @@
-import { createServer } from "node:http";
+import { createServer, type IncomingMessage } from "node:http";
+import type { Duplex } from "node:stream";
 import { createHash, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { WebSocket, WebSocketServer } from "ws";
 import { createClient } from "@supabase/supabase-js";
@@ -33,6 +34,9 @@ type PendingCommand = { charger: ChargerRecord; commandId: string; action: strin
 type IdTagGrant = { chargerId: string; expiresAt: number; authorized: boolean; authorizationType: "RFID" | "REMOTE" | "APP" | "QR"; userId: string | null };
 
 const port = Number(process.env.OCPP_GATEWAY_PORT ?? 9000);
+const insecureWsEnabled = process.env.ENABLE_INSECURE_WS === "true";
+const insecureWsPort = Number(process.env.OCPP_INSECURE_WS_PORT ?? 9001);
+const insecureSockets = new WeakSet<WebSocket>();
 const developmentToken = process.env.OCPP_DEV_TOKEN;
 const connections = new Map<string, WebSocket>();
 const inboundMessageQueues = new Map<string, Promise<void>>();
@@ -61,11 +65,19 @@ const server = createServer((request, response) => {
 
 const sockets = new WebSocketServer({ noServer: true, handleProtocols: (protocols) => protocols.has("ocpp1.6") ? "ocpp1.6" : false });
 
-server.on("upgrade", async (request, socket, head) => {
+function clientIp(request: IncomingMessage): string {
+  const forwarded = request.headers["fly-client-ip"] ?? request.headers["x-forwarded-for"];
+  const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+  return value?.split(",")[0]?.trim() || request.socket.remoteAddress || "unknown";
+}
+
+// TEMPORARY DIAGNOSTIC: `insecure` is true only for the plain ws:// listener (ENABLE_INSECURE_WS=true).
+// Credential authentication is identical on both transports; only the transport is unencrypted.
+async function handleUpgradeRequest(request: IncomingMessage, socket: Duplex, head: Buffer, insecure: boolean) {
   const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
   const chargePointId = url.pathname.match(/^\/ocpp\/([A-Za-z0-9._-]{1,64})$/)?.[1];
   const suppliedToken = request.headers["x-telektro-dev-token"];
-  const isDevAuth = process.env.NODE_ENV !== "production" && Boolean(developmentToken) && typeof suppliedToken === "string" && safeEqual(suppliedToken, developmentToken!);
+  const isDevAuth = !insecure && process.env.NODE_ENV !== "production" && Boolean(developmentToken) && typeof suppliedToken === "string" && safeEqual(suppliedToken, developmentToken!);
   let charger: ChargerRecord | null = null;
 
   if (chargePointId && registry) {
@@ -87,14 +99,32 @@ server.on("upgrade", async (request, socket, head) => {
   if (!chargePointId || (!isDevAuth && !charger)) {
     socket.write("HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm=\"Telektro OCPP\"\r\nConnection: close\r\n\r\n");
     socket.destroy();
-    console.warn(JSON.stringify({ event: "ocpp.connection_rejected", chargePointId: chargePointId ?? "invalid", reason: "authentication_not_configured" }));
+    console.warn(JSON.stringify({ event: "ocpp.connection_rejected", chargePointId: chargePointId ?? "invalid", reason: "authentication_not_configured", insecure, ip: clientIp(request) }));
     return;
   }
 
   sockets.handleUpgrade(request, socket, head, (websocket) => {
     socketChargers.set(websocket, charger);
+    if (insecure) insecureSockets.add(websocket);
     sockets.emit("connection", websocket, request);
   });
+}
+
+server.on("upgrade", (request, socket, head) => { void handleUpgradeRequest(request, socket, head, false); });
+
+if (insecureWsEnabled) {
+  console.warn(JSON.stringify({ event: "gateway.insecure_ws_enabled", port: insecureWsPort, warning: "TEMPORARY unencrypted ws:// diagnostic endpoint is ON" }));
+}
+const insecureServer = insecureWsEnabled
+  ? createServer((request, response) => {
+    // Attempts that are not a WebSocket upgrade are logged too, to show reachability from the charger.
+    console.warn(JSON.stringify({ event: "ocpp.insecure_http_request", method: request.method, url: request.url, ip: clientIp(request) }));
+    response.writeHead(404).end();
+  })
+  : null;
+insecureServer?.on("upgrade", (request, socket, head) => {
+  console.warn(JSON.stringify({ event: "ocpp.insecure_upgrade_attempt", url: request.url, ip: clientIp(request) }));
+  void handleUpgradeRequest(request, socket, head, true);
 });
 
 sockets.on("connection", (websocket: WebSocket, request) => {
@@ -105,7 +135,11 @@ sockets.on("connection", (websocket: WebSocket, request) => {
   const charger = socketChargers.get(websocket) ?? null;
   if (charger) chargerConnections.set(charger.id, { chargePointId, websocket, credentialHash: charger.ocpp_credential_hash });
   void setOnline(charger, true).catch((error) => reportPersistenceFailure("connect", chargePointId, error));
-  console.info(JSON.stringify({ event: "ocpp.connected", chargePointId }));
+  if (insecureSockets.has(websocket)) {
+    console.warn(JSON.stringify({ event: "ocpp.connected_insecure_ws", chargePointId, ip: clientIp(request), warning: "unencrypted ws:// diagnostic endpoint" }));
+  } else {
+    console.info(JSON.stringify({ event: "ocpp.connected", chargePointId }));
+  }
 
   websocket.on("message", (data) => {
     const queueKey = charger?.id ?? chargePointId;
@@ -856,6 +890,7 @@ function safeEqual(left: string, right: string): boolean {
 async function startGateway() {
   await recoverInterruptedCommands();
   startupRecoveryComplete = true;
+  insecureServer?.listen(insecureWsPort, "0.0.0.0", () => console.warn(JSON.stringify({ event: "gateway.insecure_ws_started", port: insecureWsPort })));
   server.listen(port, "0.0.0.0", () => console.info(JSON.stringify({ event: "gateway.started", port, healthPath: "/health", ocppPath: "/ocpp/{chargePointId}" })));
 }
 
@@ -867,6 +902,7 @@ void startGateway().catch((error) => {
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
     sockets.close();
+    insecureServer?.close();
     server.close(() => process.exit(0));
   });
 }
