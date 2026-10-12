@@ -7,7 +7,7 @@ import { getCondoInvoice, PIX_GRACE_DAYS, syncPendingPix } from "@/lib/pix";
 import { serviceClient } from "@/lib/pix";
 import type { EpPoint } from "@/components/eletroposto-painel";
 import { SubscribeScreen } from "@/components/subscribe-screen";
-import { mercadoPagoConfigured, organizationHasAccess, reconcileSubscription, trialDaysLeft } from "@/lib/billing";
+import { mercadoPagoConfigured, organizationHasAccess, trialDaysLeft } from "@/lib/billing";
 import { ResidentHome } from "@/components/resident-home";
 import type { Invite, Resident, ResidentTag } from "@/components/residents-panel";
 import { OrganizationOnboarding } from "@/components/organization-onboarding";
@@ -74,7 +74,6 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   }
 
   if (!organizationHasAccess(activeOrganization)) {
-    if (activeOrganization.account_type === "residencial" && (await reconcileSubscription(activeOrganization.id) || await syncPendingPix(activeOrganization.id))) redirect("/");
     if (activeOrganization.account_type === "condominio" && (await syncPendingPix(activeOrganization.id))) redirect("/");
     const condoInvoice = activeOrganization.account_type === "condominio" ? await getCondoInvoice(activeOrganization.id) : null;
     return <SubscribeScreen accountType={activeOrganization.account_type} condoTotal={condoInvoice?.total ?? null} condoResidents={condoInvoice?.residents ?? null} organizationId={activeOrganization.id} paymentsEnabled={mercadoPagoConfigured()} organizationName={activeOrganization.name} email={user.email ?? ""} trialEnded={activeOrganization.subscription_status === "trialing"}/>;
@@ -146,7 +145,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   const capacityKw = sites.reduce((total, site) => total + Number(site.max_power_kw ?? 0), 0);
 
   return <Dashboard email={user.email ?? ""} organizations={availableOrganizations} organization={activeOrganization}
-    role={activeMembership?.role ?? "viewer"} accountType={activeOrganization.account_type} trialDaysLeft={trialDaysLeft(activeOrganization)} pixDueDays={pixDueDays(activeOrganization)} condoTariff={condoTariff} epPoints={epPoints} epTariff={epTariff} residents={residents} residentTags={residentTags} invites={invites} sites={sites} chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} capacityKw={capacityKw}
+    role={activeMembership?.role ?? "viewer"} accountType={activeOrganization.account_type} trialDaysLeft={trialDaysLeft(activeOrganization)} pixDueDays={activeOrganization.account_type === "residencial" ? null : pixDueDays(activeOrganization)} condoTariff={condoTariff} epPoints={epPoints} epTariff={epTariff} residents={residents} residentTags={residentTags} invites={invites} sites={sites} chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} capacityKw={capacityKw}
     totalChargers={chargersResult.count ?? 0} onlineChargers={onlineResult.count ?? 0} activeSessions={activeSessions.length}
     sessionRows={activeSessions} completedSessionRows={completedSessions} meterReadings={meterReadings} commandRows={commandRows} dataLoadedAt={new Date().toISOString()}/>;
 }
