@@ -7,7 +7,7 @@ Não envia Pix, não ativa split, não muda credenciais Mercado Pago e não mexe
 - Extrato mensal usa `settled_at` (conclusão financeira da recarga), Fortaleza. Soma consumo cobrado e taxa congelada em centavos; nunca o valor máximo reservado.
 - Pendentes, devoluções totais, alertas e taxa ausente não viram valor para pagar. Não é saldo Mercado Pago. Estornos posteriores e repasses externos exigem reconciliação.
 - Não há botão de marcar pago. Não há acesso administrativo Nexa nem ledger de pagamentos realizados nesta etapa.
-- Mensalidade do software não é descontada do repasse e não entra neste CSV. Taxas vigentes continuam por ponto/meio (5% Pix, 9% cartão). Não são editadas aqui.
+- Mensalidade do software não é descontada do repasse e não entra neste CSV. Taxas vigentes continuam por ponto/meio (5% Pix, 5% cartão). Não são editadas aqui.
 - CSV: todos os registros elegíveis do mês, IDs de recargas sem dados pessoais de motoristas. Até 10.000 registros, depois bloqueia o total em vez de truncar silenciosamente.
 - Migração: `docs/sql/01-eletroposto-repasse-manual.txt`, transacional/idempotente. Owner executa no Supabase; não aplicada automaticamente.
 - Preview `/preview/repasse`: somente Vercel Preview, dados fictícios e leitura sem gravação. Em produção retorna 404.

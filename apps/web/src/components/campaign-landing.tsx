@@ -12,6 +12,7 @@ const profiles = {
     title: "Carregador de carro elétrico no condomínio",
     description: "Controle o acesso dos moradores e acompanhe o consumo de cada recarga em um só painel.",
     price: "R$ 199",
+    unit: "/mês",
     image: "/showcase/condominio.webp",
     href: "https://wa.me/558486722883?text=Oi%2C+vi+o+Telektro+e+quero+saber+sobre+carregador+no+condom%C3%ADnio",
     benefits: ["Controle de acesso por morador", "Consumo em kWh por sessão", "Relatórios para a administração", "Gestão de carregadores e usuários"],
@@ -22,7 +23,8 @@ const profiles = {
     label: "Para operadores de recarga pública",
     title: "Software para eletroposto",
     description: "Recarga por QR Code, pagamento por Pix ou cartão e acompanhamento das sessões em um só painel.",
-    price: "R$ 149",
+    price: "5%",
+    unit: " do faturamento bruto",
     image: "/showcase/eletroposto.webp",
     href: "https://wa.me/558486722883?text=Oi%2C+vi+o+Telektro+e+quero+saber+sobre+software+para+eletroposto",
     benefits: ["Motorista acessa a recarga por QR Code", "Pagamento por Pix ou cartão", "Status das sessões via OCPP 1.6J", "Relatórios de sessões e receita"],
@@ -91,7 +93,7 @@ export function CampaignLanding({ profile }: { profile: Profile }) {
             <span className="lp-eyebrow">{content.label}</span>
             <h1 id="campaign-title">{content.title}</h1>
             <p className="lp-lead">{content.description}</p>
-            <p className="campaign-price">{content.price}<small>/mês</small></p>
+            <p className="campaign-price">{content.price}<small>{content.unit}</small></p>
             {profile === "condominio" && <p className="campaign-caption" style={{ margin: "-6px 0 18px" }}>Gestão até 5 moradores. Morador extra tem taxa adicional.</p>}
             {cta("hero")}
             <p className="campaign-caption">Fale sobre seu projeto e peça uma demonstração.</p>
@@ -105,7 +107,9 @@ export function CampaignLanding({ profile }: { profile: Profile }) {
           <h2>Vamos entender sua operação</h2>
           <p>{content.detail}</p>
           <p>O Telektro é o software de gestão. Carregador físico e instalação elétrica não estão incluídos. A conexão exige internet e equipamento compatível com OCPP 1.6J; os recursos dependem do modelo e da configuração.</p>
-          <p>Mensalidade base. Limites, adicionais e eventuais taxas de cobrança devem ser confirmados na proposta. Taxas do gateway de pagamento não estão incluídas.</p>
+          {profile === "eletroposto"
+            ? <p>Sem mensalidade nem aluguel: 5% do faturamento bruto das recargas. Taxas do gateway de pagamento não estão incluídas. Valores e percentuais podem ser ajustados.</p>
+            : <p>Mensalidade base. Limites, adicionais e eventuais taxas de cobrança devem ser confirmados na proposta. Taxas do gateway de pagamento não estão incluídas.</p>}
           {cta("details")}<br/>
           <Link className="campaign-guide" href={content.guide}>Ver o guia de uso</Link>
         </div></div></section>

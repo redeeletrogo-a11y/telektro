@@ -39,7 +39,7 @@ export function EletropostoVendas({ organizationId }: { organizationId: string }
       <section className="ep-stats" aria-busy={loading}>
         <div className="panel ep-stat"><span>Vendido</span><strong>{summary.sold.count}</strong><small>{summary.sold.kwh.toLocaleString("pt-BR")} kWh</small></div>
         <div className="panel ep-stat"><span>Receita bruta</span><strong>{money(summary.sold.gross)}</strong><small>o que os clientes pagaram</small></div>
-        <div className="panel ep-stat"><span>Taxa Telektro</span><strong>{money(summary.sold.fee)}</strong><small>Pix 5% · cartão 9%</small></div>
+        <div className="panel ep-stat"><span>Taxa Telektro</span><strong>{money(summary.sold.fee)}</strong><small>Pix 5% · cartão 5%</small></div>
         <div className="panel ep-stat ep-stat-main"><span>Líquido do dono</span><strong>{money(summary.sold.net)}</strong><small>bruta menos a taxa</small></div>
         <div className="panel ep-stat"><span>Não vendido</span><strong>{summary.notSold.count}</strong><small>{summary.notSold.expired} não pagos · {summary.notSold.failed} carregador não iniciou · {summary.notSold.refundedFull} sem consumo</small></div>
         <div className="panel ep-stat"><span>Em andamento</span><strong>{summary.inProgress}</strong>{summary.attention > 0 ? <small className="ep-msg err">{summary.attention} precisam de atenção</small> : <small>tudo certo</small>}</div>
