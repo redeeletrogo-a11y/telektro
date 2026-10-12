@@ -19,7 +19,7 @@ export function GuiaShell({ children }: { children: React.ReactNode }) {
       </header>
       <main>{children}</main>
       <WhatsAppButton/>
-      <footer className="lp-wrap lp-foot"><span><Zap size={13} style={{verticalAlign:"-2px"}}/> Telektro, operação de recarga</span><Link href="/guias">Guias</Link><Link href="/login">Entrar</Link><small className="lp-company">{COMPANY_NOTE}</small></footer>
+      <footer className="lp-wrap lp-foot"><span><Zap size={13} style={{verticalAlign:"-2px"}}/> Telektro, operação de recarga</span><Link href="/guias">Guias</Link><Link href="/privacidade">Privacidade</Link><Link href="/termos">Termos</Link><Link href="/login">Entrar</Link><small className="lp-company">{COMPANY_NOTE}</small></footer>
     </div>
   );
 }
