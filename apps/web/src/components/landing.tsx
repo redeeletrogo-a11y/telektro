@@ -8,7 +8,7 @@ import "./landing.css";
 const check = <Check size={16} aria-hidden="true"/>;
 
 const plans = [
-  { id: "casa", icon: <Home size={20}/>, name: "Residencial", tag: "Casa", price: "Grátis", unit: "", text: "Para quem tem carro elétrico em casa e quer controlar tudo pelo celular.", items: ["Iniciar, parar e acompanhar a recarga pelo celular", "Medição de kWh por sessão", "Histórico de recargas", "Instalável no celular (PWA)"] },
+  { id: "casa", icon: <Home size={20}/>, name: "Residencial", tag: "Casa", price: "Grátis", unit: "", text: "Grátis, um brinde da Telektro: use nossos sistemas para controlar seu carro elétrico em casa pelo celular.", items: ["Iniciar, parar e acompanhar a recarga pelo celular", "Medição de kWh por sessão", "Histórico de recargas", "Instalável no celular (PWA)"] },
   { id: "condominio", icon: <Building2 size={20}/>, name: "Condomínio", tag: "Mais procurado", hl: true, price: "R$ 199", unit: "/mês", text: "Até 5 carregadores por local. Carregador extra: + R$ 19,90/mês cada.", items: ["Vários carregadores e usuários em um painel", "Controle de acesso por morador", "Módulo de cobrança e rateio: + R$ 49,90/mês", "Pode haver taxa, conforme a operação de cobrança de cada condomínio", "Exportação de consumo para a administração"] },
   { id: "eletroposto", icon: <PlugZap size={20}/>, name: "Eletroposto", tag: "Público", price: "5%", unit: " do faturamento bruto", text: "Sem mensalidade e sem aluguel. Você paga apenas 5% do faturamento bruto das recargas.", items: ["Recarga por QR Code e controle de pagamento", "Status em tempo real via OCPP 1.6J", "Relatórios de sessões e receita", "Sem mensalidade"] },
 ];
@@ -17,7 +17,7 @@ const faq = [
   { q: "O que é um sistema de gestão de carregador elétrico?", a: "É um software que conecta o carregador de carro elétrico à internet via OCPP, para ligar, desligar e medir cada recarga pelo celular, com histórico e relatórios de consumo." },
   { q: "O Telektro funciona com qualquer carregador?", a: "O Telektro usa OCPP 1.6J. O carregador precisa permitir a configuração da conexão com a plataforma. Antes de contratar, confirme a compatibilidade do modelo e do firmware e faça um teste de conexão; os recursos dependem do equipamento." },
   { q: "Serve para condomínio e para eletroposto?", a: "Sim. Há planos para casa, condomínio (vários carregadores e moradores, controle de acesso e rateio) e eletroposto (recarga por QR Code, status em tempo real e relatórios de receita)." },
-  { q: "Quanto custa?", a: "O plano Residencial é gratuito. O Eletroposto não tem mensalidade: a cobrança é de 5% do faturamento bruto das recargas. O valor do Condomínio está na seção de planos. Valores e percentuais podem ser ajustados." },
+  { q: "Quanto custa?", a: "O plano Residencial é grátis, um brinde da Telektro para quem usa o sistema em casa. O Eletroposto não tem mensalidade: a cobrança é de 5% do faturamento bruto das recargas. O valor do Condomínio está na seção de planos. Valores e percentuais podem ser ajustados." },
 ];
 
 const structuredData = {
