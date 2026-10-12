@@ -207,7 +207,9 @@ async function handleMessage(websocket: WebSocket, chargePointId: string, charge
     if (websocket.readyState === WebSocket.OPEN) websocket.send(JSON.stringify([4, messageId, code, description, {}]));
     if (charger) void setLastOcppError(charger, `${action}: ${description}`).catch((metadataError) => reportPersistenceFailure("ocpp_error_state", charger.id, metadataError));
     void safeCallMetadata(charger, action, payload).then((metadata) => logCall(charger, messageId, action, "rejected", "inbound", { ...metadata, reason: description }));
-    console.warn(JSON.stringify({ event: "ocpp.call_rejected", chargePointId, action, messageId, reason: description }));
+    // Field paths and issue codes only (never values), so rejected payloads can be diagnosed from the logs.
+    const issues = error instanceof ZodError ? error.issues.map((issue) => ({ path: issue.path.join("."), code: issue.code })) : undefined;
+    console.warn(JSON.stringify({ event: "ocpp.call_rejected", chargePointId, action, messageId, reason: description, ...(issues ? { issues } : {}) }));
   }
 }
 
@@ -329,20 +331,24 @@ async function persistCall(charger: ChargerRecord | null, action: string, payloa
 
   if (action === "StopTransaction") {
     const parsed = StopTransactionSchema.parse(payload);
-    const { data: session, error: findError } = await registry.from("sessions").select("id, start_meter_wh")
+    const { data: session, error: findError } = await registry.from("sessions").select("id, start_meter_wh, started_at")
       .eq("charger_id", charger.id).eq("ocpp_transaction_id", parsed.transactionId).is("ended_at", null).maybeSingle();
     if (findError) throw findError;
     if (!session) return { idTagInfo: { status: "Invalid" } };
     if (session.start_meter_wh !== null && parsed.meterStop < Number(session.start_meter_wh)) {
       throw new Error("Invalid StopTransaction: meterStop is lower than StartTransaction meterStart");
     }
+    // A charger clock behind the session start would violate sessions' ended_at >= started_at check.
+    const startedAtMs = session.started_at ? Date.parse(session.started_at as string) : NaN;
+    const stoppedAtMs = Date.parse(parsed.timestamp.length > 19 && /(Z|[+-]\d\d:?\d\d)$/.test(parsed.timestamp) ? parsed.timestamp : `${parsed.timestamp}Z`);
+    const endedAt = Number.isNaN(stoppedAtMs) || (!Number.isNaN(startedAtMs) && stoppedAtMs < startedAtMs) ? new Date().toISOString() : new Date(stoppedAtMs).toISOString();
     const { error } = await registry.from("sessions").update({
-      ended_at: parsed.timestamp,
+      ended_at: endedAt,
       end_meter_wh: parsed.meterStop,
-      stop_reason: parsed.reason ?? null,
+      stop_reason: parsed.reason?.slice(0, 50) ?? null,
     }).eq("id", session.id);
     if (error) throw error;
-    const { error: diagnosticsError } = await registry.from("chargers").update({ last_transaction_at: parsed.timestamp, last_transaction_id: parsed.transactionId }).eq("id", charger.id);
+    const { error: diagnosticsError } = await registry.from("chargers").update({ last_transaction_at: endedAt, last_transaction_id: parsed.transactionId }).eq("id", charger.id);
     if (diagnosticsError) reportPersistenceFailure("stop_transaction_diagnostics", charger.id, diagnosticsError);
     try { await reconcileCommandFromOperation(charger, "RemoteStopTransaction", "transactionId", String(parsed.transactionId), "StopTransaction"); }
     catch (error) { reportPersistenceFailure("stop_command_reconciliation", charger.id, error); }
@@ -905,4 +911,4 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     insecureServer?.close();
     server.close(() => process.exit(0));
   });
-}
+    }

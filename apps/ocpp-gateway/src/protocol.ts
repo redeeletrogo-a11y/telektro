@@ -33,12 +33,15 @@ export const StartTransactionSchema = z.object({
   timestamp: z.string().datetime({ offset: true }),
 }).passthrough();
 
+// Tolerant of real-world firmware (NeoCharge/Livoltek): a Stop may reference an unknown or stale
+// transaction id (the handler answers idTagInfo Invalid for those), meterStop may be non-integer,
+// timestamps may lack a UTC offset (read as UTC) and optional text fields can be longer than the spec.
 export const StopTransactionSchema = z.object({
-  transactionId: z.number().int().positive(),
-  meterStop: z.number().int().nonnegative(),
-  timestamp: z.string().datetime({ offset: true }),
-  reason: z.string().max(50).optional(),
-  idTag: z.string().max(20).optional(),
+  transactionId: z.coerce.number().int().nonnegative(),
+  meterStop: z.coerce.number().finite().nonnegative(),
+  timestamp: z.string().datetime({ offset: true, local: true }),
+  reason: z.string().max(100).optional(),
+  idTag: z.string().max(36).optional(),
 }).passthrough();
 
 const SampledValueSchema = z.object({

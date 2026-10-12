@@ -16,3 +16,20 @@ describe("OCPP 1.6J foundation", () => {
     expect(() => responseFor("RemoteStartTransaction", {})).toThrow("Unsupported action");
   });
 });
+
+import { StopTransactionSchema } from "./protocol.js";
+
+describe("StopTransaction tolerance", () => {
+  it("accepts a spec-conformant payload", () => {
+    expect(StopTransactionSchema.parse({ transactionId: 7, meterStop: 12000, timestamp: "2026-10-12T12:30:00Z" }).transactionId).toBe(7);
+  });
+  it("accepts firmware variants: no UTC offset, decimal meter, string id, long reason and idTag", () => {
+    const parsed = StopTransactionSchema.parse({ transactionId: "42", meterStop: 1234.5, timestamp: "2026-10-12T12:30:00", reason: "x".repeat(80), idTag: "y".repeat(32) });
+    expect(parsed.transactionId).toBe(42);
+  });
+  it("still rejects garbage", () => {
+    expect(() => StopTransactionSchema.parse({ transactionId: -1, meterStop: 5, timestamp: "2026-10-12T12:30:00Z" })).toThrow();
+    expect(() => StopTransactionSchema.parse({ transactionId: 1, meterStop: -5, timestamp: "2026-10-12T12:30:00Z" })).toThrow();
+    expect(() => StopTransactionSchema.parse({ transactionId: 1, meterStop: 5, timestamp: "not a date" })).toThrow();
+  });
+});
