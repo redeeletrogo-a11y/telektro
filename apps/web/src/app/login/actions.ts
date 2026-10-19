@@ -76,6 +76,9 @@ export async function signInWithGoogle() {
   try { supabase = await createSupabaseServerClient(); }
   catch { redirect("/login?error=configuration"); }
 
+  // A login form restored from history must not start another OAuth flow for a valid session.
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) redirect(await getSiteUrl());
   const siteUrl = await getSiteUrl();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",

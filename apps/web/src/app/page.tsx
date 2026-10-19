@@ -33,12 +33,16 @@ function SetupMessage({ title, message }: { title: string; message: string }) {
   return <main className="login-page"><section className="login-card"><div className="login-brand"><span className="brand-mark">T</span><span>TELEKTRO</span></div><p className="eyebrow">CONFIGURAÇÃO</p><h1>{title}</h1><p className="login-description">{message}</p></section></main>;
 }
 
-export default async function Home({ searchParams }: { searchParams: Promise<{ org?: string }> }) {
+export default async function Home({ searchParams }: { searchParams: Promise<{ org?: string; error_code?: string }> }) {
   let supabase;
   try { supabase = await createSupabaseServerClient(); }
   catch { return <SetupMessage title="Conecte o Supabase" message="Confira NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY em apps/web/.env.local e reinicie o dashboard."/>; }
 
   const { data: { user } } = await supabase.auth.getUser();
+  const params = await searchParams;
+  // Supabase sends invalid/consumed OAuth state errors to the configured Site URL.
+  // A valid session can still enter normally; signed-out users get a fresh login.
+  if (!user && params.error_code === "bad_oauth_state") redirect("/login?error=expired");
   if (!user) return <>
     <script dangerouslySetInnerHTML={{ __html: `try{var standalone=window.matchMedia("(display-mode: standalone)").matches||("standalone" in navigator&&Boolean(navigator.standalone));if(standalone&&window.location.pathname==="/")window.location.replace("/login")}catch(e){}` }}/>
     <Landing/>
@@ -57,7 +61,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   const { data: organizations, error: organizationsError } = await supabase.from("organizations").select("id, name, slug, account_type, resident_limit, subscription_status, trial_ends_at, current_period_end, subscription_provider").in("id", organizationIds).order("name");
   if (organizationsError || !organizations?.length) return <SetupMessage title="Organização indisponível" message="Não conseguimos carregar as organizações vinculadas à sua conta."/>;
 
-  const { org: requestedOrganizationId } = await searchParams;
+  const { org: requestedOrganizationId } = params;
   const availableOrganizations = organizations as Organization[];
   const activeOrganization = availableOrganizations.find((organization) => organization.id === requestedOrganizationId) ?? availableOrganizations[0];
   const activeMembership = memberships.find((membership) => membership.organization_id === activeOrganization.id);
