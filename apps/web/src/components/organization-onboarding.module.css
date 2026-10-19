@@ -21,7 +21,7 @@
 .type:has(.radio:focus-visible) { outline:3px solid #0f776c; outline-offset:4px; }
 .selected { border-color:#158065; box-shadow:0 7px 26px #2159421a; }
 .image { position:relative; height:174px; overflow:hidden; border-radius:11px; background:#edf4f0; }
-.image img { object-fit:cover; object-position:80% center; }
+.image img { object-fit:cover; object-position:center; }
 .typeBody { flex:1; display:flex; flex-direction:column; align-items:flex-start; padding:0 12px 10px; }
 .icon { position:relative; display:grid; place-items:center; width:47px; height:47px; margin-top:-24px; margin-bottom:12px; border-radius:13px; color:white; background:#0f7760; box-shadow:0 4px 12px #0f776025; }
 .typeBody strong { font-size:21px; letter-spacing:-.6px; }

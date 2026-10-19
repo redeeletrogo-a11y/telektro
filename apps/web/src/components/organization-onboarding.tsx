@@ -9,9 +9,9 @@ import styles from "./organization-onboarding.module.css";
 
 const initialState: FormState = {};
 const accountTypes = [
-  { value: "condominio", title: "Condomínio", icon: Building2, image: "/showcase/condominio.webp", description: "A pessoa responsável administra e convida moradores. R$ 199/mês até 5 usuários, +R$ 19,90 por usuário extra." },
-  { value: "eletroposto", title: "Eletroposto", icon: PlugZap, image: "/showcase/eletroposto.webp", description: "Venda recargas com QR: o cliente paga por Pix ou cartão e o carregador libera sozinho." },
-  { value: "residencial", title: "Residência", icon: Home, image: "/showcase/casa.webp", description: "Sua casa, seus carregadores. Grátis, cortesia da Telektro." },
+  { value: "condominio", title: "Condomínio", icon: Building2, image: "/onboarding/condominio.webp", description: "A pessoa responsável administra e convida moradores. R$ 199/mês até 5 usuários, +R$ 19,90 por usuário extra." },
+  { value: "eletroposto", title: "Eletroposto", icon: PlugZap, image: "/onboarding/eletroposto.webp", description: "Venda recargas com QR: o cliente paga por Pix ou cartão e o carregador libera sozinho." },
+  { value: "residencial", title: "Residência", icon: Home, image: "/onboarding/casa.webp", description: "Sua casa, seus carregadores. Grátis, cortesia da Telektro." },
 ] as const;
 
 function makeSlug(value: string) {
