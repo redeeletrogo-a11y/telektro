@@ -1,11 +1,18 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Building2, ShieldCheck, Zap } from "lucide-react";
+import { ArrowRight, Building2, Check, Home, PlugZap, ShieldCheck } from "lucide-react";
 import { createOrganization, type FormState } from "@/app/workspace-actions";
+import styles from "./organization-onboarding.module.css";
 
 const initialState: FormState = {};
+const accountTypes = [
+  { value: "condominio", title: "Condomínio", icon: Building2, image: "/onboarding/condominio.webp", description: "A pessoa responsável administra e convida moradores. R$ 199/mês até 5 usuários, +R$ 19,90 por usuário extra." },
+  { value: "eletroposto", title: "Eletroposto", icon: PlugZap, image: "/onboarding/eletroposto.webp", description: "Venda recargas com QR: o cliente paga por Pix ou cartão e o carregador libera sozinho." },
+  { value: "residencial", title: "Residência", icon: Home, image: "/onboarding/casa.webp", description: "Sua casa, seus carregadores. Grátis, cortesia da Telektro." },
+] as const;
 
 function makeSlug(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
@@ -18,28 +25,52 @@ export function OrganizationOnboarding({ email }: { email: string }) {
   const [type, setType] = useState("residencial");
   const slug = makeSlug(name);
 
-  return <main className="onboarding-page">
-    <section className="onboarding-card">
-      <div className="login-brand"><span className="brand-mark"><Zap size={20}/></span><span>TELEKTRO</span></div>
-      <p className="eyebrow">CONFIGURAÇÃO DO WORKSPACE</p>
-      <h1>Crie sua conta</h1>
-      <p className="login-description">Escolha o tipo de conta. Você pode falar com a Telektro para mudar depois.</p>
-      <form action={action} className="login-form">
-        <fieldset className="account-types"><legend>Tipo de conta</legend>
-          <label className={`account-type ${type === "residencial" ? "selected" : ""}`}><input type="radio" name="account_type" value="residencial" checked={type === "residencial"} onChange={() => setType("residencial")}/><strong>Residencial</strong><span>Sua casa, seus carregadores. Grátis, cortesia da Telektro.</span></label>
-          <label className={`account-type ${type === "condominio" ? "selected" : ""}`}><input type="radio" name="account_type" value="condominio" checked={type === "condominio"} onChange={() => setType("condominio")}/><strong>Condomínio</strong><span>A pessoa responsável administra e convida moradores. R$ 199/mês até 5 usuários, +R$ 19,90 por usuário extra.</span></label>
-          <label className={`account-type ${type === "eletroposto" ? "selected" : ""}`}><input type="radio" name="account_type" value="eletroposto" checked={type === "eletroposto"} onChange={() => setType("eletroposto")}/><strong>Eletroposto</strong><span>Venda recargas com QR: o cliente paga por Pix ou cartão e o carregador libera sozinho.</span></label>
+  return <main className={styles.page}>
+    <header className={styles.header}>
+      <div className={styles.headerInner}>
+        <div className={styles.brand}>
+          <svg viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="96" fill="#0f776c"/><path fill="#fff" d="M112 118h288v78H300v198h-88V196h-100z"/><path fill="#bcebd1" d="m278 224-79 112h55l-23 90 91-132h-59l34-70z"/></svg>
+          <span>TELEKTRO<small>Gestão de recargas</small></span>
+        </div>
+        <div className={styles.account}><span className={styles.avatar} aria-hidden="true">{email.charAt(0).toUpperCase()}</span><span className={styles.email}>{email}</span><Link href="/login">Sair</Link></div>
+      </div>
+    </header>
+    <div className={styles.content}>
+      <div className={styles.intro}>
+        <p className={styles.welcome}>Bem-vindo à Telektro</p>
+        <h1>Qual tipo de instalação<br/><span>você deseja gerenciar?</span></h1>
+        <p>Escolha o perfil que melhor se adapta à sua necessidade.<br className={styles.desktopBreak}/> Você pode falar com a Telektro para mudar depois.</p>
+      </div>
+      <form action={action}>
+        <fieldset className={styles.types} disabled={pending}>
+          <legend className={styles.srOnly}>Tipo de conta</legend>
+          {accountTypes.map(({ value, title, icon: Icon, image, description }) => <label key={value} className={`${styles.type} ${type === value ? styles.selected : ""}`}>
+            <input className={styles.radio} type="radio" name="account_type" value={value} checked={type === value} onChange={() => setType(value)}/>
+            <div className={styles.image}><Image src={image} alt="" fill sizes="(max-width: 640px) 88px, (max-width: 1000px) 32vw, 340px" priority/></div>
+            <div className={styles.typeBody}>
+              <span className={styles.icon}><Icon size={25} strokeWidth={1.6}/></span>
+              <strong>{title}</strong>
+              <span className={styles.description}>{description}</span>
+              <span className={styles.selectText}>{type === value ? "Selecionado" : `Selecionar ${title.toLowerCase()}`}{type === value ? <Check size={17}/> : <ArrowRight size={17}/>}</span>
+            </div>
+            <span className={styles.mobileIndicator} aria-hidden="true">{type === value ? <Check size={18}/> : <ArrowRight size={18}/>}</span>
+          </label>)}
         </fieldset>
-        <label htmlFor="organization-name">{type === "condominio" ? "Nome do condomínio" : type === "eletroposto" ? "Nome do eletroposto" : "Nome da conta"}</label>
-        <input id="organization-name" name="name" value={name} onChange={(event) => setName(event.target.value)} maxLength={120} autoComplete="organization" placeholder="Ex.: Rede Eletro Go" required/>
-        <label htmlFor="organization-slug">Identificador</label>
-        <input id="organization-slug" name="slug" value={slug} readOnly aria-describedby="slug-help" required/>
-        <span id="slug-help" className="field-help">Será usado em links e integrações.</span>
-        {state.error && <p className="login-error" role="alert">{state.error}</p>}
-        <button className="primary-button login-submit" disabled={pending || !slug}>{pending ? "Criando…" : "Criar organização"}<ArrowRight size={15}/></button>
+        <section className={styles.details} aria-labelledby="organization-details-title">
+          <div className={styles.detailsHeading}><h2 id="organization-details-title">Dados da organização</h2><p>Você será o primeiro administrador.</p></div>
+          <div className={styles.fields}>
+            <div className={styles.field}><label htmlFor="organization-name">{type === "condominio" ? "Nome do condomínio" : type === "eletroposto" ? "Nome do eletroposto" : "Nome da conta"}</label>
+              <input id="organization-name" name="name" value={name} onChange={(event) => setName(event.target.value)} maxLength={120} autoComplete="organization" placeholder="Ex.: Rede Eletro Go" required/>
+            </div>
+            <div className={styles.field}><label htmlFor="organization-slug">Identificador</label>
+              <input id="organization-slug" name="slug" value={slug} readOnly aria-describedby="slug-help" required/>
+              <span id="slug-help" className={styles.help}>Será usado em links e integrações.</span>
+            </div>
+          </div>
+          {state.error && <p className={styles.error} role="alert">{state.error}</p>}
+          <div className={styles.bottom}><span><ShieldCheck size={17}/>Configuração da sua conta Telektro</span><button type="submit" disabled={pending || !slug}>{pending ? "Criando…" : "Criar organização"}<ArrowRight size={17}/></button></div>
+        </section>
       </form>
-      <div className="login-security"><ShieldCheck size={14}/>Você será o primeiro administrador da organização.</div>
-      <div className="onboarding-footer"><span><Building2 size={14}/>{email}</span><Link href="/login">Sair</Link></div>
-    </section>
+    </div>
   </main>;
 }
