@@ -461,6 +461,59 @@ export async function requestRemoteStop(organizationId: string, sessionId: strin
   return { success: "Pedido enviado à fila. A recarga só será encerrada quando o carregador confirmar e enviar StopTransaction." };
 }
 
+export async function getChargerClaim(organizationId: string, chargerId: string): Promise<{ error?: string; token?: string | null }> {
+  if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !/^[0-9a-f-]{36}$/i.test(chargerId)) return { error: "Organização ou carregador inválido." };
+  let supabase;
+  try { supabase = await createSupabaseServerClient(); }
+  catch { return { error: "Não foi possível conectar ao Supabase." }; }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Sua sessão expirou. Entre novamente para continuar." };
+  const { data, error } = await supabase.rpc("get_charger_claim", { p_organization_id: organizationId, p_charger_id: chargerId });
+  if (error) {
+    if (error.message.includes("FORBIDDEN")) return { error: "Seu perfil não pode ver o QR de provisionamento." };
+    if (error.message.includes("CHARGER_NOT_FOUND")) return { error: "Carregador não encontrado nesta organização." };
+    if (error.code === "PGRST202" || error.message.includes("get_charger_claim")) return { error: "A migration do QR de provisionamento ainda precisa ser aplicada no Supabase." };
+    return { error: "Não foi possível carregar o QR de provisionamento." };
+  }
+  return { token: typeof data === "string" ? data : null };
+}
+
+export async function rotateChargerClaim(organizationId: string, chargerId: string): Promise<{ error?: string; token?: string }> {
+  if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !/^[0-9a-f-]{36}$/i.test(chargerId)) return { error: "Organização ou carregador inválido." };
+  let supabase;
+  try { supabase = await createSupabaseServerClient(); }
+  catch { return { error: "Não foi possível conectar ao Supabase." }; }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Sua sessão expirou. Entre novamente para continuar." };
+  const { data, error } = await supabase.rpc("rotate_charger_claim", { p_organization_id: organizationId, p_charger_id: chargerId });
+  if (error) {
+    if (error.message.includes("FORBIDDEN")) return { error: "Seu perfil não pode gerar o QR de provisionamento." };
+    if (error.message.includes("CHARGER_NOT_FOUND")) return { error: "Carregador não encontrado nesta organização." };
+    if (error.code === "PGRST202" || error.message.includes("rotate_charger_claim")) return { error: "A migration do QR de provisionamento ainda precisa ser aplicada no Supabase." };
+    return { error: "Não foi possível gerar o QR de provisionamento." };
+  }
+  revalidatePath("/");
+  return { token: typeof data === "string" ? data : undefined };
+}
+
+export async function revokeChargerClaim(organizationId: string, chargerId: string): Promise<{ error?: string; success?: string }> {
+  if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !/^[0-9a-f-]{36}$/i.test(chargerId)) return { error: "Organização ou carregador inválido." };
+  let supabase;
+  try { supabase = await createSupabaseServerClient(); }
+  catch { return { error: "Não foi possível conectar ao Supabase." }; }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Sua sessão expirou. Entre novamente para continuar." };
+  const { error } = await supabase.rpc("revoke_charger_claim", { p_organization_id: organizationId, p_charger_id: chargerId });
+  if (error) {
+    if (error.message.includes("FORBIDDEN")) return { error: "Seu perfil não pode desativar o QR de provisionamento." };
+    if (error.message.includes("CHARGER_NOT_FOUND")) return { error: "Carregador não encontrado nesta organização." };
+    if (error.code === "PGRST202" || error.message.includes("revoke_charger_claim")) return { error: "A migration do QR de provisionamento ainda precisa ser aplicada no Supabase." };
+    return { error: "Não foi possível desativar o QR de provisionamento." };
+  }
+  revalidatePath("/");
+  return { success: "QR de provisionamento desativado." };
+}
+
 export async function signOut() {
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();

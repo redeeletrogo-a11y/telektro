@@ -16,6 +16,7 @@ Estes arquivos SQL ficam no projeto local e são versionados no GitHub. O painel
 | `202609300009_charger_archive_and_restore.sql` | Arquivamento seguro de carregadores e restauração por 30 dias | Aplicada pelo proprietário |
 | `202609300010_rotate_charger_credentials.sql` | Rotação de credencial OCPP com auditoria do responsável | Pendente de aplicação pelo proprietário |
 | `202610030020_eletroposto_prepago.sql` | Eletroposto pré-pago por QR (pontos, pagamentos, triggers de parada e liquidação) | Pendente de aplicação pelo proprietário |
+| `202610180026_charger_claim.sql` | QR de provisionamento: token por carregador e RPCs de gerar/girar/desativar/previa/aceite (transferência de titularidade) | Pendente de aplicação |
 
 ## Aplicar uma migration manualmente
 

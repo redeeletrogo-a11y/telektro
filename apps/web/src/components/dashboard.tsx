@@ -11,7 +11,8 @@ import { Activity, ArrowRight, Building2, Car, Check, Clock3, Copy, LayoutDashbo
 import { EletropostoPainel, type EpPoint } from "@/components/eletroposto-painel";
 import { EletropostoRepasse } from "@/components/eletroposto-repasse";
 import { EletropostoVendas } from "@/components/eletroposto-vendas";
-import { createSite, registerCharger, registerRfidAuthorization, removeCharger, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, rotateChargerCredential, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
+import { createSite, getChargerClaim, registerCharger, registerRfidAuthorization, removeCharger, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, rotateChargerClaim, rotateChargerCredential, revokeChargerClaim, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
+import QRCode from "qrcode";
 
 type Organization = { id: string; name: string; slug: string; account_type?: string; resident_limit?: number | null };
 type Site = { id: string; name: string; address: string | null; timezone: string; max_power_kw: number | null };
@@ -436,6 +437,7 @@ function ChargerList({ chargers, removedChargers, connectors, authorizations, si
       {compatibilityPending && <span className="status-badge attention">Protocolo ainda não suportado</span>}
       {canControl && <ChargerControl charger={charger} connectors={chargerConnectors} organizationId={organizationId}/>}
       {isOwner && <div className="charger-quick-credential"><strong>Credencial do carregador</strong><ChargerCredentialControl charger={charger} organizationId={organizationId}/><small id={`charger-credential-warning-${charger.id}`}>Ao confirmar, a senha atual deixa de funcionar e o carregador desconecta.</small></div>}
+      {isOwner && <div className="charger-quick-credential"><strong>QR de provisionamento</strong><ChargerClaimControl charger={charger} organizationId={organizationId}/><small>Quem escanear o QR e confirmar passa a ser o dono do carregador no Telektro. Gere o QR só na hora da entrega.</small></div>}
       <details className="charger-more"><summary>Detalhes e configuração</summary>
       {profileDetails && <small className="charger-profile-details">{[charger.vendor, charger.model].filter(Boolean).join(" · ")}{[charger.vendor, charger.model].filter(Boolean).length ? " · " : ""}{profileDetails}</small>}
       <div className="site-row-meta"><span>Potência máx. do modelo</span><strong>{charger.max_power_kw ? `${Number(charger.max_power_kw).toLocaleString("pt-BR")} kW` : "Não definida"}</strong></div>
@@ -515,6 +517,75 @@ function ChargerRemovalControl({ charger, organizationId, hasActiveSession }: { 
       <div className="command-confirm-actions"><button className="secondary-button" type="button" onClick={() => { setConfirming(false); setTypedId(""); }}>Cancelar</button><button className="remove-charger-confirm" type="submit" disabled={pending || hasActiveSession || typedId.trim() !== charger.charge_point_id}>{pending ? "Removendo…" : "Remover carregador"}</button></div>
     </form></div>}
     {state.error && !confirming && <small className="form-error" role="alert">{state.error}</small>}
+  </div>;
+}
+
+function ChargerClaimControl({ charger, organizationId }: { charger: Charger; organizationId: string }) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [token, setToken] = useState<string | null>(null);
+  const [qr, setQr] = useState<{ link: string; data: string } | null>(null);
+  const [feedback, setFeedback] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const link = token && typeof window !== "undefined" ? `${window.location.origin}/c/${token}` : "";
+
+  useEffect(() => {
+    if (!link) return;
+    let active = true;
+    QRCode.toDataURL(link, { margin: 1, width: 336 }).then((data) => { if (active) setQr({ link, data }); }).catch(() => {});
+    return () => { active = false; };
+  }, [link]);
+
+  async function load() {
+    setLoading(true); setError(""); setFeedback("");
+    const result = await getChargerClaim(organizationId, charger.id);
+    setLoading(false);
+    if (result.error) { setError(result.error); return; }
+    setToken(result.token ?? null);
+  }
+  async function rotate() {
+    setLoading(true); setError(""); setFeedback(""); setConfirming(false);
+    const result = await rotateChargerClaim(organizationId, charger.id);
+    setLoading(false);
+    if (result.error || !result.token) { setError(result.error ?? "Não foi possível gerar o QR de provisionamento."); return; }
+    setToken(result.token);
+  }
+  async function revoke() {
+    setLoading(true); setError(""); setFeedback("");
+    const result = await revokeChargerClaim(organizationId, charger.id);
+    setLoading(false);
+    if (result.error) { setError(result.error); return; }
+    setToken(null);
+    setFeedback(result.success ?? "QR de provisionamento desativado.");
+  }
+  async function copyLink() {
+    if (!link) return;
+    try { await navigator.clipboard.writeText(link); setFeedback("Link copiado."); }
+    catch { setFeedback("Não foi possível copiar. Selecione o link manualmente."); }
+  }
+
+  if (!open) return <button type="button" className="secondary-button command-button" onClick={() => { setOpen(true); void load(); }}><QrCode size={13}/>Ver QR de provisionamento</button>;
+  return <div className="charger-claim-control">
+    {loading && <small>Gerando…</small>}
+    {error && <small className="form-error" role="alert">{error}</small>}
+    {!loading && !error && token && <div className="invite-card">
+      {qr && qr.link === link ? <img src={qr.data} alt={`QR code de provisionamento do carregador ${charger.charge_point_id}`}/> : <span>Gerando QR…</span>}
+      <div className="invite-link">{link}</div>
+      <div className="command-confirm-actions">
+        <button type="button" className="credential-copy" onClick={() => void copyLink()}><Copy size={12}/>Copiar link</button>
+        <button type="button" className="credential-copy" onClick={() => setConfirming(true)} disabled={loading}><RotateCcw size={12}/>Gerar novo QR</button>
+        <button type="button" className="credential-copy" onClick={() => void revoke()} disabled={loading}>Desativar</button>
+      </div>
+    </div>}
+    {!loading && !error && !token && <div className="command-confirm-actions"><button type="button" className="primary-button" onClick={() => void rotate()} disabled={loading}><QrCode size={13}/>Gerar QR de provisionamento</button></div>}
+    {feedback && <small role="status">{feedback}</small>}
+    <button type="button" className="credential-copy" onClick={() => setOpen(false)}>Fechar</button>
+    {confirming && <div className="command-confirm-backdrop"><section className="command-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby={`claim-rotate-title-${charger.id}`} aria-describedby={`claim-rotate-description-${charger.id}`}>
+      <h2 id={`claim-rotate-title-${charger.id}`}>Gerar novo QR?</h2>
+      <p id={`claim-rotate-description-${charger.id}`}>O QR e o link atuais deixam de funcionar na hora. Se um QR já foi impresso ou enviado, ele fica inválido.</p>
+      <div className="command-confirm-actions"><button type="button" className="secondary-button" onClick={() => setConfirming(false)}>Cancelar</button><button type="button" className="primary-button" onClick={() => void rotate()} disabled={loading}>{loading ? "Gerando…" : "Confirmar e gerar"}</button></div>
+    </section></div>}
   </div>;
 }
 
