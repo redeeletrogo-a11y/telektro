@@ -48,6 +48,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   if (membershipsError) return <SetupMessage title="Não foi possível carregar seu workspace" message="Atualize a página. Se o problema continuar, confira as migrations e as permissões RLS do projeto."/>;
   const pendingInvite = (await cookies()).get("telektro_invite")?.value;
   if (pendingInvite && /^[a-z0-9]{10,32}$/.test(pendingInvite)) redirect(`/convite/${pendingInvite}`);
+  const pendingClaim = (await cookies()).get("telektro_claim")?.value;
+  // Claim precisa de uma organizacao propria: quem ainda nao e dono de nenhuma cai no onboarding primeiro e volta ao QR depois.
+  if (pendingClaim && /^[a-f0-9]{32}$/.test(pendingClaim) && memberships?.some((membership) => membership.role === "owner")) redirect(`/c/${pendingClaim}`);
   if (!memberships?.length) return <OrganizationOnboarding email={user.email ?? "Conta Telektro"}/>;
 
   const organizationIds = memberships.map((membership) => membership.organization_id);
