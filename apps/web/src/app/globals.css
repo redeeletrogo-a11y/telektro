@@ -593,3 +593,6 @@ body:has(.auth-page) .pwa-install-button { display: none; }
 .ep-state .login-form { gap: 12px; min-width: 0; }
 .ep-state img { max-width: 100%; height: auto; }
 .ep-state textarea, .ep-state input { max-width: 100%; box-sizing: border-box; }
+.ep-card h1, .ep-card h2 { font-weight: 750; }
+.ep-state textarea { width: 100%; font-size: 11px; line-height: 1.4; word-break: break-all; border: 1px solid #dfe6e8; border-radius: 10px; padding: 8px 10px; color: #33434c; resize: none; }
+.ep-state .primary-button { height: 48px; border-radius: 12px; font-size: 15px; font-weight: 750; }
