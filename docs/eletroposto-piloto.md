@@ -22,7 +22,8 @@ Escopo do piloto: 1 dono, 1 conector, só Pix. Conta de motorista/app, cartão, 
 | Comando de início rejeitado ou sem sessão em 12 min | Devolução total (`start_rejected`/`start_timeout`). Se uma sessão com aquele idTag aparecer depois, o banco manda parar. |
 | Carro para antes do limite | Cobra o medido, devolve a sobra. |
 | `meterStop < meterStart` ou leitura ausente | `review`: nada é cobrado nem devolvido sozinho; responsável confere. |
-| Carregador sem sinal > 30 min com sessão aberta | `needs_attention` (a sessão não é encerrada sozinha). |
+| Carregador sem sinal (padrão 20 min) ou reiniciado sem `StopTransaction` | O gateway chama `telektro_close_orphan_sessions` a cada minuto: fecha a sessão com a última leitura de energia (`stop_reason = OrphanTimeout`), cobra o medido, devolve a sobra (sem leitura = devolução total), libera o conector e marca `needs_attention` (`orphan_session_closed`). Se o carregador mandar o `StopTransaction` depois, a leitura fica em `late_stop_meter_wh` e o pagamento vai para revisão (`late_stop_review`) se o valor for diferente; nada é recalculado sozinho. A devolução no Mercado Pago sai na próxima varredura (ou na hora, se `SWEEP_URL` e `CRON_SECRET` estiverem no gateway). |
+| Carregador de 2 conectores | Um QR por conector (`eletroposto_points` já é único por carregador + conector). Duas recargas ao mesmo tempo, cada uma com seu pagamento e medição. |
 | Webhook repetido / fora de ordem | Idempotente (transições condicionais + chave de idempotência). |
 | Estorno falha (ex.: saldo do vendedor) | Fica `settling`, `needs_attention`, nova tentativa a cada varredura. |
 

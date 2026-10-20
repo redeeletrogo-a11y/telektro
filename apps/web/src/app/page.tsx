@@ -143,10 +143,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   let epTariff: number | null = null;
   if (activeOrganization.account_type === "eletroposto" && activeMembership) {
     const [{ data: pointRows }, { data: tariffRow }] = await Promise.all([
-      serviceClient().from("eletroposto_points").select("id, public_code, charger_id, enabled, min_amount, max_amount").eq("organization_id", activeOrganization.id),
+      serviceClient().from("eletroposto_points").select("id, public_code, charger_id, connector_id, enabled, min_amount, max_amount").eq("organization_id", activeOrganization.id),
       supabase.from("tariffs").select("price_per_kwh").eq("organization_id", activeOrganization.id).eq("active", true).is("site_id", null).order("valid_from", { ascending: false }).limit(1).maybeSingle(),
     ]);
-    epPoints = (pointRows ?? []).map((row) => ({ id: row.id, public_code: row.public_code, charger_id: row.charger_id, enabled: row.enabled, min_amount: Number(row.min_amount), max_amount: Number(row.max_amount) }));
+    epPoints = (pointRows ?? []).map((row) => ({ id: row.id, public_code: row.public_code, charger_id: row.charger_id, connector_id: Number(row.connector_id), enabled: row.enabled, min_amount: Number(row.min_amount), max_amount: Number(row.max_amount) }));
     if (tariffRow) epTariff = Number(tariffRow.price_per_kwh);
   }
   const capacityKw = sites.reduce((total, site) => total + Number(site.max_power_kw ?? 0), 0);

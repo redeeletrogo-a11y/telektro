@@ -334,7 +334,19 @@ async function persistCall(charger: ChargerRecord | null, action: string, payloa
     const { data: session, error: findError } = await registry.from("sessions").select("id, start_meter_wh, started_at")
       .eq("charger_id", charger.id).eq("ocpp_transaction_id", parsed.transactionId).is("ended_at", null).maybeSingle();
     if (findError) throw findError;
-    if (!session) return { idTagInfo: { status: "Invalid" } };
+    if (!session) {
+      // StopTransaction tardio: a sessao ja foi fechada por inatividade. Guarda a leitura so para revisao; nao muda a cobranca sozinho.
+      const { data: closed } = await registry.from("sessions").select("id, end_meter_wh, late_stop_at")
+        .eq("charger_id", charger.id).eq("ocpp_transaction_id", parsed.transactionId).eq("stop_reason", "OrphanTimeout").maybeSingle();
+      if (closed && !closed.late_stop_at) {
+        await registry.from("sessions").update({ late_stop_meter_wh: parsed.meterStop, late_stop_at: new Date().toISOString() }).eq("id", closed.id);
+        if (closed.end_meter_wh === null || Number(closed.end_meter_wh) !== parsed.meterStop) {
+          await registry.from("eletroposto_payments").update({ needs_attention: true, attention_reason: "late_stop_review" }).eq("session_id", closed.id);
+        }
+        return { idTagInfo: { status: "Accepted" } };
+      }
+      return { idTagInfo: { status: "Invalid" } };
+    }
     if (session.start_meter_wh !== null && parsed.meterStop < Number(session.start_meter_wh)) {
       throw new Error("Invalid StopTransaction: meterStop is lower than StartTransaction meterStart");
     }
@@ -893,9 +905,31 @@ function safeEqual(left: string, right: string): boolean {
   return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
 }
 
+// Fecha sessoes orfas (carregador sumiu ou reiniciou sem StopTransaction). Roda no proprio gateway, sem cron externo.
+const orphanMinutes = Math.min(240, Math.max(5, Number(process.env.OCPP_ORPHAN_SESSION_MINUTES ?? 20)));
+let closingOrphans = false;
+async function closeOrphanSessions() {
+  if (!registry || closingOrphans) return;
+  closingOrphans = true;
+  try {
+    const { data, error } = await registry.rpc("telektro_close_orphan_sessions", { p_minutes: orphanMinutes });
+    if (error) { reportPersistenceFailure("close_orphan_sessions", "gateway", error); return; }
+    if (Number(data) > 0) {
+      console.warn(JSON.stringify({ event: "ocpp.orphan_sessions_closed", count: Number(data) }));
+      // Opcional: pede a liquidacao (devolucao) na hora, se SWEEP_URL e CRON_SECRET estiverem definidos no gateway.
+      const sweepUrl = process.env.SWEEP_URL;
+      const cronSecret = process.env.CRON_SECRET;
+      if (sweepUrl && cronSecret) {
+        await fetch(sweepUrl, { headers: { authorization: `Bearer ${cronSecret}` }, signal: AbortSignal.timeout(20000) }).catch(() => undefined);
+      }
+    }
+  } finally { closingOrphans = false; }
+}
+
 async function startGateway() {
   await recoverInterruptedCommands();
   startupRecoveryComplete = true;
+  setInterval(() => { void closeOrphanSessions(); }, 60_000).unref();
   insecureServer?.listen(insecureWsPort, "0.0.0.0", () => console.warn(JSON.stringify({ event: "gateway.insecure_ws_started", port: insecureWsPort })));
   server.listen(port, "0.0.0.0", () => console.info(JSON.stringify({ event: "gateway.started", port, healthPath: "/health", ocppPath: "/ocpp/{chargePointId}" })));
 }

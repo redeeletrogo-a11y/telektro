@@ -5,8 +5,8 @@ import { QrCode } from "lucide-react";
 import { createChargingPoint, saveEletropostoTariff, savePointLimits, setPointEnabled } from "@/app/eletroposto-actions";
 import type { FormState } from "@/app/workspace-actions";
 
-export type EpCharger = { id: string; charge_point_id: string; site_id: string; model: string | null; online?: boolean | null };
-export type EpPoint = { id: string; public_code: string; charger_id: string; enabled: boolean; min_amount: number; max_amount: number };
+export type EpCharger = { id: string; charge_point_id: string; site_id: string; model: string | null; online?: boolean | null; connector_count?: number | null };
+export type EpPoint = { id: string; public_code: string; charger_id: string; connector_id: number; enabled: boolean; min_amount: number; max_amount: number };
 
 const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -31,19 +31,19 @@ function LimitsForm({ organizationId, point }: { organizationId: string; point: 
   </form>;
 }
 
-function ChargerCard({ organizationId, charger, point }: { organizationId: string; charger: EpCharger; point: EpPoint | undefined }) {
+function ChargerCard({ organizationId, charger, connectorId, connectorTotal, point }: { organizationId: string; charger: EpCharger; connectorId: number; connectorTotal: number; point: EpPoint | undefined }) {
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<FormState>({});
   const run = (job: () => Promise<FormState>) => start(async () => setMessage(await job()));
   return <section className="panel ep-card">
     <div className="ep-card-head">
-      <div><h3>{charger.charge_point_id}</h3><p className="ep-note">{charger.model ?? "Carregador"} · {charger.online ? "online" : "sem comunicação"}</p></div>
+      <div><h3>{charger.charge_point_id}{connectorTotal > 1 ? ` · Conector ${connectorId}` : ""}</h3><p className="ep-note">{charger.model ?? "Carregador"} · {charger.online ? "online" : "sem comunicação"}</p></div>
       {point ? <span className={`ep-chip ${point.enabled ? "" : "off"}`}>{point.enabled ? "QR ativo" : "QR pausado"}</span> : <span className="ep-chip warn">Sem QR</span>}
     </div>
-    {!point ? <div className="ep-actions"><button className="ep-primary" disabled={pending} onClick={() => run(() => createChargingPoint(organizationId, charger.id))}><QrCode size={15}/>&nbsp;{pending ? "Gerando…" : "Gerar QR deste carregador"}</button></div> : <>
+    {!point ? <div className="ep-actions"><button className="ep-primary" disabled={pending} onClick={() => run(() => createChargingPoint(organizationId, charger.id, connectorId))}><QrCode size={15}/>&nbsp;{pending ? "Gerando…" : connectorTotal > 1 ? `Gerar QR do conector ${connectorId}` : "Gerar QR deste carregador"}</button></div> : <>
       <div className="ep-actions">
         <a className="ep-primary" href={`/placa/${point.public_code}`} target="_blank" rel="noopener">Ver e imprimir placa</a>
-        <a href={`/carregar/${point.public_code}/qr`} download={`qr-${charger.charge_point_id}.png`}>Baixar QR (imagem)</a>
+        <a href={`/carregar/${point.public_code}/qr`} download={`qr-${charger.charge_point_id}${connectorTotal > 1 ? `-c${connectorId}` : ""}.png`}>Baixar QR (imagem)</a>
         <a href={`/carregar/${point.public_code}`} target="_blank" rel="noopener">Abrir página do cliente</a>
         <button disabled={pending} onClick={() => run(() => setPointEnabled(organizationId, point.id, !point.enabled))}>{point.enabled ? "Pausar vendas" : "Reativar vendas"}</button>
       </div>
@@ -55,7 +55,7 @@ function ChargerCard({ organizationId, charger, point }: { organizationId: strin
 }
 
 export function EletropostoPainel({ organizationId, chargers, points, tariffPrice, canManage }: { organizationId: string; chargers: EpCharger[]; points: EpPoint[]; tariffPrice: number | null; canManage: boolean }) {
-  const pointByCharger = new Map(points.map((point) => [point.charger_id, point]));
+  const pointByConnector = new Map(points.map((point) => [`${point.charger_id}:${point.connector_id}`, point]));
   return <div className="ep-panel">
     <section className="panel ep-card">
       <h3>Como funciona</h3>
@@ -64,6 +64,9 @@ export function EletropostoPainel({ organizationId, chargers, points, tariffPric
       {!tariffPrice && <p className="ep-msg err">Sem tarifa definida, os clientes não conseguem pagar.</p>}
     </section>
     {chargers.length === 0 && <section className="panel ep-card"><p className="ep-note">Nenhum carregador cadastrado ainda. Vá em Carregadores e cadastre o primeiro.</p></section>}
-    {chargers.map((charger) => <ChargerCard key={charger.id} organizationId={organizationId} charger={charger} point={pointByCharger.get(charger.id)}/>)}
+    {chargers.flatMap((charger) => {
+      const total = charger.connector_count && charger.connector_count > 0 ? Math.min(charger.connector_count, 8) : 1;
+      return Array.from({ length: total }, (_, index) => index + 1).map((connectorId) => <ChargerCard key={`${charger.id}:${connectorId}`} organizationId={organizationId} charger={charger} connectorId={connectorId} connectorTotal={total} point={pointByConnector.get(`${charger.id}:${connectorId}`)}/>);
+    })}
   </div>;
 }
