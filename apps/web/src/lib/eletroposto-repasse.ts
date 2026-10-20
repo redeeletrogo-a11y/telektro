@@ -1,8 +1,8 @@
 // Pure helpers. Amounts are summed in cents; never infer a missing commission.
-export type RepassePayment = { id: string; settled_at: string; charged_amount: number | null; fee_amount: number | null; needs_attention: boolean | null; payment_method: string };
+export type RepassePayment = { id: string; settled_at: string; charged_amount: number | null; fee_amount: number | null; needs_attention: boolean | null; payment_method: string; cap_amount?: number | null; refund_amount?: number | null };
 export function summarizeRepasse(rows: RepassePayment[]) {
   let gross = 0, fee = 0, excluded = 0;
-  const eligible: { id: string; at: string; method: string; gross: number; fee: number; net: number }[] = [];
+  const eligible: { id: string; at: string; method: string; reserved: number; gross: number; refunded: number; fee: number; net: number }[] = [];
   for (const row of rows) {
     const amount = Number(row.charged_amount);
     const commission = Number(row.fee_amount);
@@ -10,7 +10,7 @@ export function summarizeRepasse(rows: RepassePayment[]) {
     if (amount === 0) continue;
     const cents = Math.round(amount * 100), feeCents = Math.round(commission * 100);
     gross += cents; fee += feeCents;
-    eligible.push({ id: row.id, at: row.settled_at, method: row.payment_method === 'card' ? 'Cartão' : 'Pix', gross: cents / 100, fee: feeCents / 100, net: (cents - feeCents) / 100 });
+    eligible.push({ id: row.id, at: row.settled_at, method: row.payment_method === 'card' ? 'Cartão' : 'Pix', reserved: Number(row.cap_amount ?? 0), refunded: Number(row.refund_amount ?? 0), gross: cents / 100, fee: feeCents / 100, net: (cents - feeCents) / 100 });
   }
   return { gross: gross / 100, fee: fee / 100, net: (gross - fee) / 100, excluded, rows: eligible };
 }
@@ -34,4 +34,11 @@ export function normalizePix(kind: string, raw: string): string | null {
 export function csvCell(value: string | number) {
   const text = String(value);
   return `"${(/^[\s]*[=+@-]/.test(text) ? "'" : '') + text.replace(/"/g, '""')}"`;
+}
+// "A repassar" = parte do dono no mes menos o que o dono ja confirmou ter recebido. Nunca negativo na tela.
+export type PayoutRecord = { id: string; amount: number; paid_on: string; note: string | null };
+export function balanceRepasse(netReais: number, payouts: { amount: number }[]) {
+  const net = Math.round(netReais * 100);
+  const paid = payouts.reduce((sum, p) => sum + Math.round(Number(p.amount) * 100), 0);
+  return { paid: paid / 100, due: Math.max(net - paid, 0) / 100, overpaid: Math.max(paid - net, 0) / 100 };
 }

@@ -18,6 +18,7 @@ Estes arquivos SQL ficam no projeto local e são versionados no GitHub. O painel
 | `202610030020_eletroposto_prepago.sql` | Eletroposto pré-pago por QR (pontos, pagamentos, triggers de parada e liquidação) | Pendente de aplicação pelo proprietário |
 | `202610180026_charger_claim.sql` | QR de provisionamento: token por carregador e RPCs de gerar/girar/desativar/previa/aceite (transferência de titularidade) | Pendente de aplicação |
 | `202610200027_sessao_orfa_a.sql` / `_b.sql` | Fechamento automático de sessões órfãs (colunas de StopTransaction tardio + função `telektro_close_orphan_sessions`). Rodar A, depois B | Pendente de aplicação |
+| `202610200028_repasses_registrados.sql` | Livro de repasses recebidos (`eletroposto_payouts`, só insere, só o dono registra) para separar "já pago" de "a repassar". Não move dinheiro | Pendente de aplicação |
 
 ## Aplicar uma migration manualmente
 

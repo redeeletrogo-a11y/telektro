@@ -1,7 +1,7 @@
 "use server";
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { serviceClient } from '@/lib/pix';
-import { monthRange, normalizePix, summarizeRepasse, type RepassePayment } from '@/lib/eletroposto-repasse';
+import { balanceRepasse, monthRange, normalizePix, summarizeRepasse, type PayoutRecord, type RepassePayment } from '@/lib/eletroposto-repasse';
 import type { FormState } from '@/app/workspace-actions';
 
 async function access(organizationId: string) {
@@ -43,7 +43,7 @@ export async function getPayoutStatement(organizationId: string, month: string) 
   const rows: RepassePayment[] = [];
   // Paginate; fail closed rather than give an incomplete financial total.
   for (let offset = 0; offset <= 10000; offset += 500) {
-    const { data, error } = await client.from('eletroposto_payments').select('id,settled_at,charged_amount,fee_amount,needs_attention,payment_method')
+    const { data, error } = await client.from('eletroposto_payments').select('id,settled_at,charged_amount,fee_amount,needs_attention,payment_method,cap_amount,refund_amount')
       .eq('organization_id', organizationId).eq('status', 'settled').gte('settled_at', range.from).lt('settled_at', range.to)
       .order('settled_at').order('id').range(offset, offset + 499);
     if (error) return { error: 'Não foi possível carregar o extrato.' };
@@ -51,5 +51,23 @@ export async function getPayoutStatement(organizationId: string, month: string) 
     if (rows.length > 10000) return { error: 'Este mês ultrapassa 10.000 registros. O total não será exibido incompleto; peça uma exportação assistida.' };
     if ((data?.length ?? 0) < 500) break;
   }
-  return { statement: summarizeRepasse(rows) };
+  const statement = summarizeRepasse(rows);
+  const { data: payouts, error: payoutError } = await client.from('eletroposto_payouts').select('id,amount,paid_on,note').eq('organization_id', organizationId).eq('month', month).order('paid_on').order('created_at');
+  if (payoutError) return { statement, payouts: [] as PayoutRecord[], balance: null, payoutsUnavailable: true };
+  const list = (payouts ?? []).map(p => ({ ...p, amount: Number(p.amount) })) as PayoutRecord[];
+  return { statement, payouts: list, balance: balanceRepasse(statement.net, list), payoutsUnavailable: false };
+}
+export async function recordPayout(organizationId: string, month: string, _previous: FormState, form: FormData): Promise<FormState> {
+  const auth = await access(organizationId);
+  if (!auth?.isOwner) return { error: 'Só o dono da conta pode registrar um repasse recebido.' };
+  if (!monthRange(month)) return { error: 'Mês inválido.' };
+  const amount = Number(String(form.get('amount') ?? '').replace(/\./g, '').replace(',', '.'));
+  const paidOn = String(form.get('paid_on') ?? '');
+  const note = String(form.get('note') ?? '').trim();
+  const today = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
+  if (!Number.isFinite(amount) || amount <= 0 || amount >= 1_000_000 || Math.round(amount * 100) / 100 !== amount) return { error: 'Informe um valor válido, com até 2 casas decimais.' };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(paidOn) || paidOn > today || paidOn < '2026-01-01') return { error: 'Data inválida. Não pode ser futura.' };
+  if (note.length > 200 || /[\u0000-\u001f]/.test(note)) return { error: 'Observação muito longa.' };
+  const { error } = await serviceClient().from('eletroposto_payouts').insert({ organization_id: organizationId, month, amount, paid_on: paidOn, note: note || null, recorded_by: auth.userId });
+  return error ? { error: 'Não foi possível registrar. Confira se a migração foi aplicada.' } : { success: 'Repasse registrado. Isso só anota o recebimento; nenhuma transferência foi feita.' };
 }

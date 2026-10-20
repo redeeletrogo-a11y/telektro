@@ -1,10 +1,22 @@
 "use client";
 import { useActionState, useEffect, useState } from 'react';
-import { getPayoutProfile, getPayoutStatement, savePayoutProfile, type PayoutProfile } from '@/app/eletroposto-repasse-actions';
-import { csvCell, type summarizeRepasse } from '@/lib/eletroposto-repasse';
+import { getPayoutProfile, getPayoutStatement, recordPayout, savePayoutProfile, type PayoutProfile } from '@/app/eletroposto-repasse-actions';
+import { csvCell, type PayoutRecord, type summarizeRepasse } from '@/lib/eletroposto-repasse';
 import type { FormState } from '@/app/workspace-actions';
 
 type Statement = ReturnType<typeof summarizeRepasse>;
+type Balance = { paid: number; due: number; overpaid: number };
+function PayoutForm({ organizationId, month, onSaved }: { organizationId: string; month: string; onSaved: () => void }) {
+  const [state, action, pending] = useActionState(async (previous: FormState, form: FormData) => { const result = await recordPayout(organizationId, month, previous, form); if (result.success) onSaved(); return result; }, {} as FormState);
+  return <form action={action} className="ep-form">
+    <label>Valor recebido (R$)<input name="amount" inputMode="decimal" placeholder="0,00" required/></label>
+    <label>Data do recebimento<input name="paid_on" type="date" required/></label>
+    <label>Observação (opcional)<input name="note" maxLength={200} autoComplete="off"/></label>
+    <button className="primary-button" disabled={pending}>{pending ? 'Registrando…' : 'Registrar repasse recebido'}</button>
+    {state.error && <p className="ep-msg err" role="alert">{state.error}</p>}
+    {state.success && <p className="ep-msg ok" role="status">{state.success}</p>}
+  </form>;
+}
 const money = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const when = (iso: string) => new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Fortaleza' });
 function PixForm({ organizationId, profile }: { organizationId: string; profile: PayoutProfile | null }) {
@@ -21,8 +33,8 @@ function PixForm({ organizationId, profile }: { organizationId: string; profile:
   </form>;
 }
 function download(statement: Statement, month: string) {
-  const lines = [['ID da recarga', 'Concluída em', 'Meio', 'Cobrado (R$)', 'Taxa Telektro (R$)', 'Parte do dono (R$)'].map(csvCell).join(';')];
-  for (const row of statement.rows) lines.push([row.id, when(row.at), row.method, row.gross.toFixed(2).replace('.', ','), row.fee.toFixed(2).replace('.', ','), row.net.toFixed(2).replace('.', ',')].map(csvCell).join(';'));
+  const lines = [['ID da recarga', 'Concluída em', 'Meio', 'Reservado (R$)', 'Devolvido (R$)', 'Cobrado (R$)', 'Taxa Telektro (R$)', 'Parte do dono (R$)'].map(csvCell).join(';')];
+  for (const row of statement.rows) lines.push([row.id, when(row.at), row.method, row.reserved.toFixed(2).replace('.', ','), row.refunded.toFixed(2).replace('.', ','), row.gross.toFixed(2).replace('.', ','), row.fee.toFixed(2).replace('.', ','), row.net.toFixed(2).replace('.', ',')].map(csvCell).join(';'));
   const url = URL.createObjectURL(new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
   const link = document.createElement('a'); link.href = url; link.download = `extrato-conferencia-${month}.csv`; link.click(); URL.revokeObjectURL(url);
 }
@@ -32,6 +44,10 @@ export function EletropostoRepasse({ organizationId, preview }: { organizationId
   const [statement, setStatement] = useState<Statement | null>(preview?.statement ?? null);
   const [profile, setProfile] = useState<PayoutProfile | null>(preview?.profile ?? null);
   const [canEdit, setCanEdit] = useState(false);
+  const [payouts, setPayouts] = useState<PayoutRecord[]>([]);
+  const [balance, setBalance] = useState<Balance | null>(null);
+  const [payoutsUnavailable, setPayoutsUnavailable] = useState(false);
+  const [reload, setReload] = useState(0);
   const [error, setError] = useState('');
   const [profileError, setProfileError] = useState('');
   const [loading, setLoading] = useState(!preview);
@@ -44,9 +60,9 @@ export function EletropostoRepasse({ organizationId, preview }: { organizationId
   useEffect(() => {
     if (preview) return;
     let active = true;
-    getPayoutStatement(organizationId, month).then(result => { if (active) { setStatement(result.statement ?? null); setError(result.error ?? ''); setLoading(false); } }).catch(() => { if (active) { setError('Não foi possível carregar o extrato.'); setStatement(null); setLoading(false); } });
+    getPayoutStatement(organizationId, month).then(result => { if (active) { setStatement(result.statement ?? null); setPayouts(result.payouts ?? []); setBalance(result.balance ?? null); setPayoutsUnavailable(Boolean(result.payoutsUnavailable)); setError(result.error ?? ''); setLoading(false); } }).catch(() => { if (active) { setError('Não foi possível carregar o extrato.'); setStatement(null); setLoading(false); } });
     return () => { active = false; };
-  }, [organizationId, month, preview]);
+  }, [organizationId, month, preview, reload]);
   return <div className="ep-panel">
     {preview && <p className="ep-msg">DEMONSTRAÇÃO: valores fictícios. Não salva dados nem faz pagamentos.</p>}
     <section className="panel ep-card"><h3>Recebimento do dono</h3><p className="ep-note">Repasse manual por enquanto. Os clientes ainda pagam na conta da Nexa. Cadastrar a chave Pix não ativa transferência automática nem muda a cobrança.</p>
@@ -56,9 +72,13 @@ export function EletropostoRepasse({ organizationId, preview }: { organizationId
       <p className="ep-note">Recargas concluídas no mês, no horário de Fortaleza. Somente consumo cobrado com taxa registrada e sem alerta. Reservas, devoluções integrais e recargas pendentes não entram. Mensalidade do software não está incluída e não é descontada aqui.</p>
       {loading && <p className="ep-note" role="status">Carregando extrato…</p>}{error && <p className="ep-msg err" role="alert">{error}</p>}
       {statement && <><div className="ep-stats"><div className="panel ep-stat"><span>Cobrado nas recargas</span><strong>{money(statement.gross)}</strong><small>{statement.rows.length} recargas</small></div><div className="panel ep-stat"><span>Taxa Telektro</span><strong>{money(statement.fee)}</strong><small>taxa registrada em cada recarga</small></div><div className="panel ep-stat ep-stat-main"><span>Parte do dono</span><strong>{money(statement.net)}</strong><small>para conferência, não é saldo disponível</small></div></div>
+      {balance && <div className="ep-stats"><div className="panel ep-stat"><span>Já pago</span><strong>{money(balance.paid)}</strong><small>{payouts.length} {payouts.length === 1 ? 'registro' : 'registros'} do dono neste mês</small></div><div className="panel ep-stat ep-stat-main"><span>A repassar</span><strong>{money(balance.due)}</strong><small>{balance.overpaid > 0 ? `registrado ${money(balance.overpaid)} a mais que o extrato` : 'parte do dono menos o já pago'}</small></div></div>}
+      {payoutsUnavailable && <p className="ep-msg err" role="alert">Registro de repasses indisponível. A migração precisa estar aplicada.</p>}
+      {payouts.length > 0 && <ul className="ep-note">{payouts.map(p => <li key={p.id}>{new Date(p.paid_on + 'T12:00:00').toLocaleDateString('pt-BR')}: {money(p.amount)}{p.note ? ` · ${p.note}` : ''}</li>)}</ul>}
+      {canEdit && !preview && !payoutsUnavailable && <details><summary>Registrar repasse recebido</summary><PayoutForm organizationId={organizationId} month={month} onSaved={() => setReload(n => n + 1)}/></details>}
       {statement.excluded > 0 && <p className="ep-msg err" role="alert">{statement.excluded} registros excluídos por alerta ou valores incompletos. Confira antes de fechar o repasse.</p>}
       <p className="ep-note">Este extrato não confirma que o dinheiro foi repassado. Disponibilidade no Mercado Pago, estornos posteriores e pagamentos já feitos precisam ser conferidos separadamente.</p>
-      {statement.rows.length ? <><button className="ep-csv" onClick={() => download(statement, month)}>Baixar extrato CSV</button><div className="ep-table-wrap"><table className="ep-table"><thead><tr><th>Conclusão</th><th>Meio</th><th>Cobrado</th><th>Taxa</th><th>Parte do dono</th></tr></thead><tbody>{statement.rows.slice(0, 100).map(row => <tr key={row.id}><td>{when(row.at)}</td><td>{row.method}</td><td>{money(row.gross)}</td><td>{money(row.fee)}</td><td>{money(row.net)}</td></tr>)}</tbody></table></div>{statement.rows.length > 100 && <p className="ep-note">Tela mostra 100; CSV inclui todos os registros do extrato.</p>}</> : <p className="ep-note">Nenhuma recarga elegível neste mês.</p>}</>}
+      {statement.rows.length ? <><button className="ep-csv" onClick={() => download(statement, month)}>Baixar extrato CSV</button><div className="ep-table-wrap"><table className="ep-table"><thead><tr><th>Conclusão</th><th>Meio</th><th>Reservado</th><th>Devolvido</th><th>Cobrado</th><th>Taxa</th><th>Parte do dono</th></tr></thead><tbody>{statement.rows.slice(0, 100).map(row => <tr key={row.id}><td>{when(row.at)}</td><td>{row.method}</td><td>{money(row.reserved)}</td><td>{money(row.refunded)}</td><td>{money(row.gross)}</td><td>{money(row.fee)}</td><td>{money(row.net)}</td></tr>)}</tbody></table></div>{statement.rows.length > 100 && <p className="ep-note">Tela mostra 100; CSV inclui todos os registros do extrato.</p>}</> : <p className="ep-note">Nenhuma recarga elegível neste mês.</p>}</>}
     </section>
   </div>;
 }

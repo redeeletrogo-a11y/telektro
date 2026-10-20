@@ -15,3 +15,7 @@ Não envia Pix, não ativa split, não muda credenciais Mercado Pago e não mexe
 ## Validação antes do merge
 
 Aplicar a migração com autorização do owner; testar owner/admin/membro e acesso cruzado entre organizações, salvar chave e conferir histórico, CSV/valores com recargas conciliadas. Validar no mês em que a recarga cruza a virada do mês. Preview com dados fictícios não substitui esses testes. Só merge após revisão do Maycon.
+
+## Já pago e a repassar
+
+Na tela Repasses, o dono pode registrar cada repasse que recebeu (valor, data, observação) no mês do extrato. O registro só anota; não transfere dinheiro e não pode ser editado nem apagado pelo app. "Já pago" é a soma dos registros do mês; "a repassar" é a parte do dono menos o já pago. O admin só lê. A tabela exibe também reservado e devolvido por recarga, e o CSV inclui as duas colunas.

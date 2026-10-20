@@ -283,6 +283,8 @@ export type PublicStatus = {
   status: string; cap: number; kwh: number | null; spent: number | null; charged: number | null; refund: number | null;
   qrCode: string | null; qrBase64: string | null; expiresAt: string | null; reason: string | null; canStop: boolean; chargerName: string; pricePerKwh: number;
   method: "pix" | "card"; cardLast4: string | null; cardBrand: string | null;
+  // Devolucao/captura travou e sera tentada de novo; motivo da falha para explicar ao cliente (so valores fixos, nunca texto interno).
+  refundDelayed: boolean; failure: "start" | "connection_lost" | null;
 };
 
 export async function getPublicStatus(token: string, advance = true): Promise<PublicStatus | null> {
@@ -293,9 +295,15 @@ export async function getPublicStatus(token: string, advance = true): Promise<Pu
   // Rede de seguranca: se o webhook atrasou ou nao chegou, releia o Pix no Mercado Pago (idempotente; so enquanto aguarda pagamento).
   if (advance && base.data.status === "awaiting_payment" && base.data.mp_payment_id) { try { await applyEletropostoPayment(String(base.data.mp_payment_id)); } catch { /* o webhook ainda pode concluir */ } }
   if (advance) { try { await settleRefunds(base.data.id); } catch { /* o estado atual ainda e mostrado */ } }
-  const { data: p } = await supabase.from("eletroposto_payments").select("status, cap_amount, price_per_kwh, session_fee, energy_wh, charged_amount, refund_amount, refund_reason, qr_code, qr_code_base64, expires_at, charger_id, session_id, payment_method, card_last4, card_brand").eq("id", base.data.id).single();
+  const { data: p } = await supabase.from("eletroposto_payments").select("status, cap_amount, price_per_kwh, session_fee, energy_wh, charged_amount, refund_amount, refund_reason, qr_code, qr_code_base64, expires_at, charger_id, session_id, payment_method, card_last4, card_brand, needs_attention, attention_reason").eq("id", base.data.id).single();
   if (!p) return null;
   const { data: charger } = await supabase.from("chargers").select("charge_point_id").eq("id", p.charger_id).maybeSingle();
+  let lostConnection = false;
+  if (p.session_id && ["settling", "settled"].includes(p.status)) {
+    const { data: s } = await supabase.from("sessions").select("stop_reason").eq("id", p.session_id).maybeSingle();
+    lostConnection = s?.stop_reason === "OrphanTimeout";
+  }
+  const startFailed = ["start_rejected", "start_timeout", "cannot_start"].includes(String(p.refund_reason));
   const kwh = p.energy_wh === null ? null : Number(p.energy_wh) / 1000;
   const spent = kwh === null ? null : Math.min(Number(p.cap_amount), Math.round((kwh * Number(p.price_per_kwh) + (kwh > 0 ? Number(p.session_fee) : 0)) * 100) / 100);
   return {
@@ -305,6 +313,8 @@ export async function getPublicStatus(token: string, advance = true): Promise<Pu
     expiresAt: p.expires_at, reason: p.refund_reason, canStop: p.status === "charging" && Boolean(p.session_id),
     chargerName: charger?.charge_point_id ?? "", pricePerKwh: Number(p.price_per_kwh),
     method: p.payment_method === "card" ? "card" : "pix", cardLast4: p.card_last4 ?? null, cardBrand: p.card_brand ?? null,
+    refundDelayed: p.status === "settling" && Boolean(p.needs_attention) && ["refund_failed", "card_capture_failed"].includes(String(p.attention_reason)),
+    failure: startFailed ? "start" : lostConnection ? "connection_lost" : null,
   };
 }
 
