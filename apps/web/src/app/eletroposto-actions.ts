@@ -24,18 +24,20 @@ async function requireOwner(organizationId: string) {
   return { supabase } as const;
 }
 
-// Gera o QR (ponto de recarga publico) de um carregador. 1 conector por carregador por enquanto.
-export async function createChargingPoint(organizationId: string, chargerId: string): Promise<FormState> {
+// Gera o QR (ponto de recarga publico) de um conector do carregador. Um QR por conector (carregador de 2 conectores = 2 QRs).
+export async function createChargingPoint(organizationId: string, chargerId: string, connectorId = 1): Promise<FormState> {
   const auth = await requireOwner(organizationId);
   if ("error" in auth) return { error: auth.error };
   if (!uuidPattern.test(chargerId)) return { error: "Carregador inválido." };
-  const { data: charger } = await auth.supabase.from("chargers").select("id").eq("id", chargerId).eq("organization_id", organizationId).is("removed_at", null).maybeSingle();
+  const { data: charger } = await auth.supabase.from("chargers").select("id, connector_count").eq("id", chargerId).eq("organization_id", organizationId).is("removed_at", null).maybeSingle();
   if (!charger) return { error: "Carregador não encontrado." };
+  const connectorTotal = charger.connector_count && charger.connector_count > 0 ? charger.connector_count : 1;
+  if (!Number.isInteger(connectorId) || connectorId < 1 || connectorId > connectorTotal) return { error: "Conector inválido para este carregador." };
   const service = serviceClient();
-  const { data: existing } = await service.from("eletroposto_points").select("id").eq("charger_id", chargerId).eq("connector_id", 1).maybeSingle();
-  if (existing) return { success: "Esse carregador já tem QR." };
+  const { data: existing } = await service.from("eletroposto_points").select("id").eq("charger_id", chargerId).eq("connector_id", connectorId).maybeSingle();
+  if (existing) return { success: "Esse conector já tem QR." };
   const { error } = await service.from("eletroposto_points").insert({
-    public_code: randomBytes(8).toString("hex"), organization_id: organizationId, charger_id: chargerId, connector_id: 1, enabled: true,
+    public_code: randomBytes(8).toString("hex"), organization_id: organizationId, charger_id: chargerId, connector_id: connectorId, enabled: true,
   });
   if (error) return { error: "Não foi possível gerar o QR agora. Tente de novo." };
   revalidatePath("/");

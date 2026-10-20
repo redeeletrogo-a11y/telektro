@@ -49,7 +49,7 @@ export default async function PlacaPage({ params }: { params: Promise<{ code: st
     <div className="placa-tools"><PrintButton/><Link className="placa-link" href="/">Voltar ao painel</Link></div>
     <section className="placa-sheet" aria-label="Placa do carregador">
       <div className="placa-brand">TELEKTRO</div>
-      <div><h1 className="placa-title">Recarga sem app</h1><p className="placa-sub">{info ? `${info.siteName} · ${info.chargerName}` : ""}</p></div>
+      <div><h1 className="placa-title">Recarga sem app</h1><p className="placa-sub">{info ? `${info.siteName} · ${info.chargerName} · Conector ${info.connectorId}` : ""}</p></div>
       <div className="placa-qr"><img src={qr} alt="QR Code para pagar e liberar a recarga"/></div>
       <ol className="placa-steps"><li><b>1</b>Escaneie o QR com a câmera do celular</li><li><b>2</b>Escolha o valor e pague com Pix ou cartão</li><li><b>3</b>Conecte o carro: a recarga libera sozinha</li></ol>
       <div className="placa-foot">{price ? <span className="placa-price">{price} por kWh · </span> : null}Você paga só o que consumir, a sobra volta pra você.<br/>{url.replace("https://", "")}</div>
