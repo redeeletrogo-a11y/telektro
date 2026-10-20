@@ -34,7 +34,8 @@ export function SessionView({ token, initial }: { token: string; initial: Public
   const pct = s.cap > 0 ? Math.min(100, Math.round((spent / s.cap) * 100)) : 0;
   const max = maxKwh(s.cap, s.pricePerKwh);
   const back = card ? "A parte não usada da reserva é liberada no cartão." : "O que não for usado volta no mesmo Pix.";
-  return <div className="login-form">
+  const dark = ["paid", "starting", "charging", "settling"].includes(s.status) || (s.status === "settled" && s.failure !== "start");
+  return <div className={dark ? "login-form ep-dark" : "login-form"}>
     {showSteps && <ol className="ep-steps" aria-label="Etapas da recarga">
       {["Pagamento", "Carregador", "Recarga", "Finalização"].map((label, index) => <li key={label} aria-current={index === step ? "step" : undefined} className={index < step ? "done" : index === step ? "now" : ""}>
         <span className="ep-dot">{index < step ? "✓" : index + 1}</span>{label}</li>)}
@@ -62,7 +63,7 @@ export function SessionView({ token, initial }: { token: string; initial: Public
     </div>}
     {s.status === "charging" && <div className="ep-pixscreen">
       <p className="eyebrow">CARREGANDO</p>
-      <div className="ep-ring" style={{ background: `conic-gradient(#0f9d6e ${pct * 3.6}deg, #e4eaec 0)` }}><div><BatteryCharging size={22} aria-hidden="true"/><strong>{s.kwh === null ? "..." : s.kwh.toFixed(2).replace(".", ",")}</strong><span>kWh</span></div></div>
+      <div className="ep-ring" style={{ background: `conic-gradient(#3ee0a8 ${pct * 3.6}deg, rgb(255 255 255 / 16%) 0)` }}><div><BatteryCharging size={22} aria-hidden="true"/><strong>{s.kwh === null ? "..." : s.kwh.toFixed(2).replace(".", ",")}</strong><span>kWh</span></div></div>
       <div className="ep-tiles">
         <div><span>Valor utilizado</span><strong>{brl(spent)}</strong><small>de {brl(s.cap)}</small></div>
         <div><span>Consumo</span><strong>{kwhText(s.kwh)}</strong><small>{max === null ? "" : `até cerca de ${kwhText(max)}`}</small></div>
