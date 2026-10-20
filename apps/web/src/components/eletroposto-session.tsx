@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Car, Clock, Copy } from "lucide-react";
 import { eletropostoStatus, eletropostoStop } from "@/app/carregar/actions";
 import type { PublicStatus } from "@/lib/eletroposto";
 
@@ -32,13 +33,16 @@ export function SessionView({ token, initial }: { token: string; initial: Public
         <div style={{ height: 4, borderRadius: 2, background: index <= step ? "#0f9d6e" : "#b9c4c8", marginBottom: 4 }}/>{label}</li>)}
     </ol>}
     {s.status === "awaiting_payment" && s.method === "card" && <><p className="eyebrow">CARTÃO</p><h1>Aguardando aprovação do cartão</h1><p className="login-description">Estamos confirmando a reserva de {brl(s.cap)} no seu cartão. Isso leva alguns segundos. Não feche esta página.</p></>}
-    {s.status === "awaiting_payment" && s.method !== "card" && <>
-      <p className="eyebrow">PAGAMENTO</p><h1>Pague {brl(s.cap)} no Pix</h1>
-      {s.qrBase64 && <img alt="QR Code Pix" width={200} height={200} src={`data:image/png;base64,${s.qrBase64}`}/>}
-      <textarea readOnly value={s.qrCode ?? ""} rows={3} aria-label="Pix copia e cola"/>
-      <button className="primary-button" type="button" onClick={() => { navigator.clipboard?.writeText(s.qrCode ?? ""); setCopied(true); }}>{copied ? "Copiado!" : "Copiar código Pix"}</button>
-      <small className="field-help">Mantenha o carro conectado. A recarga começa sozinha depois do pagamento. Este código vale 10 minutos.</small>
-    </>}
+    {s.status === "awaiting_payment" && s.method !== "card" && <div className="ep-pixscreen">
+      <p className="eyebrow">PAGAMENTO VIA PIX</p><h1>Pague <span className="ep-green">{brl(s.cap)}</span></h1>
+      <p className="login-description">Escaneie o QR Code ou copie o código Pix para pagar.</p>
+      {s.qrBase64 && <div className="ep-qr"><img alt="QR Code Pix" width={200} height={200} src={`data:image/png;base64,${s.qrBase64}`}/></div>}
+      <label className="ep-code"><span>Código Pix copia e cola</span><textarea readOnly value={s.qrCode ?? ""} rows={2} aria-label="Pix copia e cola"/></label>
+      <button className="ep-primary" type="button" onClick={() => { navigator.clipboard?.writeText(s.qrCode ?? ""); setCopied(true); }}><Copy size={18} aria-hidden="true"/> {copied ? "Copiado!" : "Copiar código Pix"}</button>
+      <div className="ep-wait" role="status"><Clock size={22} aria-hidden="true"/><div><strong>Aguardando confirmação do pagamento</strong><p>Esta página atualiza sozinha. Mantenha o carro conectado. O código vale 10 minutos.</p></div></div>
+      <p className="ep-next"><Car size={18} aria-hidden="true"/> A recarga começa depois da confirmação do pagamento.</p>
+    </div>}
+
     {(s.status === "paid" || s.status === "starting") && <><p className="eyebrow">PAGAMENTO CONFIRMADO</p><h1>Aguardando o carregador</h1><p className="login-description">{s.method === "card" ? `Reserva de ${brl(s.cap)} aprovada no cartão${s.cardLast4 ? ` final ${s.cardLast4}` : ""}. Só será cobrado o consumo.` : "Pagamento confirmado."} Estamos liberando o carregador. Confira se o carro está conectado. Se não iniciar em alguns minutos, {s.method === "card" ? "a reserva é liberada" : "o valor é devolvido"} sem cobrança.</p></>}
     {s.status === "charging" && <>
       <p className="eyebrow">CARREGANDO</p><h1>{s.kwh === null ? "Aguardando medição" : `${s.kwh.toFixed(2).replace(".", ",")} kWh`}</h1>
