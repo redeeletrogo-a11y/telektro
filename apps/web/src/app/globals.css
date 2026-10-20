@@ -533,3 +533,63 @@ body:has(.auth-page) .pwa-install-button { display: none; }
 .company-note { text-wrap: balance; }
 .resident-control { display: grid; gap: 6px; justify-items: start; padding: 4px 0 10px; }
 .resident-control label { display: grid; gap: 4px; font-size: 12px; }
+
+/* Pagina publica do cliente (/carregar): mobile first */
+.login-page { grid-template-columns: minmax(0, 1fr); }
+.login-card { box-sizing: border-box; margin-inline: auto; }
+@media (max-width: 480px) { .login-page { padding: 16px; } .login-card { padding: 28px 22px 22px; } }
+.ep-page { min-height: 100vh; padding: 14px 14px 32px; background: radial-gradient(ellipse at 50% 0%,#e2f0ed 0%,#f4f6f8 49%); }
+.ep-wrap { box-sizing: border-box; width: 100%; max-width: 440px; margin: 0 auto; display: grid; gap: 12px; }
+.ep-top { display: flex; align-items: center; justify-content: space-between; padding: 4px 4px 0; position: relative; }
+.ep-brand { display: flex; align-items: center; gap: 9px; color: #1c3039; font-size: 17px; font-weight: 800; letter-spacing: .08em; }
+.ep-brand img { border-radius: 8px; }
+.ep-help summary { list-style: none; display: grid; place-items: center; width: 30px; height: 30px; border: 2px solid #0f776c; border-radius: 50%; color: #0f776c; font-weight: 800; cursor: pointer; }
+.ep-help summary::-webkit-details-marker { display: none; }
+.ep-help p { position: absolute; right: 0; top: 40px; z-index: 5; width: min(300px, 90vw); margin: 0; padding: 12px 14px; border: 1px solid #e4eaec; border-radius: 12px; background: #fff; box-shadow: 0 12px 30px rgb(28 48 59 / 14%); color: #45555e; font-size: 12px; line-height: 1.5; }
+.ep-hero { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px; }
+.ep-eyebrow { margin: 0 0 4px; color: #0f9d6e; font-size: 11px; font-weight: 800; letter-spacing: .16em; }
+.ep-hero h1 { margin: 0; color: #111e25; font-size: 26px; line-height: 1.15; }
+.ep-meta { margin: 6px 0 0; color: #45555e; font-size: 13px; line-height: 1.5; }
+.ep-charger { flex: none; width: 72px; height: 72px; padding: 8px; border-radius: 16px; background: #e4f6ee; }
+.ep-form { display: grid; gap: 12px; min-width: 0; }
+.ep-card { box-sizing: border-box; min-width: 0; padding: 16px; border: 1px solid #e4eaec; border-radius: 16px; background: #fff; box-shadow: 0 6px 22px rgb(28 48 59 / 6%); display: grid; gap: 10px; }
+.ep-card h1, .ep-card h2 { margin: 0; color: #111e25; font-size: 18px; }
+.ep-sub { margin: 0; color: #5a6a73; font-size: 13px; line-height: 1.5; }
+.ep-amount { display: flex; align-items: center; height: 54px; border: 1px solid #dfe6e8; border-radius: 12px; overflow: hidden; }
+.ep-amount span { display: grid; place-items: center; align-self: stretch; padding: 0 14px; border-right: 1px solid #dfe6e8; color: #45555e; font-weight: 600; }
+.ep-amount input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; padding: 0 14px; font-size: 24px; font-weight: 750; color: #111e25; background: #fff; }
+.ep-amount:focus-within { border-color: #64aaa0; box-shadow: 0 0 0 3px #e4f3f0; }
+.ep-chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.ep-chip { height: 40px; border: 1px solid #dfe6e8; border-radius: 10px; background: #fff; color: #33434c; font-size: 14px; font-weight: 600; cursor: pointer; }
+.ep-chip.on { border-color: #0f9d6e; background: #0f9d6e; color: #fff; }
+.ep-range { color: #6b7b84; font-size: 12px; }
+.ep-info { display: flex; gap: 10px; padding: 11px 12px; border-radius: 12px; background: #e9f7f1; color: #0f6f55; }
+.ep-info svg { flex: none; margin-top: 1px; }
+.ep-info p { margin: 0; font-size: 13px; line-height: 1.45; color: #2b5a4b; }
+.ep-info strong { color: #0f7a5c; }
+.ep-field { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 12px; border: 1px solid #dfe6e8; border-radius: 12px; color: #5a6a73; }
+.ep-field input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; font-size: 15px; color: #111e25; }
+.ep-field:focus-within { border-color: #64aaa0; box-shadow: 0 0 0 3px #e4f3f0; }
+.ep-methods { display: grid; gap: 8px; }
+.ep-method { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #dfe6e8; border-radius: 12px; cursor: pointer; color: #33434c; }
+.ep-method.on { border-color: #0f9d6e; background: #effaf5; }
+.ep-method input { accent-color: #0f9d6e; width: 20px; height: 20px; flex: none; order: 3; margin-left: auto; }
+.ep-method span:not(.ep-pix) { display: grid; gap: 2px; min-width: 0; order: 2; }
+.ep-method strong { font-size: 15px; color: #111e25; }
+.ep-method small { color: #5a6a73; font-size: 12px; line-height: 1.35; }
+.ep-pix { order: 1; color: #0f9d6e; font-size: 22px; width: 22px; text-align: center; }
+.ep-method svg { order: 1; flex: none; }
+.ep-consent { display: flex; align-items: flex-start; gap: 10px; color: #33434c; font-size: 12.5px; line-height: 1.5; }
+.ep-consent input { flex: none; width: 20px; height: 20px; margin-top: 1px; accent-color: #0f9d6e; }
+.ep-primary { height: 54px; border: 0; border-radius: 14px; background: #0f776c; color: #fff; font-size: 16px; font-weight: 750; cursor: pointer; box-shadow: 0 8px 20px rgb(15 119 108 / 25%); }
+.ep-primary:disabled { opacity: .6; }
+.ep-secondary { height: 44px; border: 1px solid #dfe6e8; border-radius: 12px; background: #fff; color: #33434c; font-weight: 600; cursor: pointer; }
+.ep-secure { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0; color: #45555e; font-size: 12.5px; }
+.ep-legal { text-align: center; color: #8b979d; font-size: 11px; }
+.ep-state { padding: 20px 18px; }
+.ep-state .eyebrow { margin: 0; color: #0f9d6e; font-size: 11px; font-weight: 800; letter-spacing: .16em; }
+.ep-state h1 { margin: 0; color: #111e25; font-size: 24px; line-height: 1.2; }
+.ep-state .login-description { margin: 0; color: #5a6a73; font-size: 13px; line-height: 1.55; }
+.ep-state .login-form { gap: 12px; min-width: 0; }
+.ep-state img { max-width: 100%; height: auto; }
+.ep-state textarea, .ep-state input { max-width: 100%; box-sizing: border-box; }
