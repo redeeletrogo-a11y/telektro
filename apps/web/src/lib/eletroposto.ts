@@ -285,6 +285,8 @@ export type PublicStatus = {
   method: "pix" | "card"; cardLast4: string | null; cardBrand: string | null;
   // Devolucao/captura travou e sera tentada de novo; motivo da falha para explicar ao cliente (so valores fixos, nunca texto interno).
   refundDelayed: boolean; failure: "start" | "connection_lost" | null;
+  // Dados do comprovante (so leitura; nada interno do gateway).
+  startedAt: string | null; endedAt: string | null; paidAt: string | null; connectorId: number | null; pointCode: string | null; receiptNo: string;
 };
 
 export async function getPublicStatus(token: string, advance = true): Promise<PublicStatus | null> {
@@ -295,14 +297,17 @@ export async function getPublicStatus(token: string, advance = true): Promise<Pu
   // Rede de seguranca: se o webhook atrasou ou nao chegou, releia o Pix no Mercado Pago (idempotente; so enquanto aguarda pagamento).
   if (advance && base.data.status === "awaiting_payment" && base.data.mp_payment_id) { try { await applyEletropostoPayment(String(base.data.mp_payment_id)); } catch { /* o webhook ainda pode concluir */ } }
   if (advance) { try { await settleRefunds(base.data.id); } catch { /* o estado atual ainda e mostrado */ } }
-  const { data: p } = await supabase.from("eletroposto_payments").select("status, cap_amount, price_per_kwh, session_fee, energy_wh, charged_amount, refund_amount, refund_reason, qr_code, qr_code_base64, expires_at, charger_id, session_id, payment_method, card_last4, card_brand, needs_attention, attention_reason").eq("id", base.data.id).single();
+  const { data: p } = await supabase.from("eletroposto_payments").select("status, cap_amount, price_per_kwh, session_fee, energy_wh, charged_amount, refund_amount, refund_reason, qr_code, qr_code_base64, expires_at, charger_id, session_id, payment_method, card_last4, card_brand, needs_attention, attention_reason, paid_at, point_id, connector_id").eq("id", base.data.id).single();
   if (!p) return null;
   const { data: charger } = await supabase.from("chargers").select("charge_point_id").eq("id", p.charger_id).maybeSingle();
   let lostConnection = false;
+  let startedAt: string | null = null; let endedAt: string | null = null;
   if (p.session_id && ["settling", "settled"].includes(p.status)) {
-    const { data: s } = await supabase.from("sessions").select("stop_reason").eq("id", p.session_id).maybeSingle();
+    const { data: s } = await supabase.from("sessions").select("stop_reason, started_at, ended_at").eq("id", p.session_id).maybeSingle();
     lostConnection = s?.stop_reason === "OrphanTimeout";
+    startedAt = s?.started_at ?? null; endedAt = s?.ended_at ?? null;
   }
+  const { data: pt } = p.point_id ? await supabase.from("eletroposto_points").select("public_code").eq("id", p.point_id).maybeSingle() : { data: null };
   const startFailed = ["start_rejected", "start_timeout", "cannot_start"].includes(String(p.refund_reason));
   const kwh = p.energy_wh === null ? null : Number(p.energy_wh) / 1000;
   const spent = kwh === null ? null : Math.min(Number(p.cap_amount), Math.round((kwh * Number(p.price_per_kwh) + (kwh > 0 ? Number(p.session_fee) : 0)) * 100) / 100);
@@ -315,6 +320,8 @@ export async function getPublicStatus(token: string, advance = true): Promise<Pu
     method: p.payment_method === "card" ? "card" : "pix", cardLast4: p.card_last4 ?? null, cardBrand: p.card_brand ?? null,
     refundDelayed: p.status === "settling" && Boolean(p.needs_attention) && ["refund_failed", "card_capture_failed"].includes(String(p.attention_reason)),
     failure: startFailed ? "start" : lostConnection ? "connection_lost" : null,
+    startedAt, endedAt, paidAt: p.paid_at ?? null, connectorId: p.connector_id ?? null, pointCode: pt?.public_code ?? null,
+    receiptNo: token.slice(0, 8).toUpperCase(),
   };
 }
 
