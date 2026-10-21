@@ -405,3 +405,5 @@ body:has(.repasse-preview) .pwa-install-button { display: none; }
 html[data-theme="light"] .app-shell .charger-quick-credential { border-top-color: rgb(13 43 34 / 10%); }
 html[data-theme="light"] .app-shell .charger-quick-credential > strong { color: #0d2b22; }
 html[data-theme="light"] .app-shell .charger-quick-credential > small { color: #5b7a6e; }
+.app-shell .offline-alert { border: 1px solid rgb(255 107 90 / 35%); border-radius: 14px; color: #ffc9c1; background: rgb(255 107 90 / 10%); }
+html[data-theme="light"] .app-shell .offline-alert { border-color: rgb(200 60 40 / 30%); color: #8a1f12; background: rgb(255 107 90 / 9%); }
