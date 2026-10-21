@@ -8,7 +8,7 @@ import { createSubscriptionCheckoutUrl, mercadoPagoConfigured } from "@/lib/bill
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupportedTimeZone } from "@/lib/time-zone";
 
-export type FormState = { error?: string; success?: string; credential?: string; chargePointId?: string };
+export type FormState = { error?: string; success?: string; credential?: string; chargePointId?: string; insecureWs?: boolean };
 
 async function accessBlocked(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, organizationId: string) {
   const { data, error } = await supabase.rpc("org_has_access", { target_organization_id: organizationId });
@@ -110,6 +110,7 @@ export async function registerCharger(organizationId: string, _previous: FormSta
   const authorizationMode = String(formData.get("authorization_mode") ?? "").trim() || null;
   const rawPower = String(formData.get("max_power_kw") ?? "").trim();
   const maxPower = rawPower ? Number(rawPower) : null;
+  const wantsInsecureWs = formData.get("allow_insecure_ws") === "on";
 
   if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !/^[0-9a-f-]{36}$/i.test(siteId)) return { error: "Selecione um local válido." };
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(chargePointId)) return { error: "Use de 1 a 64 letras, números, pontos, hífens ou sublinhados no ID OCPP." };
@@ -141,6 +142,7 @@ export async function registerCharger(organizationId: string, _previous: FormSta
   if (!membership || !["owner", "admin", "technician"].includes(membership.role)) {
     return { error: "Seu perfil não pode cadastrar carregadores nesta organização." };
   }
+  if (wantsInsecureWs && membership.role !== "owner") return { error: "Somente o dono da organização pode liberar ws sem criptografia." };
 
   const { data: site } = await supabase.from("sites").select("id").eq("id", siteId).eq("organization_id", organizationId).maybeSingle();
   if (!site) return { error: "O local selecionado não pertence a esta organização." };
@@ -171,15 +173,17 @@ export async function registerCharger(organizationId: string, _previous: FormSta
       authorization_mode: authorizationMode,
     },
     ocpp_credential_hash: credentialHash,
+    ...(wantsInsecureWs ? { allow_insecure_ws: true } : {}),
   });
   if (error) {
     if (error.code === "23505") return { error: "Esse ID OCPP já está cadastrado. Cada carregador precisa de um ID globalmente único." };
+    if (wantsInsecureWs && (error.code === "42703" || error.code === "PGRST204" || error.message.includes("allow_insecure_ws"))) return { error: "A opção ws ainda precisa do SQL 03 no Supabase." };
     if (error.code === "42703" || error.code === "PGRST204" || error.message.includes("ocpp_credential_hash")) return { error: "A migration 006 de perfis de carregadores ainda precisa ser aplicada no Supabase." };
     return { error: "Não foi possível cadastrar o carregador. Confira as permissões e os dados." };
   }
 
   revalidatePath("/");
-  return { success: "Carregador cadastrado.", credential, chargePointId };
+  return { success: "Carregador cadastrado.", credential, chargePointId, insecureWs: wantsInsecureWs };
 }
 
 export async function requestRemoteStart(organizationId: string, chargerId: string, _previous: FormState, _formData: FormData): Promise<FormState> {
@@ -575,4 +579,22 @@ export async function startSubscription(_previous: FormState, formData: FormData
     return { error: `Não foi possível abrir o pagamento agora. Tente novamente em instantes. (${caught instanceof Error ? caught.message : "erro"})` };
   }
   redirect(checkoutUrl);
+}
+
+export async function setChargerInsecureWs(organizationId: string, chargerId: string, enable: boolean): Promise<FormState> {
+  if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !/^[0-9a-f-]{36}$/i.test(chargerId)) return { error: "Organização ou carregador inválido." };
+  let supabase;
+  try { supabase = await createSupabaseServerClient(); }
+  catch { return { error: "Não foi possível conectar ao Supabase." }; }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Sua sessão expirou. Entre novamente para continuar." };
+  const { error } = await supabase.rpc("set_charger_insecure_ws", { p_organization_id: organizationId, p_charger_id: chargerId, p_enabled: enable });
+  if (error) {
+    if (error.message.includes("OWNER_REQUIRED")) return { error: "Somente o dono da organização pode mudar essa opção." };
+    if (error.message.includes("CHARGER_NOT_FOUND")) return { error: "Carregador não encontrado nesta organização." };
+    if (error.code === "PGRST202" || error.message.includes("set_charger_insecure_ws")) return { error: "A opção ws ainda precisa do SQL 03 no Supabase." };
+    return { error: "Não foi possível mudar a opção. Tente novamente." };
+  }
+  revalidatePath("/");
+  return { success: enable ? "ws liberado para este carregador." : "ws desligado. O carregador volta a exigir wss." };
 }

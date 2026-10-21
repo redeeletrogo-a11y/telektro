@@ -19,6 +19,7 @@ import {
   StatusNotificationSchema,
   StopTransactionSchema,
 } from "./protocol.js";
+import { requestTransport, transportAllowed } from "./transport.js";
 import { createSettlementRequester } from "./settlement.js";
 
 type ChargerRecord = {
@@ -29,20 +30,19 @@ type ChargerRecord = {
   removed_at?: string | null;
   connector_count?: number | null;
   capabilities?: Record<string, unknown> | null;
+  allow_insecure_ws?: boolean | null;
 };
 
 type PendingCommand = { charger: ChargerRecord; commandId: string; action: string; idTag?: string; userId: string | null; timeout: NodeJS.Timeout };
 type IdTagGrant = { chargerId: string; expiresAt: number; authorized: boolean; authorizationType: "RFID" | "REMOTE" | "APP" | "QR"; userId: string | null };
 
 const port = Number(process.env.OCPP_GATEWAY_PORT ?? 9000);
-const insecureWsEnabled = process.env.ENABLE_INSECURE_WS === "true";
-const insecureWsPort = Number(process.env.OCPP_INSECURE_WS_PORT ?? 9001);
 const insecureSockets = new WeakSet<WebSocket>();
 const developmentToken = process.env.OCPP_DEV_TOKEN;
 const connections = new Map<string, WebSocket>();
 const inboundMessageQueues = new Map<string, Promise<void>>();
 const socketChargers = new WeakMap<WebSocket, ChargerRecord | null>();
-const chargerConnections = new Map<string, { chargePointId: string; websocket: WebSocket; credentialHash: string | null }>();
+const chargerConnections = new Map<string, { chargePointId: string; websocket: WebSocket; credentialHash: string | null; insecure: boolean }>();
 const pendingCommands = new Map<string, PendingCommand>();
 const idTagGrants = new Map<string, IdTagGrant>();
 const heartbeatSeconds = Number(process.env.OCPP_HEARTBEAT_INTERVAL_SECONDS ?? 60);
@@ -73,9 +73,11 @@ function clientIp(request: IncomingMessage): string {
   return value?.split(",")[0]?.trim() || request.socket.remoteAddress || "unknown";
 }
 
-// TEMPORARY DIAGNOSTIC: `insecure` is true only for the plain ws:// listener (ENABLE_INSECURE_WS=true).
+// Plain ws:// (Fly port 80) is accepted only for chargers whose owner enabled allow_insecure_ws.
 // Credential authentication is identical on both transports; only the transport is unencrypted.
-async function handleUpgradeRequest(request: IncomingMessage, socket: Duplex, head: Buffer, insecure: boolean) {
+async function handleUpgradeRequest(request: IncomingMessage, socket: Duplex, head: Buffer) {
+  const transport = requestTransport(request.headers);
+  const insecure = transport === "ws";
   const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
   const chargePointId = url.pathname.match(/^\/ocpp\/([A-Za-z0-9._-]{1,64})$/)?.[1];
   const suppliedToken = request.headers["x-telektro-dev-token"];
@@ -85,7 +87,7 @@ async function handleUpgradeRequest(request: IncomingMessage, socket: Duplex, he
   if (chargePointId && registry) {
     try {
       const { data, error } = await registry.from("chargers")
-        .select("id, organization_id, site_id, ocpp_credential_hash, connector_count, capabilities, removed_at")
+        .select("id, organization_id, site_id, ocpp_credential_hash, connector_count, capabilities, removed_at, allow_insecure_ws")
         .eq("charge_point_id", chargePointId).is("removed_at", null).maybeSingle();
       if (error) throw error;
       charger = data as ChargerRecord | null;
@@ -96,6 +98,13 @@ async function handleUpgradeRequest(request: IncomingMessage, socket: Duplex, he
     } catch {
       console.error(JSON.stringify({ event: "ocpp.authentication_failed", chargePointId, reason: "registry_lookup_failed" }));
     }
+  }
+
+  if (charger && !isDevAuth && !transportAllowed(transport, charger.allow_insecure_ws)) {
+    socket.write("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
+    socket.destroy();
+    console.warn(JSON.stringify({ event: "ocpp.connection_rejected", chargePointId, reason: "insecure_ws_not_enabled_for_charger", insecure, ip: clientIp(request) }));
+    return;
   }
 
   if (!chargePointId || (!isDevAuth && !charger)) {
@@ -112,22 +121,7 @@ async function handleUpgradeRequest(request: IncomingMessage, socket: Duplex, he
   });
 }
 
-server.on("upgrade", (request, socket, head) => { void handleUpgradeRequest(request, socket, head, false); });
-
-if (insecureWsEnabled) {
-  console.warn(JSON.stringify({ event: "gateway.insecure_ws_enabled", port: insecureWsPort, warning: "TEMPORARY unencrypted ws:// diagnostic endpoint is ON" }));
-}
-const insecureServer = insecureWsEnabled
-  ? createServer((request, response) => {
-    // Attempts that are not a WebSocket upgrade are logged too, to show reachability from the charger.
-    console.warn(JSON.stringify({ event: "ocpp.insecure_http_request", method: request.method, url: request.url, ip: clientIp(request) }));
-    response.writeHead(404).end();
-  })
-  : null;
-insecureServer?.on("upgrade", (request, socket, head) => {
-  console.warn(JSON.stringify({ event: "ocpp.insecure_upgrade_attempt", url: request.url, ip: clientIp(request) }));
-  void handleUpgradeRequest(request, socket, head, true);
-});
+server.on("upgrade", (request, socket, head) => { void handleUpgradeRequest(request, socket, head); });
 
 sockets.on("connection", (websocket: WebSocket, request) => {
   const chargePointId = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`).pathname.split("/").at(-1)!;
@@ -135,10 +129,11 @@ sockets.on("connection", (websocket: WebSocket, request) => {
   if (previous && previous !== websocket) previous.close(1000, "Replaced by a new connection");
   connections.set(chargePointId, websocket);
   const charger = socketChargers.get(websocket) ?? null;
-  if (charger) chargerConnections.set(charger.id, { chargePointId, websocket, credentialHash: charger.ocpp_credential_hash });
+  if (charger) chargerConnections.set(charger.id, { chargePointId, websocket, credentialHash: charger.ocpp_credential_hash, insecure: insecureSockets.has(websocket) });
+  if (charger && registry) void Promise.resolve(registry.from("chargers").update({ last_transport: insecureSockets.has(websocket) ? "ws" : "wss" }).eq("id", charger.id)).then(({ error }) => { if (error) reportPersistenceFailure("last_transport", chargePointId, error); });
   void setOnline(charger, true).catch((error) => reportPersistenceFailure("connect", chargePointId, error));
   if (insecureSockets.has(websocket)) {
-    console.warn(JSON.stringify({ event: "ocpp.connected_insecure_ws", chargePointId, ip: clientIp(request), warning: "unencrypted ws:// diagnostic endpoint" }));
+    console.warn(JSON.stringify({ event: "ocpp.connected_insecure_ws", chargePointId, ip: clientIp(request), warning: "unencrypted ws:// connection (enabled by the owner for this charger)" }));
   } else {
     console.info(JSON.stringify({ event: "ocpp.connected", chargePointId }));
   }
@@ -883,7 +878,7 @@ function reportPersistenceFailure(action: string, chargePointId: string, error: 
 async function disconnectRemovedChargerConnections() {
   if (!registry || chargerConnections.size === 0) return;
   const chargerIds = [...chargerConnections.keys()];
-  const { data, error } = await registry.from("chargers").select("id, ocpp_credential_hash, removed_at")
+  const { data, error } = await registry.from("chargers").select("id, ocpp_credential_hash, removed_at, allow_insecure_ws")
     .in("id", chargerIds);
   if (error) {
     reportPersistenceFailure("removed_charger_disconnect_check", "gateway", error);
@@ -892,13 +887,13 @@ async function disconnectRemovedChargerConnections() {
   for (const row of data ?? []) {
     const connection = chargerConnections.get(row.id);
     if (!connection) continue;
-    const reason = row.removed_at ? "Charger removed" : row.ocpp_credential_hash !== connection.credentialHash ? "Credential rotated" : null;
+    const reason = row.removed_at ? "Charger removed" : row.ocpp_credential_hash !== connection.credentialHash ? "Credential rotated" : connection.insecure && row.allow_insecure_ws !== true ? "Plain ws disabled" : null;
     if (!reason) continue;
     chargerConnections.delete(row.id);
     if (connections.get(connection.chargePointId) === connection.websocket) connections.delete(connection.chargePointId);
     for (const [idTag, grant] of idTagGrants) if (grant.chargerId === row.id) idTagGrants.delete(idTag);
     if (connection.websocket.readyState === WebSocket.OPEN) connection.websocket.close(4001, reason);
-    console.info(JSON.stringify({ event: row.removed_at ? "ocpp.removed_charger_disconnected" : "ocpp.credential_rotated_disconnected", chargePointId: connection.chargePointId }));
+    console.info(JSON.stringify({ event: row.removed_at ? "ocpp.removed_charger_disconnected" : reason === "Plain ws disabled" ? "ocpp.insecure_ws_disabled_disconnected" : "ocpp.credential_rotated_disconnected", chargePointId: connection.chargePointId }));
   }
 }
 
@@ -928,7 +923,6 @@ async function startGateway() {
   await recoverInterruptedCommands();
   startupRecoveryComplete = true;
   setInterval(() => { void closeOrphanSessions(); }, 60_000).unref();
-  insecureServer?.listen(insecureWsPort, "0.0.0.0", () => console.warn(JSON.stringify({ event: "gateway.insecure_ws_started", port: insecureWsPort })));
   server.listen(port, "0.0.0.0", () => console.info(JSON.stringify({ event: "gateway.started", port, healthPath: "/health", ocppPath: "/ocpp/{chargePointId}" })));
 }
 
@@ -940,7 +934,6 @@ void startGateway().catch((error) => {
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
     sockets.close();
-    insecureServer?.close();
     server.close(() => process.exit(0));
   });
     }

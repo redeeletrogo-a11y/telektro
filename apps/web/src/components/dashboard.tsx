@@ -4,7 +4,7 @@ import { PixPay } from "@/components/pix-pay";
 import { offlineAlerts, sinceLabel } from "@/lib/charger-alert";
 import "./dashboard-theme.css";
 import { Outfit } from "next/font/google";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CondoBilling } from "@/components/condo-billing";
 import { ResidentsPanel, type Invite, type Resident, type ResidentTag } from "@/components/residents-panel";
@@ -12,12 +12,12 @@ import { Activity, ArrowRight, Building2, Car, Check, Clock3, Copy, LayoutDashbo
 import { EletropostoPainel, type EpPoint } from "@/components/eletroposto-painel";
 import { EletropostoRepasse } from "@/components/eletroposto-repasse";
 import { EletropostoVendas } from "@/components/eletroposto-vendas";
-import { createSite, getChargerClaim, registerCharger, registerRfidAuthorization, removeCharger, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, rotateChargerClaim, rotateChargerCredential, revokeChargerClaim, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
+import { createSite, getChargerClaim, registerCharger, setChargerInsecureWs, registerRfidAuthorization, removeCharger, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, rotateChargerClaim, rotateChargerCredential, revokeChargerClaim, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
 import QRCode from "qrcode";
 
 type Organization = { id: string; name: string; slug: string; account_type?: string; resident_limit?: number | null };
 type Site = { id: string; name: string; address: string | null; timezone: string; max_power_kw: number | null };
-type Charger = { id: string; site_id: string; charge_point_id: string; vendor: string | null; model: string | null; firmware: string | null; model_code: string | null; serial_number: string | null; connector_type: string | null; connector_count: number | null; installation_power_kw: number | null; ocpp_version: string | null; technical_specs: Record<string, unknown>; capabilities: Record<string, unknown>; max_power_kw: number | null; status: string; online: boolean; last_heartbeat_at: string | null; last_boot_at: string | null; last_status_notification_at: string | null; last_transaction_at: string | null; last_transaction_id: number | null; last_ocpp_error: string | null; removed_at: string | null; removed_by: string | null };
+type Charger = { allow_insecure_ws?: boolean; last_transport?: "wss" | "ws" | null; id: string; site_id: string; charge_point_id: string; vendor: string | null; model: string | null; firmware: string | null; model_code: string | null; serial_number: string | null; connector_type: string | null; connector_count: number | null; installation_power_kw: number | null; ocpp_version: string | null; technical_specs: Record<string, unknown>; capabilities: Record<string, unknown>; max_power_kw: number | null; status: string; online: boolean; last_heartbeat_at: string | null; last_boot_at: string | null; last_status_notification_at: string | null; last_transaction_at: string | null; last_transaction_id: number | null; last_ocpp_error: string | null; removed_at: string | null; removed_by: string | null };
 type ConnectorInfo = { id: string; organization_id: string; charger_id: string; connector_id: number; status: string; updated_at: string };
 type ChargerAuthorization = { id: string; charger_id: string; id_tag_hash: string; authorization_type: string; enabled: boolean; created_at: string };
 type ActiveSession = { id: string; charger_id: string; connector_id: number | null; started_at: string | null; start_meter_wh: number | null; ocpp_transaction_id: number | null; authorization_type: string | null; authorized_user_id: string | null };
@@ -75,7 +75,7 @@ function SiteForm({ organizationId }: { organizationId: string }) {
   </form>;
 }
 
-function ChargerForm({ organizationId, sites }: { organizationId: string; sites: Site[] }) {
+function ChargerForm({ organizationId, sites, isOwner }: { organizationId: string; sites: Site[]; isOwner: boolean }) {
   const [state, action, pending] = useActionState(registerCharger.bind(null, organizationId), initialState);
   const [copyFeedback, setCopyFeedback] = useState("");
   const [profile, setProfile] = useState("manual");
@@ -83,6 +83,8 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
   const gatewayBaseUrl = (process.env.NEXT_PUBLIC_OCPP_GATEWAY_BASE_URL ?? (process.env.NODE_ENV === "production" ? "wss://telektro-ocpp-gateway.fly.dev" : "ws://localhost:9000")).replace(/\/+$/, "");
   const serverUrl = gatewayBaseUrl ? `${gatewayBaseUrl}/ocpp` : null;
   const connectionUrl = gatewayBaseUrl && state.chargePointId ? `${gatewayBaseUrl}/ocpp/${state.chargePointId}` : null;
+  const wsBaseUrl = gatewayBaseUrl.replace(/^wss:/, "ws:");
+  const wsConnectionUrl = state.insecureWs && gatewayBaseUrl.startsWith("wss:") && state.chargePointId ? `${wsBaseUrl}/ocpp/${state.chargePointId}` : null;
   function chooseProfile(value: string) {
     setProfile(value);
     const empty = {
@@ -183,8 +185,9 @@ function ChargerForm({ organizationId, sites }: { organizationId: string; sites:
       </div>
     </fieldset>
     {(formValues.ocppVersion !== "1.6J" && formValues.ocppVersion !== "unknown") && <p className="form-help profile-note">O cadastro aceita esse equipamento para inventário, mas o gateway Telektro atual conecta somente carregadores OCPP 1.6J.</p>}
+    {isOwner && <label className="ws-option"><input type="checkbox" name="allow_insecure_ws"/> <span><strong>Permitir ws (sem criptografia) neste carregador</strong><small>Recomendado: deixe desligado e use wss. Ligue só se o modelo não suporta wss. Em ws a senha e os dados da recarga viajam sem criptografia e podem ser lidos ou alterados por quem estiver na rede do carregador. A senha deste carregador é exclusiva dele.</small></span></label>}
     {state.error && <p className="form-error" role="alert">{state.error}</p>}
-    {state.credential && <div className="credential-reveal"><strong>Credencial criada — copie agora</strong>{serverUrl && <span>Server URL base: <code>{serverUrl}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(serverUrl, "Server URL base")}>{copyFeedback.startsWith("Server URL base") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span>}{connectionUrl ? <span>Endpoint completo: <code>{connectionUrl}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(connectionUrl, "Endpoint completo")}>{copyFeedback.startsWith("Endpoint completo") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span> : <small>O endereço público do gateway OCPP ainda não foi configurado neste ambiente.</small>}<span>ID OCPP / usuário: <code>{state.chargePointId}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(state.chargePointId ?? "", "Usuário")}>{copyFeedback.startsWith("Usuário") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span><span>Senha: <code>{state.credential}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(state.credential ?? "", "Senha")}>{copyFeedback.startsWith("Senha") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span>{copyFeedback && <small role="status">{copyFeedback}</small>}<small>O WEMOB separa Server URL e Charge Box ID; outros equipamentos podem pedir o endpoint completo. Siga o formato do manual do modelo. A senha tem 40 caracteres hexadecimais. O Telektro guarda somente o hash e não a exibe novamente.</small></div>}
+    {state.credential && <div className="credential-reveal"><strong>Credencial criada — copie agora</strong>{serverUrl && <span>Server URL base: <code>{serverUrl}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(serverUrl, "Server URL base")}>{copyFeedback.startsWith("Server URL base") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span>}{wsConnectionUrl && <span>Endpoint ws (sem criptografia, só se o carregador não suportar wss): <code>{wsConnectionUrl}</code></span>}{connectionUrl ? <span>Endpoint completo: <code>{connectionUrl}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(connectionUrl, "Endpoint completo")}>{copyFeedback.startsWith("Endpoint completo") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span> : <small>O endereço público do gateway OCPP ainda não foi configurado neste ambiente.</small>}<span>ID OCPP / usuário: <code>{state.chargePointId}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(state.chargePointId ?? "", "Usuário")}>{copyFeedback.startsWith("Usuário") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span><span>Senha: <code>{state.credential}</code><button className="credential-copy" type="button" onClick={() => void copyCredential(state.credential ?? "", "Senha")}>{copyFeedback.startsWith("Senha") ? <Check size={12}/> : <Copy size={12}/>}Copiar</button></span>{copyFeedback && <small role="status">{copyFeedback}</small>}<small>O WEMOB separa Server URL e Charge Box ID; outros equipamentos podem pedir o endpoint completo. Siga o formato do manual do modelo. A senha tem 40 caracteres hexadecimais. O Telektro guarda somente o hash e não a exibe novamente.</small></div>}
     <button className="primary-button" disabled={pending}>{pending ? "Cadastrando…" : "Cadastrar carregador"}<ArrowRight size={14}/></button>
   </form>;
 }
@@ -328,7 +331,7 @@ export function Dashboard({
         </div> : activeNav === "Carregadores" ? <div className="site-management charger-management">
           <section className="charge-hero charge-banner">{liveBadge}<h2>{onlineChargers ? `${onlineChargers} carregador(es) online` : "Pronto para carregar"}</h2><p>{activeSessions ? `${activeSessions} recarga(s) em andamento` : "Toque em iniciar no carregador desejado."}</p></section>
           <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Carregadores cadastrados</h2><div className="panel-kicker">{chargers.length} equipamento(s) ativos nesta organização</div></div><PlugZap size={17}/></div><ChargerList chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} siteNames={siteNames} organizationId={organization.id} canControl={canControlChargers} canManage={canManageChargers} isOwner={role === "owner"} activeSessionChargerIds={new Set(sessionRows.map((session) => session.charger_id))} now={clockNow}/></section>
-          {canManageChargers ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Provisionar carregador</h2><div className="panel-kicker">Crie uma credencial individual para autenticação OCPP.</div></div></div><ChargerForm organizationId={organization.id} sites={sites}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner, admin ou technician para cadastrar carregadores.</p></section>}
+          {canManageChargers ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Provisionar carregador</h2><div className="panel-kicker">Crie uma credencial individual para autenticação OCPP.</div></div></div><ChargerForm organizationId={organization.id} sites={sites} isOwner={role === "owner"}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner, admin ou technician para cadastrar carregadores.</p></section>}
         </div> : <SessionList sessions={sessionRows} completedSessions={completedSessionRows} meterReadings={meterReadings} chargers={[...chargers, ...removedChargers]} siteNames={siteNames} now={clockNow}
           organizationId={organization.id} canControl={canControlChargers} commands={commandRows}/>}
         <p className="footnote">Dados atualizados automaticamente a cada 20 s enquanto a página está aberta. Última consulta: {clockNow ? new Date(dataLoadedAt).toLocaleTimeString("pt-BR") : "carregando"}. Leituras OCPP podem chegar com atraso.</p>
@@ -411,6 +414,22 @@ function SiteList({ sites }: { sites: Site[] }) {
   return <div className="site-list">{sites.map((site) => <article className="panel site-row" key={site.id}><div className="site-row-icon"><MapPin size={16}/></div><div className="site-row-main"><strong>{site.name}</strong><span>{site.address || "Endereço não informado"}</span></div><div className="site-row-meta"><span>Capacidade</span><strong>{site.max_power_kw ? `${Number(site.max_power_kw).toLocaleString("pt-BR")} kW` : "Não definida"}</strong></div><div className="site-row-meta"><span>Fuso horário</span><strong>{site.timezone}</strong></div></article>)}</div>;
 }
 
+function ChargerWsControl({ charger, organizationId }: { charger: Charger; organizationId: string }) {
+  const [confirming, setConfirming] = useState(false);
+  const [message, setMessage] = useState("");
+  const [pending, startTransition] = useTransition();
+  const enabled = charger.allow_insecure_ws === true;
+  function apply(next: boolean) {
+    startTransition(async () => { const result = await setChargerInsecureWs(organizationId, charger.id, next); setMessage(result.error ?? result.success ?? ""); setConfirming(false); });
+  }
+  return <div className="charger-quick-credential ws-control"><strong>Conexão ws sem criptografia</strong>
+    <small>{enabled ? "Liberada. Use wss sempre que o carregador permitir; ws expõe a senha e os dados da recarga na rede." : "Desligada. O carregador só conecta por wss (recomendado)."}{charger.last_transport ? ` Última conexão: ${charger.last_transport}.` : ""}</small>
+    {!confirming && <button type="button" className="secondary-button" onClick={() => { setMessage(""); if (enabled) apply(false); else setConfirming(true); }} disabled={pending}>{enabled ? "Desligar ws" : "Liberar ws"}</button>}
+    {confirming && <div className="ws-confirm" role="alertdialog" aria-label="Liberar ws sem criptografia"><p>Em ws a senha e os dados da recarga não são criptografados e podem ser lidos ou alterados por quem controla a rede entre o carregador e a internet. Libere só se este modelo não suporta wss.</p><button type="button" className="primary-button" onClick={() => apply(true)} disabled={pending}>Entendi, liberar ws</button><button type="button" className="secondary-button" onClick={() => setConfirming(false)}>Cancelar</button></div>}
+    {message && <small role="status">{message}</small>}
+  </div>;
+}
+
 function ChargerList({ chargers, removedChargers, connectors, authorizations, siteNames, organizationId, canControl, canManage, isOwner, activeSessionChargerIds, now }: { chargers: Charger[]; removedChargers: Charger[]; connectors: ConnectorInfo[]; authorizations: ChargerAuthorization[]; siteNames: Map<string, string>; organizationId: string; canControl: boolean; canManage: boolean; isOwner: boolean; activeSessionChargerIds: Set<string>; now: number }) {
   const [showRemoved, setShowRemoved] = useState(false);
   return <><div className="charger-tabs" role="tablist" aria-label="Situação dos carregadores">
@@ -440,6 +459,8 @@ function ChargerList({ chargers, removedChargers, connectors, authorizations, si
       {compatibilityPending && <span className="status-badge attention">Protocolo ainda não suportado</span>}
       {canControl && <ChargerControl charger={charger} connectors={chargerConnectors} organizationId={organizationId}/>}
       {isOwner && <div className="charger-quick-credential"><strong>Credencial do carregador</strong><ChargerCredentialControl charger={charger} organizationId={organizationId}/><small id={`charger-credential-warning-${charger.id}`}>Ao confirmar, a senha atual deixa de funcionar e o carregador desconecta.</small></div>}
+      {charger.allow_insecure_ws && <span className="status-badge attention">ws sem criptografia liberado</span>}
+      {isOwner && <ChargerWsControl charger={charger} organizationId={organizationId}/>}
       {isOwner && <div className="charger-quick-credential"><strong>QR de provisionamento</strong><ChargerClaimControl charger={charger} organizationId={organizationId}/><small>Quem escanear o QR e confirmar passa a ser o dono do carregador no Telektro. Gere o QR só na hora da entrega.</small></div>}
       <details className="charger-more"><summary>Detalhes e configuração</summary>
       {profileDetails && <small className="charger-profile-details">{[charger.vendor, charger.model].filter(Boolean).join(" · ")}{[charger.vendor, charger.model].filter(Boolean).length ? " · " : ""}{profileDetails}</small>}
