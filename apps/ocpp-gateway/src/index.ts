@@ -19,6 +19,7 @@ import {
   StatusNotificationSchema,
   StopTransactionSchema,
 } from "./protocol.js";
+import { createSettlementRequester } from "./settlement.js";
 
 type ChargerRecord = {
   id: string;
@@ -51,6 +52,7 @@ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const registry = supabaseUrl && serviceRoleKey
   ? createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } })
   : null;
+const settlement = createSettlementRequester({ log: (event, data) => console.warn(JSON.stringify({ event, ...data })) });
 let pollingCommands = false;
 let startupRecoveryComplete = false;
 
@@ -364,6 +366,7 @@ async function persistCall(charger: ChargerRecord | null, action: string, payloa
     if (diagnosticsError) reportPersistenceFailure("stop_transaction_diagnostics", charger.id, diagnosticsError);
     try { await reconcileCommandFromOperation(charger, "RemoteStopTransaction", "transactionId", String(parsed.transactionId), "StopTransaction"); }
     catch (error) { reportPersistenceFailure("stop_command_reconciliation", charger.id, error); }
+    settlement.request(); // liquida logo (cobra o consumo e devolve a sobra); se falhar, a varredura diaria resolve
     return { idTagInfo: { status: "Accepted" } };
   }
 
@@ -916,12 +919,7 @@ async function closeOrphanSessions() {
     if (error) { reportPersistenceFailure("close_orphan_sessions", "gateway", error); return; }
     if (Number(data) > 0) {
       console.warn(JSON.stringify({ event: "ocpp.orphan_sessions_closed", count: Number(data) }));
-      // Opcional: pede a liquidacao (devolucao) na hora, se SWEEP_URL e CRON_SECRET estiverem definidos no gateway.
-      const sweepUrl = process.env.SWEEP_URL;
-      const cronSecret = process.env.CRON_SECRET;
-      if (sweepUrl && cronSecret) {
-        await fetch(sweepUrl, { headers: { authorization: `Bearer ${cronSecret}` }, signal: AbortSignal.timeout(20000) }).catch(() => undefined);
-      }
+      settlement.request();
     }
   } finally { closingOrphans = false; }
 }
