@@ -24,6 +24,12 @@ kill_timeout = "30s"
     port = 443
     handlers = ["http", "tls"]
 
+  # Port 80: plain ws:// for chargers that cannot do TLS. No https redirect on purpose.
+  # The gateway refuses it (403) unless the owner enabled allow_insecure_ws for that charger.
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
   [[services.http_checks]]
     grace_period = "20s"
     interval = "30s"
