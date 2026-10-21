@@ -411,3 +411,4 @@ html[data-theme="light"] .app-shell .offline-alert { border-color: rgb(200 60 40
 html[data-theme="light"] .app-shell .offline-alert { background: #fff1ef; }
 .app-shell .offline-alert li > span, .app-shell .offline-alert li > small { color: inherit !important; }
 html[data-theme="light"] .app-shell .offline-alert li > span, html[data-theme="light"] .app-shell .offline-alert li > small { color: #8a1f12 !important; }
+.app-shell .offline-alert li > span, .app-shell .offline-alert li > small { color: #ffc9c1 !important; }
