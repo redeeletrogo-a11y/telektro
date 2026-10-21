@@ -652,3 +652,8 @@ body:has(.auth-page) .pwa-install-button { display: none; }
 .ep-dark .ep-primary { background: #1fcf94; color: #04251d; box-shadow: none; }
 .ep-state .secondary-button { height: 50px; font-size: 15px; font-weight: 700; border-radius: 14px; border: 1px solid #cfd9dc; background: #fff; color: #1c3039; cursor: pointer; }
 .ep-dark .secondary-button { background: transparent; color: #e6f5ef; border-color: rgb(255 255 255 / 30%); }
+.offline-alert { margin-bottom: 14px; padding: 12px 14px; border: 1px solid #f1b9b1; border-radius: 10px; background: #fff1ef; color: #8a1f12; font-size: 13px; }
+.offline-alert strong { display: block; margin-bottom: 6px; font-size: 14px; }
+.offline-alert ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.offline-alert li { display: flex; flex-direction: column; gap: 1px; } .offline-alert li span { font-weight: 700; } .offline-alert small { font-size: 12px; opacity: .9; }
+.offline-alert p { margin: 8px 0 0; font-size: 12px; line-height: 1.45; opacity: .85; }

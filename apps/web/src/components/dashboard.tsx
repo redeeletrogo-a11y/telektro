@@ -1,6 +1,7 @@
 "use client";
 
 import { PixPay } from "@/components/pix-pay";
+import { offlineAlerts, sinceLabel } from "@/lib/charger-alert";
 import "./dashboard-theme.css";
 import { Outfit } from "next/font/google";
 import { useActionState, useEffect, useRef, useState } from "react";
@@ -257,6 +258,7 @@ export function Dashboard({
   const moreActive = mobileMore.some((item) => item.name === activeNav);
   const canManageChargers = role === "owner" || role === "admin" || role === "technician";
   const canControlChargers = role === "owner" || role === "admin" || role === "operator" || role === "technician";
+  const offline = offlineAlerts(chargers, sessionRows.map((session) => session.charger_id), clockNow);
   const siteNames = new Map(sites.map((site) => [site.id, site.name]));
   const startedTimes = sessionRows.map((session) => session.started_at ? new Date(session.started_at).getTime() : Number.NaN).filter(Number.isFinite);
   const liveElapsed = elapsedLabel(startedTimes.length ? Math.min(...startedTimes) : null, clockNow);
@@ -306,6 +308,7 @@ export function Dashboard({
       <div className="page-wrap">
         {trialDaysLeft !== null && <div className="trial-banner" role="status"><span>Teste grátis: {trialDaysLeft} dia(s) restante(s). Depois, plano Condomínio R$ 199,00/mês (até 5 moradores, +R$ 19,90 por morador extra, +1% da energia do mês anterior).</span>{canManageSites && <PixPay organizationId={organization.id}/>}</div>}
         {pixDueDays !== null && pixDueDays <= 5 && <div className="trial-banner" role="status"><span>{pixDueDays >= 0 ? `Sua mensalidade Pix vence em ${pixDueDays} dia(s).` : `Mensalidade Pix vencida. Pague em até ${Math.max(0, 3 + pixDueDays)} dia(s) para não perder o acesso.`}</span>{canManageSites && <PixPay organizationId={organization.id} label="Gerar Pix do próximo mês"/>}</div>}
+        {offline.length > 0 && <div className="offline-alert" role="alert"><strong>{offline.length === 1 ? "1 carregador sem sinal" : `${offline.length} carregadores sem sinal`}</strong><ul>{offline.map((item) => <li key={item.id}><span>{item.name}</span><small>sem sinal há {sinceLabel(item.minutes)} (último sinal {new Date(item.since).toLocaleString("pt-BR")}){item.hasOpenSession ? ". Há recarga aberta nele" : ""}</small></li>)}</ul><p>O painel só mostra o aviso. Confira energia e internet do carregador. A recarga aberta é fechada e cobrada pelo último consumo medido depois de um tempo sem sinal.</p></div>}
         <div className="dash-hello"><h1>{activeNav === "Visão geral" ? organization.name : activeNav}</h1><span className="role-chip">{role}</span></div>
 
         {activeNav === "Visão geral" ? <>
