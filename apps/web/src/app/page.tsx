@@ -118,7 +118,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   }
 
   const sites = (sitesResult.data ?? []) as Site[];
-  const chargers = (chargerListResult.data ?? []) as Charger[];
+  const transportResult = await supabase.from("chargers").select("id, allow_insecure_ws, last_transport").eq("organization_id", activeOrganization.id).is("removed_at", null);
+  const transportById = new Map((transportResult.error ? [] : transportResult.data ?? []).map((row) => [row.id as string, row]));
+  const chargers = ((chargerListResult.data ?? []) as Charger[]).map((item) => ({ ...item, allow_insecure_ws: transportById.get(item.id)?.allow_insecure_ws === true, last_transport: (transportById.get(item.id)?.last_transport as "wss" | "ws" | null | undefined) ?? null }));
   const removedChargers = (removedChargersResult.data ?? []) as Charger[];
   const connectors = (connectorResult.data ?? []) as Connector[];
   const authorizations = (authorizationResult.data ?? []) as ChargerAuthorization[];
