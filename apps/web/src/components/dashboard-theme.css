@@ -407,3 +407,7 @@ html[data-theme="light"] .app-shell .charger-quick-credential > strong { color: 
 html[data-theme="light"] .app-shell .charger-quick-credential > small { color: #5b7a6e; }
 .app-shell .offline-alert { border: 1px solid rgb(255 107 90 / 35%); border-radius: 14px; color: #ffc9c1; background: rgb(255 107 90 / 10%); }
 html[data-theme="light"] .app-shell .offline-alert { border-color: rgb(200 60 40 / 30%); color: #8a1f12; background: rgb(255 107 90 / 9%); }
+.app-shell .offline-alert strong, .app-shell .offline-alert li span, .app-shell .offline-alert small, .app-shell .offline-alert p { color: inherit; }
+html[data-theme="light"] .app-shell .offline-alert { background: #fff1ef; }
+.app-shell .offline-alert li > span, .app-shell .offline-alert li > small { color: inherit !important; }
+html[data-theme="light"] .app-shell .offline-alert li > span, html[data-theme="light"] .app-shell .offline-alert li > small { color: #8a1f12 !important; }
