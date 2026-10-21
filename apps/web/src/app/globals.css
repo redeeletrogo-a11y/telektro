@@ -657,3 +657,4 @@ body:has(.auth-page) .pwa-install-button { display: none; }
 .offline-alert ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
 .offline-alert li { display: flex; flex-direction: column; gap: 1px; } .offline-alert li span { font-weight: 700; } .offline-alert small { font-size: 12px; opacity: .9; }
 .offline-alert p { margin: 8px 0 0; font-size: 12px; line-height: 1.45; opacity: .85; }
+@media (max-width: 720px) { body:has(.ep-page) .pwa-install-button { display: none; } }
