@@ -116,6 +116,9 @@ As migrations ficam em `supabase/migrations` (e os pequenos arquivos numerados p
 | 9 | 202610200027 a e b | Sessão órfã (`telektro_close_orphan_sessions`, colunas `late_stop_*`) | V |
 | 10 | 202610200028 (docs/sql/02) | Livro de repasses (`eletroposto_payouts`) | V |
 | 11 | 202610210029 (docs/sql/03) | ws opcional (`allow_insecure_ws`, `last_transport`, `charger_transport_events`, função `set_charger_insecure_ws`, trigger) | V (testado com org fictícia) |
+| 12 | 202610210030 | Grants explícitos mínimos (regra do Supabase de 30/10/2026: tabela nova não ganha grant automático). Em produção só repete o que já existe. | Só no repositório; **não precisa colar no banco** (opcional, é idempotente) |
+
+**Regra para tabela nova:** `CREATE TABLE` + grants mínimos + RLS na mesma entrega. Nunca `GRANT ALL`, nunca conceder a `anon`, e `chargers` nunca é lida inteira por `authenticated` (leitura por coluna, sem `ocpp_credential_hash` e `claim_token`).
 
 Nunca reaplicar arquivo já aplicado. Para criar o ponto de um eletroposto novo, usar o `insert` documentado em `eletroposto-piloto.md`.
 

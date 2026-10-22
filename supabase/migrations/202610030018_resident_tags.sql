@@ -93,3 +93,6 @@ end $$;
 drop trigger if exists memberships_resident_tags on public.memberships;
 create trigger memberships_resident_tags after delete on public.memberships
   for each row execute function public.resident_tags_on_resident_removed();
+
+-- Grant explicito (Supabase deixa de conceder automaticamente em tabelas novas a partir de 30/10/2026).
+grant select on public.resident_tags to authenticated;
