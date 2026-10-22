@@ -31,3 +31,6 @@ revoke insert, update, delete on public.pix_charges from anon, authenticated;
 
 -- Nota: assinantes Pix ficam com subscription_status = 'past_due' e subscription_provider = 'mercadopago_pix';
 -- o acesso vem de current_period_end (fim do periodo pago + 3 dias de carencia) via org_has_access().
+
+-- Grant explicito (Supabase deixa de conceder automaticamente em tabelas novas a partir de 30/10/2026).
+grant select on public.pix_charges to authenticated;
