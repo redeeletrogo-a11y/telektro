@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { StartForm } from "@/components/eletroposto-start";
+import { ResumeBanner } from "@/components/eletroposto-resume";
 import { getPointInfo, isValidCode } from "@/lib/eletroposto";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,7 @@ export default async function ChargePage({ params }: { params: Promise<{ code: s
     <details className="ep-help"><summary aria-label="Como funciona">?</summary><p>Escolha o valor, pague e conecte o carro. A recarga começa sozinha e você acompanha nesta página. Só o consumo medido é cobrado; o que sobrar volta para você.</p></details></div>;
   return <main className="ep-page"><div className="ep-wrap">
     {brand}
+    {isValidCode(code) && <ResumeBanner code={code}/>}
     {!info ? <section className="ep-card"><h1>Ponto não encontrado</h1><p className="ep-sub">Confira o QR Code do carregador.</p></section> : <>
       <header className="ep-hero"><div><p className="ep-eyebrow">RECARGA SEM APP</p><h1>{info.siteName || info.chargerName}</h1>
         <p className="ep-meta">Carregador {info.chargerName} · Conector {info.connectorId}<br/>{info.pricePerKwh ? `R$ ${info.pricePerKwh.toFixed(2).replace(".", ",")}/kWh` : "Tarifa não definida"}</p></div>

@@ -658,3 +658,7 @@ body:has(.auth-page) .pwa-install-button { display: none; }
 .offline-alert li { display: flex; flex-direction: column; gap: 1px; } .offline-alert li span { font-weight: 700; } .offline-alert small { font-size: 12px; opacity: .9; }
 .offline-alert p { margin: 8px 0 0; font-size: 12px; line-height: 1.45; opacity: .85; }
 @media (max-width: 720px) { body:has(.ep-page) .pwa-install-button { display: none; } }
+
+.ep-resume { margin: 0 0 14px; text-align: center; }
+.ep-resume .ep-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
+.ep-keep { display: grid; gap: 6px; margin-top: 14px; text-align: center; }
