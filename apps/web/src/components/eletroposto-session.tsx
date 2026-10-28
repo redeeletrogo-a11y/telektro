@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BatteryCharging, Car, Clock, Copy, Info, ReceiptText, ShieldCheck, Zap } from "lucide-react";
 import { eletropostoStatus, eletropostoStop } from "@/app/carregar/actions";
 import type { PublicStatus } from "@/lib/eletroposto";
+import { ACTIVE_STATUSES, clearActiveSession, saveActiveSession } from "@/lib/eletroposto-resume";
 import { brl, dateTime, duration, kwhText, maxKwh } from "@/lib/eletroposto-format";
 
 const FINAL = ["settled", "expired", "review"];
@@ -11,6 +12,7 @@ const FINAL = ["settled", "expired", "review"];
 export function SessionView({ token, initial }: { token: string; initial: PublicStatus }) {
   const [s, setS] = useState(initial);
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [message, setMessage] = useState("");
   useEffect(() => {
     if (FINAL.includes(s.status)) return;
@@ -20,6 +22,16 @@ export function SessionView({ token, initial }: { token: string; initial: Public
     }, 5000);
     return () => window.clearInterval(timer);
   }, [token, s.status]);
+
+  // Guarda o link so neste navegador enquanto a recarga esta ativa; ao terminar, limpa.
+  useEffect(() => {
+    if (ACTIVE_STATUSES.includes(s.status)) saveActiveSession(s.pointCode, token);
+    else clearActiveSession(s.pointCode);
+  }, [s.status, s.pointCode, token]);
+
+  async function copyLink() {
+    try { await navigator.clipboard.writeText(`${window.location.origin}/carregar/pagamento/${token}`); setLinkCopied(true); } catch { setLinkCopied(false); }
+  }
 
   async function stop() {
     const { result } = await eletropostoStop(token);
@@ -101,5 +113,7 @@ export function SessionView({ token, initial }: { token: string; initial: Public
     </div>}
     {s.status === "expired" && <><h1>Pagamento não concluído</h1><p className="login-description">O pagamento não foi concluído a tempo. Escaneie o QR Code do carregador para tentar de novo. Se pagou e o valor não voltou, fale com o suporte.</p></>}
     {s.status === "review" && <><h1>Em análise</h1><p className="login-description">Detectamos uma leitura incomum do medidor. O responsável vai conferir e ajustar o valor. Guarde este link.</p></>}
+    {ACTIVE_STATUSES.includes(s.status) && <div className="ep-keep"><button className="secondary-button" type="button" onClick={copyLink}><Copy size={16} aria-hidden="true"/> {linkCopied ? "Link copiado" : "Copiar link da recarga"}</button>
+      <small className="field-help">Guarde este link. Se fechar a página, abra-o de novo para acompanhar. Neste aparelho, escanear o QR do carregador também leva de volta.</small></div>}
   </div>;
 }
