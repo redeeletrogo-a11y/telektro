@@ -80,7 +80,7 @@
 .lp-foot { padding-bottom: 96px; }
 
 .lp-loc { display:grid; gap:20px; }
-.lp-loc-photo { aspect-ratio:16/10; border:1px dashed var(--lp-line); border-radius:14px; background:var(--lp-bg); display:grid; place-items:center; place-content:center; gap:8px; color:var(--lp-mut); font-size:13px; }
+.lp-loc-photo { width:100%; aspect-ratio:16/10; object-fit:cover; border-radius:14px; border:1px solid var(--lp-line); display:block; }
 .lp-loc-addr { display:flex; align-items:center; gap:6px; color:var(--lp-mut); font-size:14px; margin:0 0 4px; }
 .lp-loc-note { font-weight:700; margin:0 0 14px; }
 .lp-loc-cta { display:flex; flex-wrap:wrap; gap:10px; }
