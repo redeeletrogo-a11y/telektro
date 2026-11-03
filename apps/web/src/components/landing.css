@@ -85,3 +85,4 @@
 .lp-loc-note { font-weight:700; margin:0 0 14px; }
 .lp-loc-cta { display:flex; flex-wrap:wrap; gap:10px; }
 @media (min-width:760px){ .lp-loc { grid-template-columns:320px 1fr; align-items:start; } }
+@media (max-width:380px){ .lp-loc-cta .lp-btn { font-size:13px; padding:0 14px; gap:6px; } }
