@@ -112,7 +112,7 @@ export function Landing() {
           <h2>Onde carregar</h2>
           <p className="lp-sub">Pontos de recarga que usam o Telektro. O primeiro fica em Nísia Floresta/RN.</p>
           <article className="lp-card lp-loc">
-            <img className="lp-loc-photo" src="/eletropostos-unifarma-barreta.webp" alt="Fachada da farmácia UniFarma Barreta, em Nísia Floresta/RN, com o carregador Telektro na parede" loading="lazy"/>
+            <img className="lp-loc-photo" src="/eletropostos-unifarma-barreta.webp" alt="Carregador do eletroposto Unifarma Barreta com a placa Recarga sem app da Telektro" loading="lazy"/>
             <div>
               <h3 style={{marginTop:0}}>Eletroposto Unifarma Barreta</h3>
               <p className="lp-loc-addr"><MapPin size={15} aria-hidden="true"/> Av. Beira Mar, Barreta, Nísia Floresta/RN · na farmácia UniFarma</p>
