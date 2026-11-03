@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { ArrowRight, Building2, Check, Gauge, Home, PlugZap, QrCode, ShieldCheck, Smartphone, Zap } from "lucide-react";
+import { ArrowRight, Building2, Check, Gauge, Home, MapPin, MessageCircle, Navigation, PlugZap, QrCode, ShieldCheck, Smartphone, Zap } from "lucide-react";
 import { HeroCarousel } from "./hero-carousel";
 import { WhatsAppButton } from "./whatsapp-button";
-import { COMPANY_NOTE, SITE_DESCRIPTION, SITE_URL, WHATSAPP_NUMBER } from "@/lib/site";
+import { COMPANY_NOTE, SITE_DESCRIPTION, SITE_URL, WHATSAPP_NUMBER, whatsappUrl } from "@/lib/site";
 import "./landing.css";
 
 const check = <Check size={16} aria-hidden="true"/>;
@@ -40,7 +40,7 @@ export function Landing() {
             <svg viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" fill="#0f776c"/><path fill="#fff" d="M112 118h288v78H300v198h-88V196h-100z"/><path fill="#bcebd1" d="m278 224-79 112h55l-23 90 91-132h-59l34-70z"/></svg>
             TELEKTRO
           </Link>
-          <nav className="lp-links" aria-label="Seções"><a href="#como">Como funciona</a><a href="#solucoes">Soluções</a><a href="#planos">Planos</a></nav>
+          <nav className="lp-links" aria-label="Seções"><a href="#como">Como funciona</a><a href="#solucoes">Soluções</a><a href="#planos">Planos</a><a href="#onde-carregar">Onde carregar</a></nav>
           <Link href="/login" className="lp-btn ghost">Entrar</Link>
         </div>
       </header>
@@ -107,6 +107,28 @@ export function Landing() {
             ))}
           </div>
           <p className="lp-fine"><ShieldCheck size={14} style={{verticalAlign:"-2px"}}/> Taxas do gateway de pagamento não estão incluídas. Dados de cada cliente ficam isolados.</p>
+        </div></section>
+        <section id="onde-carregar" className="lp-sec"><div className="lp-wrap">
+          <h2>Onde carregar</h2>
+          <p className="lp-sub">Pontos de recarga que usam o Telektro. O primeiro fica em Nísia Floresta/RN.</p>
+          <article className="lp-card lp-loc">
+            <img className="lp-loc-photo" src="/eletropostos-unifarma-barreta.webp" alt="Carregador do eletroposto Unifarma Barreta com a placa Recarga sem app da Telektro" loading="lazy"/>
+            <div>
+              <h3 style={{marginTop:0}}>Eletroposto Unifarma Barreta</h3>
+              <p className="lp-loc-addr"><MapPin size={15} aria-hidden="true"/> Av. Beira Mar, Barreta, Nísia Floresta/RN · na farmácia UniFarma</p>
+              <ul className="lp-feat">
+                <li>{check}<span>1 conector Tipo 2, até 7 kW</span></li>
+                <li>{check}<span>Recarga sem app: pague por Pix ou cartão</span></li>
+                <li>{check}<span>Tarifa atual: R$ 2,00 por kWh</span></li>
+              </ul>
+              <p className="lp-loc-note">Combine pelo WhatsApp antes de ir, inclusive à noite.</p>
+              <div className="lp-loc-cta">
+                <a className="lp-btn primary" href="https://www.google.com/maps/search/?api=1&query=UniFarma+Barreta&query_place_id=ChIJD89MdpSNsgcRL-wR-Lb07uE" target="_blank" rel="noopener noreferrer"><Navigation size={16}/> Como chegar</a>
+                <a className="lp-btn ghost" href={whatsappUrl("Olá! Quero combinar uma recarga no eletroposto Unifarma Barreta.")} target="_blank" rel="noopener noreferrer"><MessageCircle size={16}/> Combinar pelo WhatsApp</a>
+              </div>
+              <p className="lp-fine">Também no <a href="https://www.plugshare.com/location/2344243" target="_blank" rel="noopener noreferrer" style={{color:"var(--lp-acc)"}}>PlugShare</a>.</p>
+            </div>
+          </article>
         </div></section>
         <section id="eletroposto-e-carregador" className="lp-sec lp-seo"><div className="lp-wrap">
           <h2>Gestão de eletroposto e carregador elétrico</h2>
