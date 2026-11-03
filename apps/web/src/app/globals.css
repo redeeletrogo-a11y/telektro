@@ -662,3 +662,4 @@ body:has(.auth-page) .pwa-install-button { display: none; }
 .ep-resume { margin: 0 0 14px; text-align: center; }
 .ep-resume .ep-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
 .ep-keep { display: grid; gap: 6px; margin-top: 14px; text-align: center; }
+@media (max-width:560px){ .pwa-install-button { width:44px; height:44px; padding:0; justify-content:center; } .pwa-install-button span { display:none; } }
