@@ -71,7 +71,7 @@ export function SessionView({ token, initial }: { token: string; initial: Public
         <div><span>Tarifa</span><strong>{brl(s.pricePerKwh)}/kWh</strong></div>
         <p><ShieldCheck size={16} aria-hidden="true"/> Você paga apenas o consumo realizado.</p></div>
       <div className="ep-info"><Info size={18} aria-hidden="true"/><p>{back}</p></div>
-      <p className="ep-next"><Car size={18} aria-hidden="true"/> Mantenha o veículo conectado.</p>
+      <p className="ep-next"><Car size={18} aria-hidden="true"/> Pegue o cabo, conecte no seu veículo e aguarde a liberação.</p>
     </div>}
     {s.status === "charging" && <div className="ep-pixscreen">
       <p className="eyebrow">CARREGANDO</p>
