@@ -46,6 +46,8 @@ export function SessionView({ token, initial }: { token: string; initial: Public
   const pct = s.cap > 0 ? Math.min(100, Math.round((spent / s.cap) * 100)) : 0;
   const max = maxKwh(s.cap, s.pricePerKwh);
   const back = card ? "A parte não usada da reserva é liberada no cartão." : "O que não for usado volta no mesmo Pix.";
+  // Janela real de inicio: o comando ao carregador expira em 5 min (gateway, transaction_confirmation_timeout). Apos isso a tentativa ja era; a tela nao pode mandar conectar.
+  const startWindowOpen = s.paidAt ? Date.now() - new Date(s.paidAt).getTime() < 5 * 60 * 1000 : true;
   const dark = ["paid", "starting", "charging", "settling"].includes(s.status) || (s.status === "settled" && s.failure !== "start");
   return <div className={dark ? "login-form ep-dark" : "login-form"}>
     {showSteps && <ol className="ep-steps" aria-label="Etapas da recarga">
@@ -71,7 +73,7 @@ export function SessionView({ token, initial }: { token: string; initial: Public
         <div><span>Tarifa</span><strong>{brl(s.pricePerKwh)}/kWh</strong></div>
         <p><ShieldCheck size={16} aria-hidden="true"/> Você paga apenas o consumo realizado.</p></div>
       <div className="ep-info"><Info size={18} aria-hidden="true"/><p>{back}</p></div>
-      <p className="ep-next"><Car size={18} aria-hidden="true"/> Pegue o cabo, conecte no seu veículo e aguarde a liberação.</p>
+      <p className="ep-next"><Car size={18} aria-hidden="true"/> {startWindowOpen ? "Pegue o cabo, conecte no seu veículo e aguarde a liberação." : card ? "Se a recarga não começou, a reserva é liberada automaticamente no cartão." : "Se a recarga não começou, o valor volta automaticamente no mesmo Pix."}</p>
     </div>}
     {s.status === "charging" && <div className="ep-pixscreen">
       <p className="eyebrow">CARREGANDO</p>
