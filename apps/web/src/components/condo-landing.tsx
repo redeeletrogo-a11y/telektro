@@ -50,7 +50,7 @@ function DemandBar({ cars, controlled, label }: { cars: number[]; controlled?: b
           <text key={i} x={bar.x + (bar.kw * scale) / 2} y="54" fill={controlled ? "#04201b" : "#0e1a21"} fontSize="10" textAnchor="middle">Carro {i + 1}</text>
         ))}
         <text x={10 + limit * scale} y="18" fill={controlled ? "#2fd3b8" : "#ff6b6b"} fontSize="10" textAnchor="middle">Limite</text>
-        <text x="10" y="96" fill="#93a6ad" fontSize="11">Total: {total} kW de {limit} kW{controlled ? " — dentro do limite" : " — acima do limite"}</text>
+        <text x="10" y="96" fill="#93a6ad" fontSize="11">Total: {total} kW de {limit} kW{controlled ? " - dentro do limite" : " - acima do limite"}</text>
       </svg>
       <figcaption>{label}</figcaption>
     </figure>
@@ -144,7 +144,7 @@ export function CondoLanding() {
 
         <section className="lp-sec" aria-labelledby="cl-problema"><div className="lp-wrap">
           <h2 id="cl-problema">O desafio: a energia do prédio tem limite</h2>
-          <p className="lp-sub">Um carro elétrico carregando consome como vários chuveiros ligados ao mesmo tempo. Quando dois ou três moradores carregam juntos no fim do dia, a soma pode passar do que a entrada do prédio aguenta — e a conta de demanda da concessionária dispara.</p>
+          <p className="lp-sub">Um carro elétrico carregando consome como vários chuveiros ligados ao mesmo tempo. Quando dois ou três moradores carregam juntos no fim do dia, a soma pode passar do que a entrada do prédio aguenta - e a conta de demanda da concessionária dispara.</p>
           <DemandFigure/>
           <p className="cl-note">Valores ilustrativos. O limite real depende da entrada de energia e do projeto elétrico de cada condomínio.</p>
         </div></section>
@@ -211,7 +211,7 @@ export function CondoLanding() {
         <section className="lp-sec" aria-labelledby="cl-detalhes"><div className="lp-wrap"><div className="campaign-details">
           <h2 id="cl-detalhes">Vamos entender seu condomínio</h2>
           <p>Converse sobre o seu condomínio, quantas vagas terão recarga e o modelo dos carregadores. Confirmamos a compatibilidade e as condições do plano antes da contratação.</p>
-          <p>O Telektro é o software de gestão. Carregador físico e instalação elétrica não estão incluídos. A conexão exige internet e equipamento compatível com OCPP 1.6J — o padrão usado por WEG, Intelbras, Livoltek e outros fabricantes. Os recursos dependem do modelo e da configuração de cada carregador.</p>
+          <p>O Telektro é o software de gestão. Carregador físico e instalação elétrica não estão incluídos. A conexão exige internet e equipamento compatível com OCPP 1.6J - o padrão usado por WEG, Intelbras, Livoltek e outros fabricantes. Os recursos dependem do modelo e da configuração de cada carregador.</p>
           <p>Mensalidade base. Limites e adicionais devem ser confirmados na proposta.</p>
           {cta("details")}<br/>
           <Link className="campaign-guide" href="/guias/carregador-carro-eletrico-condominio">Ver o guia de uso</Link>
