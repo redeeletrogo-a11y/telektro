@@ -108,12 +108,28 @@ export function CondoLanding() {
         .cl-paths {display:grid;gap:16px}
         .cl-controls {display:grid;gap:16px}
         .cl-note {color:var(--lp-mut);font-size:13px;margin-top:18px}
+        .cl-compat {padding:0 0 8px;border-top:none}
+        .cl-compat-card {display:flex;gap:16px;align-items:flex-start;border:1px solid var(--lp-acc);border-radius:16px;padding:20px;background:#0d211d}
+        .cl-compat-card h2 {margin:0 0 8px;font-size:clamp(20px,4vw,26px)}
+        .cl-compat-card p {margin:0;color:var(--lp-mut);font-size:15px}
+        .cl-timeline {display:grid;gap:16px}
+        .cl-moment h3 {margin:4px 0 12px}
+        .cl-time {color:var(--lp-acc);font-weight:700;font-size:13px;letter-spacing:.1em}
+        .cl-bars {display:flex;gap:6px;margin-bottom:12px;min-height:44px}
+        .cl-bar {background:var(--lp-acc);border-radius:8px;display:flex;align-items:center;justify-content:center;min-width:44px}
+        .cl-bar span {color:#04201b;font-size:11px;font-weight:700;white-space:nowrap;padding:0 4px}
+        .cl-bar.limited {background:var(--lp-acc2)}
+        .cl-faq {display:grid;gap:12px;max-width:680px}
+        .cl-faq details {padding:16px 20px}
+        .cl-faq summary {cursor:pointer;font-weight:700;font-size:16px}
+        .cl-faq details p {margin:10px 0 0;color:var(--lp-mut);font-size:15px}
         @media(min-width:900px){
           .campaign .campaign-hero{grid-template-columns:1.2fr 1fr;align-items:center;padding-top:56px}
           .campaign .campaign-cta{width:auto;min-width:260px}
           .cl-figures{grid-template-columns:1fr 1fr}
           .cl-paths{grid-template-columns:1fr 1fr}
           .cl-controls{grid-template-columns:repeat(2,1fr)}
+          .cl-timeline{grid-template-columns:repeat(2,1fr)}
         }
       `}</style>
       <header className="lp-nav"><div className="lp-wrap campaign-header">
@@ -141,6 +157,16 @@ export function CondoLanding() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className="campaign-image" src="/showcase/condominio.webp" alt=""/>
         </section>
+
+        <section className="lp-sec cl-compat" aria-label="Compatibilidade"><div className="lp-wrap">
+          <div className="cl-compat-card">
+            <div className="lp-ico"><Zap size={22} aria-hidden="true"/></div>
+            <div>
+              <h2>Funciona com carregadores que falam OCPP 1.6J</h2>
+              <p>O Telektro é um software: ele conversa com o carregador pelo protocolo aberto OCPP 1.6J, usado por WEG, Intelbras, Livoltek, NeoCharge e outros fabricantes. Sem OCPP 1.6J, o controle não funciona. Antes de qualquer contratação, confirmamos a compatibilidade do seu modelo.</p>
+            </div>
+          </div>
+        </div></section>
 
         <section className="lp-sec" aria-labelledby="cl-problema"><div className="lp-wrap">
           <h2 id="cl-problema">O desafio: a energia do prédio tem limite</h2>
@@ -181,6 +207,38 @@ export function CondoLanding() {
           </div>
         </div></section>
 
+        <section className="lp-sec" aria-labelledby="cl-noite"><div className="lp-wrap">
+          <h2 id="cl-noite">Uma noite no condomínio, na prática</h2>
+          <p className="lp-sub">Exemplo com um limite de 30 kW reservado para as recargas. O Telektro divide esse limite entre os carros conforme eles chegam e saem - ninguém precisa combinar horário.</p>
+          <div className="cl-timeline">
+            <div className="lp-card cl-moment">
+              <span className="cl-time">19h</span>
+              <h3>Chega o primeiro carro</h3>
+              <div className="cl-bars"><div className="cl-bar" style={{ width: "23%" }}><span>Carro 1 - 7 kW</span></div></div>
+              <p>Um carro carregando na potência máxima. Total: 7 kW de 30 kW.</p>
+            </div>
+            <div className="lp-card cl-moment">
+              <span className="cl-time">20h</span>
+              <h3>Chega o segundo</h3>
+              <div className="cl-bars"><div className="cl-bar" style={{ width: "23%" }}><span>Carro 1 - 7 kW</span></div><div className="cl-bar" style={{ width: "23%" }}><span>Carro 2 - 7 kW</span></div></div>
+              <p>Os dois na potência máxima, ainda com folga. Total: 14 kW de 30 kW.</p>
+            </div>
+            <div className="lp-card cl-moment">
+              <span className="cl-time">21h</span>
+              <h3>Cinco carros ao mesmo tempo</h3>
+              <div className="cl-bars"><div className="cl-bar limited" style={{ width: "20%" }}><span>6 kW</span></div><div className="cl-bar limited" style={{ width: "20%" }}><span>6 kW</span></div><div className="cl-bar limited" style={{ width: "20%" }}><span>6 kW</span></div><div className="cl-bar limited" style={{ width: "20%" }}><span>6 kW</span></div><div className="cl-bar limited" style={{ width: "20%" }}><span>6 kW</span></div></div>
+              <p>Juntos eles pediriam 35 kW - mais que o limite. O Telektro divide: cada um carrega a 6 kW. Total: 30 kW, sem estourar a entrada.</p>
+            </div>
+            <div className="lp-card cl-moment">
+              <span className="cl-time">23h</span>
+              <h3>Dois terminaram e saíram</h3>
+              <div className="cl-bars"><div className="cl-bar" style={{ width: "23%" }}><span>Carro 1 - 7 kW</span></div><div className="cl-bar" style={{ width: "23%" }}><span>Carro 2 - 7 kW</span></div><div className="cl-bar" style={{ width: "23%" }}><span>Carro 3 - 7 kW</span></div></div>
+              <p>Com a vaga de potência, os que ficaram voltam à potência máxima. Total: 21 kW de 30 kW.</p>
+            </div>
+          </div>
+          <p className="cl-note">Valores ilustrativos. O limite real é definido a partir do projeto elétrico do condomínio - no laudo do engenheiro, esse controle é o que permite instalar muito mais carregadores sem ampliar a entrada.</p>
+        </div></section>
+
         <section className="lp-sec" aria-labelledby="cl-painel"><div className="lp-wrap">
           <h2 id="cl-painel">O que o condomínio acompanha</h2>
           <p className="lp-sub">Cada morador tem seu próprio carregador. O condomínio usa o Telektro para organizar o acesso e a energia, sem cobrar recarga pelo sistema.</p>
@@ -205,6 +263,16 @@ export function CondoLanding() {
               <h3>Relatórios</h3>
               <p>Resumos de uso do período para a administração, sem planilha manual.</p>
             </div>
+          </div>
+        </div></section>
+
+        <section className="lp-sec" aria-labelledby="cl-faq"><div className="lp-wrap">
+          <h2 id="cl-faq">Perguntas frequentes</h2>
+          <div className="cl-faq">
+            <details className="lp-card"><summary>Precisa ampliar a entrada de energia do prédio?</summary><p>Na maioria dos casos, não. Com o controle de carga dividindo a potência disponível, a entrada atual costuma atender vários carregadores. O laudo elétrico do condomínio é quem confirma o limite.</p></details>
+            <details className="lp-card"><summary>O carregador está incluído?</summary><p>Não. O Telektro é o software de gestão. O carregador e a instalação elétrica ficam com o morador ou o condomínio, com o eletricista de confiança de vocês.</p></details>
+            <details className="lp-card"><summary>E se a internet cair?</summary><p>A recarga em andamento não é interrompida: o carregador segue com o último limite recebido. O painel e os ajustes voltam quando a internet retorna.</p></details>
+            <details className="lp-card"><summary>Quem paga a energia de cada recarga?</summary><p>O Telektro não cobra a recarga pelo sistema. Ele registra o consumo em kWh de cada morador e de cada sessão, e o condomínio decide em assembleia como trata esse consumo.</p></details>
           </div>
         </div></section>
 
