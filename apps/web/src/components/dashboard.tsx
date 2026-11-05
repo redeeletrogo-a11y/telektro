@@ -6,7 +6,6 @@ import "./dashboard-theme.css";
 import { Outfit } from "next/font/google";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CondoBilling } from "@/components/condo-billing";
 import { ResidentsPanel, type Invite, type Resident, type ResidentTag } from "@/components/residents-panel";
 import { Activity, ArrowRight, Building2, Car, Check, Clock3, Copy, LayoutDashboard, MapPin, Menu, Moon, Sun, Play, PlugZap, QrCode, Receipt, RotateCcw, Square, Trash2, Users, Zap } from "lucide-react";
 import { EletropostoPainel, type EpPoint } from "@/components/eletroposto-painel";
@@ -193,7 +192,7 @@ function ChargerForm({ organizationId, sites, isOwner }: { organizationId: strin
 }
 
 export function Dashboard({
-  email, organizations, organization, role, accountType, trialDaysLeft, pixDueDays, condoTariff, epPoints = [], epTariff = null, residents, residentTags, invites, sites, chargers, removedChargers, connectors, authorizations, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, completedSessionRows, meterReadings, commandRows, dataLoadedAt,
+  email, organizations, organization, role, accountType, trialDaysLeft, pixDueDays, epPoints = [], epTariff = null, residents, residentTags, invites, sites, chargers, removedChargers, connectors, authorizations, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, completedSessionRows, meterReadings, commandRows, dataLoadedAt,
 }: {
   email: string;
   organizations: Organization[];
@@ -202,7 +201,6 @@ export function Dashboard({
   accountType: string;
   trialDaysLeft: number | null;
   pixDueDays: number | null;
-  condoTariff: { price_per_kwh: number; session_fee: number } | null;
   epPoints?: EpPoint[];
   epTariff?: number | null;
   residents: Resident[];
@@ -255,9 +253,8 @@ export function Dashboard({
   const mobileQr = { name: "QR e placas", label: "QR", icon: <QrCode/> };
   const mobileRepasse = { name: "Repasses", label: "Repasses", icon: <Receipt/> };
   const mobileVendas = { name: "Vendas", label: "Vendas", icon: <Receipt/> };
-  const mobileBilling = { name: "Cobrança", label: "Cobrança", icon: <Zap/> };
   const mobilePrimary = isCondoManager ? [mobileHome, mobileChargers, mobileSessions, mobileResidents] : accountType === "eletroposto" ? [mobileHome, mobileQr, mobileVendas, mobileChargers] : [mobileHome, mobileSites, mobileChargers, mobileSessions];
-  const mobileMore = isCondoManager ? [mobileSites, mobileEnergy, mobileBilling] : accountType === "eletroposto" ? [...(canManageSites ? [mobileRepasse] : []), mobileSessions, mobileSites, mobileEnergy] : [mobileEnergy];
+  const mobileMore = isCondoManager ? [mobileSites, mobileEnergy] : accountType === "eletroposto" ? [...(canManageSites ? [mobileRepasse] : []), mobileSessions, mobileSites, mobileEnergy] : [mobileEnergy];
   const moreActive = mobileMore.some((item) => item.name === activeNav);
   const canManageChargers = role === "owner" || role === "admin" || role === "technician";
   const canControlChargers = role === "owner" || role === "admin" || role === "operator" || role === "technician";
@@ -287,7 +284,6 @@ export function Dashboard({
         <button className={`nav-item ${activeNav === "Sessões" ? "active" : ""}`} onClick={() => setActiveNav("Sessões")}><Activity size={16}/>Sessões<span className="nav-count">{activeSessions}</span></button>
         <button className={`nav-item ${activeNav === "Energia" ? "active" : ""}`} onClick={() => setActiveNav("Energia")}><Zap size={16}/>Energia</button>
         {accountType === "condominio" && canManageSites ? <button className={`nav-item ${activeNav === "Moradores" ? "active" : ""}`} onClick={() => setActiveNav("Moradores")}><Users size={16}/>Moradores<span className="nav-count">{residents.length}</span></button> : <button className="nav-item nav-item-disabled" disabled title="Disponível em uma próxima etapa"><Users size={16}/>Usuários</button>}
-        {accountType === "condominio" && canManageSites && <button className={`nav-item ${activeNav === "Cobrança" ? "active" : ""}`} onClick={() => setActiveNav("Cobrança")}><Zap size={16}/>Cobrança</button>}
       </nav>
       <div className="sidebar-bottom"><div className="gateway-card"><div className="gateway-row"><i className="gateway-dot"/>{onlineChargers ? `${onlineChargers} carregador(es) online` : "Gateway aguardando conexão"}</div><div className="gateway-note">{chargers.length ? `${chargers.length} carregador(es) cadastrado(s); o estado de conexão vem do gateway OCPP.` : "Cadastre um carregador para preparar a conexão OCPP."}</div></div><div className="profile"><div className="avatar">{email.slice(0, 1).toUpperCase() || "T"}</div><div className="profile-copy"><div className="profile-name">{organization.name}</div><div className="profile-role">{role}</div></div></div></div>
     </aside>
@@ -325,7 +321,7 @@ export function Dashboard({
         </> : activeNav === "QR e placas" ? <EletropostoPainel organizationId={organization.id} chargers={chargers.map((charger) => ({ id: charger.id, charge_point_id: charger.charge_point_id, site_id: charger.site_id, model: charger.model, online: charger.online, connector_count: charger.connector_count }))} points={epPoints} tariffPrice={epTariff} canManage={canManageSites}/>
         : activeNav === "Repasses" ? <EletropostoRepasse organizationId={organization.id}/>
         : activeNav === "Vendas" ? <EletropostoVendas organizationId={organization.id} sites={sites} chargers={chargers} removedChargers={removedChargers}/>
-        : activeNav === "Moradores" ? <ResidentsPanel organizationId={organization.id} residents={residents} invites={invites} tags={residentTags} residentLimit={organization.resident_limit ?? null}/> : activeNav === "Cobrança" && accountType === "condominio" ? <CondoBilling organizationId={organization.id} organizationName={organization.name} tariff={condoTariff}/> : activeNav === "Energia" ? <SiteDemand sites={sites} chargers={chargers} sessions={sessionRows} meterReadings={meterReadings} now={clockNow} expanded/> : activeNav === "Locais" ? <div className="site-management">
+        : activeNav === "Moradores" ? <ResidentsPanel organizationId={organization.id} residents={residents} invites={invites} tags={residentTags} residentLimit={organization.resident_limit ?? null}/> : activeNav === "Energia" ? <SiteDemand sites={sites} chargers={chargers} sessions={sessionRows} meterReadings={meterReadings} now={clockNow} expanded/> : activeNav === "Locais" ? <div className="site-management">
           <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Locais cadastrados</h2><div className="panel-kicker">{sites.length} local(is) em {organization.name}</div></div><MapPin size={17}/></div><SiteList sites={sites}/></section>
           {canManageSites ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Adicionar local</h2><div className="panel-kicker">Cadastre os dados elétricos e de localização.</div></div></div><SiteForm organizationId={organization.id}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner ou admin para cadastrar locais nesta organização.</p></section>}
         </div> : activeNav === "Carregadores" ? <div className="site-management charger-management">
