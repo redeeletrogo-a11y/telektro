@@ -5,7 +5,7 @@ import { WebSocket, WebSocketServer } from "ws";
 import { createClient } from "@supabase/supabase-js";
 import { ZodError } from "zod";
 import { verifyOcppBasicAuth } from "./authentication.js";
-import { capabilityFromCommandResult, mergeCapability, readAuthorizeRemoteTxRequests } from "./capabilities.js";
+import { capabilityFromCommandResult, mergeCapability, readAuthorizeRemoteTxRequests, readSupportedFeatureProfiles, reportsSmartCharging } from "./capabilities.js";
 import { commandStatusForResult, operationConfirmationTimeoutStatus, operationEventStatus } from "./operation-state.js";
 import { energyRegisterRegressionError, energyRegisterWh, isRegisteredConnector, meterReadingError, meterTransactionError } from "./validation.js";
 import {
@@ -588,7 +588,7 @@ async function dispatchCommand(command: { id: string; charger_id: string; action
     await failPendingCommand(command.id, { error: "charger_removed" });
     return;
   }
-  if (!(["RemoteStartTransaction", "RemoteStopTransaction", "GetConfiguration"] as string[]).includes(command.action)) {
+  if (!(["RemoteStartTransaction", "RemoteStopTransaction", "GetConfiguration", "SetChargingProfile"] as string[]).includes(command.action)) {
     await failPendingCommand(command.id, { error: "unsupported_action" });
     return;
   }
@@ -614,6 +614,23 @@ async function dispatchCommand(command: { id: string; charger_id: string; action
   if (command.action === "GetConfiguration" && (!Array.isArray(command.payload.key) || command.payload.key.length > 20 || command.payload.key.some((key) => typeof key !== "string"))) {
     await failPendingCommand(command.id, { error: "invalid_configuration_keys" });
     return;
+  }
+  if (command.action === "SetChargingProfile") {
+    const profile = command.payload.csChargingProfiles as Record<string, unknown> | undefined;
+    const schedule = profile?.chargingSchedule as Record<string, unknown> | undefined;
+    const periods = Array.isArray(schedule?.chargingSchedulePeriod) ? schedule.chargingSchedulePeriod as Array<Record<string, unknown>> : null;
+    const valid = command.payload.connectorId !== undefined && typeof command.payload.connectorId === "number" && Number.isInteger(command.payload.connectorId) && command.payload.connectorId >= 0 &&
+      profile !== undefined && typeof profile.chargingProfileId === "number" && Number.isInteger(profile.chargingProfileId) &&
+      typeof profile.stackLevel === "number" && Number.isInteger(profile.stackLevel) && profile.stackLevel >= 0 &&
+      profile.chargingProfilePurpose === "TxProfile" &&
+      schedule !== undefined && (schedule.chargingRateUnit === "A" || schedule.chargingRateUnit === "W") &&
+      periods !== null && periods.length >= 1 && periods.length <= 10 &&
+      periods.every((period) => typeof period.startPeriod === "number" && Number.isInteger(period.startPeriod) && period.startPeriod >= 0 &&
+        typeof period.limit === "number" && period.limit >= 0 && period.limit <= 500);
+    if (!valid) {
+      await failPendingCommand(command.id, { error: "invalid_charging_profile" });
+      return;
+    }
   }
 
   const messageId = randomUUID();
@@ -674,6 +691,7 @@ async function completePendingCommand(
     await updateCommandCapability(pending.charger, capabilityKey, result);
   }
   if (pending.action === "GetConfiguration") await persistConfigurationCapability(pending.charger, safeResult);
+  if (pending.action === "SetChargingProfile") await updateCommandCapability(pending.charger, "smartCharging", result);
   if (status !== "accepted" && status !== "confirmed") await setLastOcppError(pending.charger, typeof safeResult.error === "string" ? safeResult.error : typeof safeResult.code === "string" ? `OCPP ${safeResult.code}` : status === "rejected" ? `${pending.action} rejected by charger` : status);
   await logCall(pending.charger, messageId, pending.action, status, "outbound", {
     requestId: pending.commandId,
@@ -705,6 +723,7 @@ async function reconcileDelayedCommand(messageId: string, result: Record<string,
       await updateCommandCapability(charger, capabilityKey, result);
     }
     if (command.action === "GetConfiguration") await persistConfigurationCapability(charger, safeResult);
+    if (command.action === "SetChargingProfile") await updateCommandCapability(charger, "smartCharging", result);
     await logCall(charger, messageId, command.action, status, "outbound", { requestId: command.id, userId: command.requested_by, reason: typeof safeResult.error === "string" ? safeResult.error : typeof safeResult.code === "string" ? `OCPP ${safeResult.code}` : undefined });
   }
 }
@@ -769,14 +788,24 @@ async function persistConfigurationCapability(charger: ChargerRecord, result: Re
     evidence: value === null ? "GetConfiguration did not report the key" : "GetConfiguration response",
   });
   if (wasUnknown) await setLastOcppError(charger, "GetConfiguration: AuthorizeRemoteTxRequests indisponível neste carregador");
+  const profiles = readSupportedFeatureProfiles(result);
+  const profilesUnknown = unknownKeys.includes("SupportedFeatureProfiles");
+  if (profiles !== null || profilesUnknown) {
+    await updateCapabilities(charger, "smartCharging", {
+      state: profiles === null ? "UNKNOWN" : reportsSmartCharging(profiles) ? "SUPPORTED" : "UNSUPPORTED",
+      value: profiles,
+      observedAt: now,
+      evidence: profiles === null ? "GetConfiguration did not report SupportedFeatureProfiles" : "GetConfiguration SupportedFeatureProfiles",
+    });
+  }
 }
 
 function sanitizeConfigurationResult(result: Record<string, unknown>): Record<string, unknown> {
   const configurationKey = Array.isArray(result.configurationKey)
-    ? result.configurationKey.filter((item) => item && typeof item === "object" && (item as Record<string, unknown>).key === "AuthorizeRemoteTxRequests")
+    ? result.configurationKey.filter((item) => item && typeof item === "object" && ["AuthorizeRemoteTxRequests", "SupportedFeatureProfiles"].includes(String((item as Record<string, unknown>).key)))
     : [];
   const unknownKey = Array.isArray(result.unknownKey)
-    ? result.unknownKey.filter((item) => item === "AuthorizeRemoteTxRequests")
+    ? result.unknownKey.filter((item) => ["AuthorizeRemoteTxRequests", "SupportedFeatureProfiles"].includes(String(item)))
     : [];
   return {
     ...(configurationKey.length ? { configurationKey } : {}),
@@ -786,7 +815,7 @@ function sanitizeConfigurationResult(result: Record<string, unknown>): Record<st
   };
 }
 
-async function updateCommandCapability(charger: ChargerRecord, key: "remoteStart" | "remoteStop", result: Record<string, unknown>) {
+async function updateCommandCapability(charger: ChargerRecord, key: "remoteStart" | "remoteStop" | "smartCharging", result: Record<string, unknown>) {
   const observed = capabilityFromCommandResult(result);
   const prior = charger.capabilities?.[key] as { state?: string } | undefined;
   if (observed.state === "UNKNOWN" && prior && prior.state !== "UNKNOWN") return;

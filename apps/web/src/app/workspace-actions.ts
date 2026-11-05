@@ -272,11 +272,52 @@ export async function requestGetConfiguration(organizationId: string, chargerId:
   if (!charger.online || !chargerHasRecentHeartbeat(charger.last_heartbeat_at)) return { error: "O carregador está offline ou sem comunicação recente." };
   const { error } = await supabase.from("commands").insert({
     organization_id: organizationId, charger_id: chargerId, action: "GetConfiguration",
-    payload: { key: ["AuthorizeRemoteTxRequests"] }, requested_by: user.id,
+    payload: { key: ["AuthorizeRemoteTxRequests", "SupportedFeatureProfiles"] }, requested_by: user.id,
   });
   if (error) return { error: "Não foi possível enfileirar a consulta OCPP." };
   revalidatePath("/");
   return { success: "Consulta de configuração enviada. O resultado aparecerá no diagnóstico do carregador." };
+}
+
+export async function requestChargingLimit(organizationId: string, chargerId: string, _previous: FormState, formData: FormData): Promise<FormState> {
+  void _previous;
+  if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !/^[0-9a-f-]{36}$/i.test(chargerId)) return { error: "Organização ou carregador inválido." };
+  const amps = Number(String(formData.get("limit_amps") ?? "").trim().replace(",", "."));
+  if (!Number.isFinite(amps) || amps < 6 || amps > 80) return { error: "Informe o limite entre 6 A e 80 A." };
+  const connectorRaw = String(formData.get("connector_id") ?? "1").trim();
+  const connectorId = Number(connectorRaw);
+  if (!Number.isInteger(connectorId) || connectorId < 1 || connectorId > 8) return { error: "Conector inválido." };
+  let supabase;
+  try { supabase = await createSupabaseServerClient(); }
+  catch { return { error: "Não foi possível conectar ao Supabase." }; }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Sua sessão expirou. Entre novamente para continuar." };
+  const { data: membership } = await supabase.from("memberships").select("role")
+    .eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
+  if (!membership || !["owner", "admin", "technician"].includes(membership.role)) return { error: "Somente owners, admins e técnicos podem definir limites de carga." };
+  const { data: charger } = await supabase.from("chargers").select("id, online, last_heartbeat_at, connector_count")
+    .eq("id", chargerId).eq("organization_id", organizationId).is("removed_at", null).maybeSingle();
+  if (!charger) return { error: "Carregador não encontrado nesta organização." };
+  if (!charger.online || !chargerHasRecentHeartbeat(charger.last_heartbeat_at)) return { error: "O carregador está offline ou sem comunicação recente." };
+  if (charger.connector_count !== null && connectorId > charger.connector_count) return { error: "Este carregador não tem esse conector." };
+  const { error } = await supabase.from("commands").insert({
+    organization_id: organizationId, charger_id: chargerId, action: "SetChargingProfile",
+    payload: {
+      connectorId,
+      csChargingProfiles: {
+        chargingProfileId: 1,
+        stackLevel: 0,
+        chargingProfilePurpose: "TxProfile",
+        chargingSchedule: { chargingRateUnit: "A", chargingSchedulePeriod: [{ startPeriod: 0, limit: Math.round(amps * 10) / 10 }] },
+      },
+    },
+    operation_key: `chargelimit:${connectorId}`,
+    requested_by: user.id,
+  });
+  if (error?.code === "23505") return { error: "Já existe um pedido de limite em andamento para este conector. Aguarde a confirmação antes de enviar outro." };
+  if (error) return { error: "Não foi possível enfileirar o limite. Atualize a página e tente novamente." };
+  revalidatePath("/");
+  return { success: "Pedido de limite enviado. A confirmação do carregador aparece no diagnóstico OCPP." };
 }
 
 export async function registerRfidAuthorization(organizationId: string, chargerId: string, _previous: FormState, formData: FormData): Promise<FormState> {

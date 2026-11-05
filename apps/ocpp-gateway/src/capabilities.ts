@@ -5,7 +5,21 @@ export type ChargerCapabilities = {
   remoteStop?: { state: CapabilityState; evidence: string; observedAt: string };
   rfid?: { state: CapabilityState; evidence: string; observedAt: string };
   authorizeRemoteTxRequests?: { state: CapabilityState; value: string | null; observedAt: string };
+  smartCharging?: { state: CapabilityState; value: string | null; observedAt: string; evidence: string };
 };
+
+export function readSupportedFeatureProfiles(payload: Record<string, unknown>): string | null {
+  const configurationKey = Array.isArray(payload.configurationKey) ? payload.configurationKey : [];
+  const setting = configurationKey.find((entry) => entry && typeof entry === "object" &&
+    (entry as Record<string, unknown>).key === "SupportedFeatureProfiles") as Record<string, unknown> | undefined;
+  if (!setting || typeof setting.value !== "string") return null;
+  const value = setting.value.trim();
+  return value.length > 0 ? value : null;
+}
+
+export function reportsSmartCharging(profiles: string): boolean {
+  return profiles.split(",").some((profile) => profile.trim().toLowerCase() === "smartcharging");
+}
 
 export function capabilityFromCommandResult(result: Record<string, unknown>): { state: CapabilityState; evidence: string } {
   if (result.status === "Accepted") return { state: "SUPPORTED", evidence: "Remote command accepted" };
