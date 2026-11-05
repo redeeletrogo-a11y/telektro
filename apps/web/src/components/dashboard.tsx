@@ -11,7 +11,7 @@ import { Activity, ArrowRight, Building2, Car, Check, Clock3, Copy, LayoutDashbo
 import { EletropostoPainel, type EpPoint } from "@/components/eletroposto-painel";
 import { EletropostoRepasse } from "@/components/eletroposto-repasse";
 import { EletropostoVendas } from "@/components/eletroposto-vendas";
-import { createSite, getChargerClaim, registerCharger, setChargerInsecureWs, registerRfidAuthorization, removeCharger, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, rotateChargerClaim, rotateChargerCredential, revokeChargerClaim, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
+import { createSite, getChargerClaim, registerCharger, setChargerInsecureWs, registerRfidAuthorization, removeCharger, requestChargingLimit, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, rotateChargerClaim, rotateChargerCredential, revokeChargerClaim, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
 import QRCode from "qrcode";
 
 type Organization = { id: string; name: string; slug: string; account_type?: string; resident_limit?: number | null };
@@ -448,6 +448,7 @@ function ChargerList({ chargers, removedChargers, connectors, authorizations, si
     const remoteStop = capabilityLabel(charger.capabilities?.remoteStop);
     const rfidCapability = capabilityLabel(charger.capabilities?.rfid);
     const remoteAuthorization = charger.capabilities?.authorizeRemoteTxRequests as { state?: string; value?: string | null } | undefined;
+    const smartCharging = charger.capabilities?.smartCharging as { state?: string; value?: string | null } | undefined;
     return <article className="panel site-row charger-row" key={charger.id}>
       <div className="site-row-icon"><PlugZap size={16}/></div>
       <div className="site-row-main"><strong>{charger.charge_point_id}</strong><span>{siteNames.get(charger.site_id) ?? "Local indisponível"}</span></div>
@@ -471,9 +472,10 @@ function ChargerList({ chargers, removedChargers, connectors, authorizations, si
         <span>Última transação: {charger.last_transaction_at ? `${new Date(charger.last_transaction_at).toLocaleString("pt-BR")} · ID ${charger.last_transaction_id ?? "—"}` : "ainda não recebida"}</span>
         <span>Remote Start: {remoteStart} · Remote Stop: {remoteStop} · RFID OCPP: {rfidCapability}</span>
         <span>AuthorizeRemoteTxRequests: {remoteAuthorization?.state === "SUPPORTED" ? remoteAuthorization.value === "true" ? "ativado" : "desativado" : remoteAuthorization?.state === "UNSUPPORTED" ? "não informado pelo carregador" : "não consultado"}</span>
+        <span>Smart Charging (limite de carga): {smartCharging?.state === "SUPPORTED" ? "suportado" : smartCharging?.state === "UNSUPPORTED" ? "não informado pelo carregador" : "não consultado"}</span>
         {charger.last_ocpp_error && <span className="form-error">Último erro OCPP: {charger.last_ocpp_error}</span>}
       </div>
-      {canManage && <><ConfigurationControl charger={charger} organizationId={organizationId}/><RfidAuthorizationManager charger={charger} authorizations={authorizations.filter((item) => item.charger_id === charger.id)} organizationId={organizationId}/></>}
+      {canManage && <><ConfigurationControl charger={charger} organizationId={organizationId}/><ChargingLimitControl charger={charger} organizationId={organizationId}/><RfidAuthorizationManager charger={charger} authorizations={authorizations.filter((item) => item.charger_id === charger.id)} organizationId={organizationId}/></>}
       {isOwner && <ChargerRemovalControl charger={charger} organizationId={organizationId} hasActiveSession={activeSessionChargerIds.has(charger.id)}/>}
       </details>
     </article>;
@@ -655,7 +657,21 @@ function ChargerRestoreControl({ charger, organizationId, now }: { charger: Char
 
 function ConfigurationControl({ charger, organizationId }: { charger: Charger; organizationId: string }) {
   const [state, action, pending] = useActionState(requestGetConfiguration.bind(null, organizationId, charger.id), initialState);
-  return <div className="charger-control"><form action={action}><button className="secondary-button command-button" type="submit" disabled={!charger.online || pending}>{pending ? "Consultando…" : "Ler configuração de autorização"}</button></form>{state.error && <small className="form-error" role="alert">{state.error}</small>}{state.success && <small className="form-success" role="status">{state.success}</small>}</div>;
+  return <div className="charger-control"><form action={action}><button className="secondary-button command-button" type="submit" disabled={!charger.online || pending}>{pending ? "Consultando…" : "Ler configuração do carregador"}</button></form>{state.error && <small className="form-error" role="alert">{state.error}</small>}{state.success && <small className="form-success" role="status">{state.success}</small>}</div>;
+}
+
+function ChargingLimitControl({ charger, organizationId }: { charger: Charger; organizationId: string }) {
+  const [state, action, pending] = useActionState(requestChargingLimit.bind(null, organizationId, charger.id), initialState);
+  const smartCharging = charger.capabilities?.smartCharging as { state?: string } | undefined;
+  const knownUnsupported = smartCharging?.state === "UNSUPPORTED";
+  return <div className="charger-control"><form action={action}>
+    <label>Limite de corrente (A){charger.connector_count !== null && charger.connector_count > 1
+      ? <span className="limit-row"><input name="limit_amps" inputMode="decimal" placeholder="Ex.: 16" required/><select name="connector_id" defaultValue="1">{Array.from({ length: charger.connector_count }, (_, index) => index + 1).map((id) => <option key={id} value={id}>Conector {id}</option>)}</select></span>
+      : <><input type="hidden" name="connector_id" value="1"/><input name="limit_amps" inputMode="decimal" placeholder="Ex.: 16" required/></>}</label>
+    <button className="secondary-button command-button" type="submit" disabled={!charger.online || pending || knownUnsupported}>{pending ? "Enviando…" : "Aplicar limite de carga"}</button>
+    {knownUnsupported && <small className="field-help">Este carregador não informou suporte a Smart Charging.</small>}
+    {!knownUnsupported && <small className="field-help">Entre 6 A e 80 A. O carregador passa a limitar as recargas neste conector (OCPP SetChargingProfile).</small>}
+  </form>{state.error && <small className="form-error" role="alert">{state.error}</small>}{state.success && <small className="form-success" role="status">{state.success}</small>}</div>;
 }
 
 function RfidAuthorizationManager({ charger, authorizations, organizationId }: { charger: Charger; authorizations: ChargerAuthorization[]; organizationId: string }) {
