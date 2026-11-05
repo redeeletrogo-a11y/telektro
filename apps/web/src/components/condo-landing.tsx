@@ -202,7 +202,7 @@ export function CondoLanding() {
           <figure className="cl-illustration">
             {/* Illustrative artwork, not a real customer dashboard screenshot. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/showcase/condominio-painel.webp" alt="Ilustração do painel Telektro mostrando a entrada de energia do prédio, o consumo em tempo real e o limite de potência dos carregadores" loading="lazy"/>
+            <img src="/showcase/condominio-painel.webp" alt="Ilustração do painel Telektro mostrando o limite reservado para recarga de 30 kW, o consumo em tempo real e quatro carregadores dividindo a potência" loading="lazy"/>
             <figcaption>Ilustração com valores de exemplo. O limite real vem do projeto elétrico de cada prédio.</figcaption>
           </figure>
           <div className="cl-controls">
