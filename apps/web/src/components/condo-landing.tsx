@@ -106,6 +106,9 @@ export function CondoLanding() {
         .cl-figure svg {width:100%;height:auto;display:block}
         .cl-figure figcaption {color:var(--lp-mut);font-size:13px;margin-top:8px}
         .cl-paths {display:grid;gap:16px}
+        .cl-illustration {margin:0 0 24px;max-width:540px}
+        .cl-illustration img {width:100%;height:auto;border-radius:16px;border:1px solid var(--lp-line);display:block}
+        .cl-illustration figcaption {color:var(--lp-mut);font-size:13px;margin-top:8px}
         .cl-controls {display:grid;gap:16px}
         .cl-note {color:var(--lp-mut);font-size:13px;margin-top:18px}
         .cl-compat {padding:0 0 8px;border-top:none}
@@ -196,6 +199,12 @@ export function CondoLanding() {
         <section className="lp-sec" aria-labelledby="cl-controle"><div className="lp-wrap">
           <h2 id="cl-controle">Como o Telektro controla a carga</h2>
           <p className="lp-sub">O Telektro conversa com os carregadores pelo padrão OCPP 1.6J e ajusta a potência de cada ponto automaticamente.</p>
+          <figure className="cl-illustration">
+            {/* Illustrative artwork, not a real customer dashboard screenshot. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/showcase/condominio-painel.webp" alt="Ilustração do painel Telektro mostrando o limite reservado para recarga de 30 kW, o consumo em tempo real e quatro carregadores dividindo a potência" loading="lazy"/>
+            <figcaption>Ilustração com valores de exemplo. O limite real vem do projeto elétrico de cada prédio.</figcaption>
+          </figure>
           <div className="cl-controls">
             {controls.map((control) => (
               <div className="lp-card" key={control.title}>
@@ -210,6 +219,11 @@ export function CondoLanding() {
         <section className="lp-sec" aria-labelledby="cl-noite"><div className="lp-wrap">
           <h2 id="cl-noite">Uma noite no condomínio, na prática</h2>
           <p className="lp-sub">Exemplo com um limite de 30 kW reservado para as recargas. O Telektro divide esse limite entre os carros conforme eles chegam e saem - ninguém precisa combinar horário.</p>
+          <figure className="cl-illustration">
+            {/* Illustrative artwork of a condo garage, not a real installation photo. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/showcase/condominio-garagem.webp" alt="Ilustração da garagem de um condomínio à noite com quatro carros elétricos carregando em carregadores de parede" loading="lazy"/>
+          </figure>
           <div className="cl-timeline">
             <div className="lp-card cl-moment">
               <span className="cl-time">19h</span>
