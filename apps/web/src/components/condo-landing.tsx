@@ -118,8 +118,8 @@ export function CondoLanding() {
         .cl-timeline {display:grid;gap:16px}
         .cl-moment h3 {margin:4px 0 12px}
         .cl-time {color:var(--lp-acc);font-weight:700;font-size:13px;letter-spacing:.1em}
-        .cl-bars {display:flex;gap:6px;margin-bottom:12px;min-height:44px}
-        .cl-bar {background:var(--lp-acc);border-radius:8px;display:flex;align-items:center;justify-content:center;min-width:44px}
+        .cl-bars {display:flex;gap:6px;margin-bottom:12px;min-height:44px;flex-wrap:wrap}
+        .cl-bar {background:var(--lp-acc);border-radius:8px;display:flex;align-items:center;justify-content:center;min-width:44px;padding:6px 10px}
         .cl-bar span {color:#04201b;font-size:11px;font-weight:700;white-space:nowrap;padding:0 4px}
         .cl-bar.limited {background:var(--lp-acc2)}
         .cl-faq {display:grid;gap:12px;max-width:680px}
@@ -228,25 +228,25 @@ export function CondoLanding() {
             <div className="lp-card cl-moment">
               <span className="cl-time">19h</span>
               <h3>Chega o primeiro carro</h3>
-              <div className="cl-bars"><div className="cl-bar" style={{ width: "23%" }}><span>Carro 1 - 7 kW</span></div></div>
+              <div className="cl-bars"><div className="cl-bar"><span>Carro 1 - 7 kW</span></div></div>
               <p>Um carro carregando na potência máxima. Total: 7 kW de 30 kW.</p>
             </div>
             <div className="lp-card cl-moment">
               <span className="cl-time">20h</span>
               <h3>Chega o segundo</h3>
-              <div className="cl-bars"><div className="cl-bar" style={{ width: "23%" }}><span>Carro 1 - 7 kW</span></div><div className="cl-bar" style={{ width: "23%" }}><span>Carro 2 - 7 kW</span></div></div>
+              <div className="cl-bars"><div className="cl-bar"><span>Carro 1 - 7 kW</span></div><div className="cl-bar"><span>Carro 2 - 7 kW</span></div></div>
               <p>Os dois na potência máxima, ainda com folga. Total: 14 kW de 30 kW.</p>
             </div>
             <div className="lp-card cl-moment">
               <span className="cl-time">21h</span>
               <h3>Cinco carros ao mesmo tempo</h3>
-              <div className="cl-bars"><div className="cl-bar limited" style={{ width: "20%" }}><span>6 kW</span></div><div className="cl-bar limited" style={{ width: "20%" }}><span>6 kW</span></div><div className="cl-bar limited" style={{ width: "20%" }}><span>6 kW</span></div><div className="cl-bar limited" style={{ width: "20%" }}><span>6 kW</span></div><div className="cl-bar limited" style={{ width: "20%" }}><span>6 kW</span></div></div>
+              <div className="cl-bars"><div className="cl-bar limited"><span>6 kW</span></div><div className="cl-bar limited"><span>6 kW</span></div><div className="cl-bar limited"><span>6 kW</span></div><div className="cl-bar limited"><span>6 kW</span></div><div className="cl-bar limited"><span>6 kW</span></div></div>
               <p>Juntos eles pediriam 35 kW - mais que o limite. O Telektro divide: cada um carrega a 6 kW. Total: 30 kW, sem estourar a entrada.</p>
             </div>
             <div className="lp-card cl-moment">
               <span className="cl-time">23h</span>
               <h3>Dois terminaram e saíram</h3>
-              <div className="cl-bars"><div className="cl-bar" style={{ width: "23%" }}><span>Carro 1 - 7 kW</span></div><div className="cl-bar" style={{ width: "23%" }}><span>Carro 2 - 7 kW</span></div><div className="cl-bar" style={{ width: "23%" }}><span>Carro 3 - 7 kW</span></div></div>
+              <div className="cl-bars"><div className="cl-bar"><span>Carro 1 - 7 kW</span></div><div className="cl-bar"><span>Carro 2 - 7 kW</span></div><div className="cl-bar"><span>Carro 3 - 7 kW</span></div></div>
               <p>Com a vaga de potência, os que ficaram voltam à potência máxima. Total: 21 kW de 30 kW.</p>
             </div>
           </div>
