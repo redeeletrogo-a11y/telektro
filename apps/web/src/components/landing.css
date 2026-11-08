@@ -43,6 +43,10 @@
 .lp-feat li { display:flex; gap:9px; }
 .lp-feat svg { flex:none; margin-top:3px; color:var(--lp-acc); }
 .lp-plan .lp-btn { margin-top:auto; }
+.lp-plan-cta { margin-top:auto; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.lp-plan-cta .lp-btn { margin-top:0; }
+.lp-more { color:var(--lp-acc); font-size:14px; text-decoration:none; white-space:nowrap; }
+.lp-more:hover { text-decoration:underline; }
 .lp-fine { margin-top:20px; color:var(--lp-mut); font-size:13px; }
 .lp-foot { border-top:1px solid var(--lp-line); padding:28px 0 40px; color:var(--lp-mut); font-size:13px; display:flex; flex-wrap:wrap; gap:12px; justify-content:space-between; }
 @media (min-width:760px){ .lp-links{display:flex} .lp-hero{padding:72px 0 40px} .lp-stats{grid-template-columns:repeat(4,1fr)} .lp-grid.c3{grid-template-columns:repeat(3,1fr)} .lp-grid.c2{grid-template-columns:repeat(2,1fr)} }

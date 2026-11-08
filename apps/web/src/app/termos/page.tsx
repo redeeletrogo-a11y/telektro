@@ -24,7 +24,7 @@ export default function TermosPage() {
       <ul>
         <li>Conta residencial: uso gratuito, cortesia da Telektro.</li>
         <li>Condomínio: mensalidade paga pelo condomínio por Pix. O responsável convida os moradores.</li>
-        <li>Eletroposto: sem mensalidade nem aluguel; a Telektro recebe 5% do faturamento bruto das recargas. O motorista paga antes por Pix ou cartão, recarrega e recebe de volta o valor não consumido.</li>
+        <li>Eletroposto: sem mensalidade nem aluguel; a Telektro recebe 8% do faturamento bruto das recargas. O motorista paga antes por Pix ou cartão, recarrega e recebe de volta o valor não consumido.</li>
         <li>Diretrizes: valores, percentuais e condições dos planos podem ser ajustados. Os valores vigentes ficam visíveis no site e no app antes da contratação. Pagamentos são processados pelo Mercado Pago.</li>
         <li>Você pode cancelar a assinatura a qualquer momento, sem multa. O cancelamento vale para os ciclos seguintes. Reembolsos seguem a legislação de defesa do consumidor.</li>
       </ul>
