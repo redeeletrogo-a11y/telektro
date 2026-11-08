@@ -40,7 +40,7 @@ export function Landing() {
             <svg viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" fill="#0f776c"/><path fill="#fff" d="M112 118h288v78H300v198h-88V196h-100z"/><path fill="#bcebd1" d="m278 224-79 112h55l-23 90 91-132h-59l34-70z"/></svg>
             TELEKTRO
           </Link>
-          <nav className="lp-links" aria-label="Seções"><a href="#como">Como funciona</a><a href="#solucoes">Soluções</a><a href="#planos">Planos</a><a href="#onde-carregar">Onde carregar</a></nav>
+          <nav className="lp-links" aria-label="Seções"><a href="#como">Como funciona</a><a href="#solucoes">Soluções</a><a href="#planos">Planos</a><a href="#onde-carregar">Onde carregar</a><Link href="/parceiro">Seja parceiro</Link></nav>
           <Link href="/login" className="lp-btn ghost">Entrar</Link>
         </div>
       </header>
@@ -87,7 +87,7 @@ export function Landing() {
           </div>
           <div className="lp-card" style={{marginTop:16,display:"flex",gap:14,alignItems:"flex-start"}}>
             <div className="lp-ico"><QrCode size={20}/></div>
-            <div><h3 style={{margin:"0 0 6px"}}>Em breve: Eletroposto completo e franquia</h3><p>Instalação, gestão, controle de pagamentos e fornecimento do carregador, em modelo de franquia. Fale com a gente para entrar na lista.</p></div>
+            <div><h3 style={{margin:"0 0 6px"}}>Eletroposto completo para o seu comércio</h3><p>Carregador, instalação, sinalização da vaga e sistema de gestão, a partir de R$ 7.499. Sem mensalidade: 8% do faturamento bruto das recargas. <Link href="/parceiro" style={{color:"var(--lp-acc)"}}>Seja parceiro Telektro</Link></p></div>
           </div>
         </div></section>
 
