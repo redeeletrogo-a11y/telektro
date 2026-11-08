@@ -22,7 +22,7 @@ const included = [
 ];
 
 const faq = [
-  { q: "É franquia?", a: "Não. Você compra o eletroposto completo e é o dono do equipamento e da operação. Não há taxa de franquia, royalties nem regras de rede." },
+  { q: "É franquia?", a: "Você compra o eletroposto completo e é o dono do equipamento e da operação. A Telektro fornece a plataforma de gestão e cobrança: a taxa de 8% do faturamento bruto das recargas é pelo uso da plataforma, sem mensalidade." },
   { q: "Quanto vou ganhar?", a: "Não prometemos faturamento: o retorno depende de quantos veículos elétricos carregam no seu ponto. A receita vem do preço por kWh que você definir, menos a taxa de 8% da Telektro e as taxas do gateway de pagamento." },
   { q: "O que eu preciso ter?", a: "Uma vaga exclusiva e visível para os clientes e energia disponível no local. O valor base cobre instalação a até 10 m do medidor ou do poste; distâncias maiores e versões mais potentes têm valor sob consulta." },
   { q: "Como recebo o dinheiro das recargas?", a: "O motorista paga por Pix ou cartão e você acompanha cada recarga no painel, com o valor líquido da sua parte detalhado por sessão e por mês." },
