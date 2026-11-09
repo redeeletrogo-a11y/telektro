@@ -89,3 +89,10 @@
 .lp-loc-note { font-weight:700; margin:0 0 14px; }
 .lp-loc-cta { display:flex; flex-wrap:wrap; gap:10px; }
 @media (min-width:760px){ .lp-loc { grid-template-columns:320px 1fr; align-items:start; } }
+
+.lp-referral { display:flex; align-items:center; gap:16px; margin:0 0 40px; padding:18px 20px; border:1px solid var(--lp-acc); border-radius:16px; background:#0d211d; flex-wrap:wrap; transition:background .16s ease; }
+.lp-referral:hover { background:#12332f; }
+.lp-referral-text { display:grid; gap:2px; flex:1 1 260px; min-width:0; }
+.lp-referral-text strong { font-size:18px; }
+.lp-referral-text span { color:var(--lp-mut); font-size:14px; }
+.lp-referral-go { display:inline-flex; align-items:center; gap:6px; color:var(--lp-acc2); font-weight:700; font-size:14px; }

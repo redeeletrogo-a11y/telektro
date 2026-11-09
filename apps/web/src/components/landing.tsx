@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Building2, Check, Gauge, Home, MapPin, MessageCircle, Navigation, PlugZap, QrCode, ShieldCheck, Smartphone, Zap } from "lucide-react";
+import { ArrowRight, Building2, Check, Gauge, Gift, Home, MapPin, MessageCircle, Navigation, PlugZap, QrCode, ShieldCheck, Smartphone, Zap } from "lucide-react";
 import { HeroCarousel } from "./hero-carousel";
 import { WhatsAppButton } from "./whatsapp-button";
 import { COMPANY_NOTE, SITE_DESCRIPTION, SITE_URL, WHATSAPP_NUMBER, whatsappUrl } from "@/lib/site";
@@ -40,7 +40,7 @@ export function Landing() {
             <svg viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" fill="#0f776c"/><path fill="#fff" d="M112 118h288v78H300v198h-88V196h-100z"/><path fill="#bcebd1" d="m278 224-79 112h55l-23 90 91-132h-59l34-70z"/></svg>
             TELEKTRO
           </Link>
-          <nav className="lp-links" aria-label="Seções"><a href="#como">Como funciona</a><a href="#solucoes">Soluções</a><a href="#planos">Planos</a><a href="#onde-carregar">Onde carregar</a><Link href="/parceiro">Seja parceiro</Link></nav>
+          <nav className="lp-links" aria-label="Seções"><a href="#como">Como funciona</a><a href="#solucoes">Soluções</a><a href="#planos">Planos</a><a href="#onde-carregar">Onde carregar</a><Link href="/parceiro">Seja parceiro</Link><Link href="/indique">Indique e ganhe</Link></nav>
           <Link href="/login" className="lp-btn ghost">Entrar</Link>
         </div>
       </header>
@@ -65,6 +65,14 @@ export function Landing() {
           <div className="lp-stat"><b>kWh medido</b><span>Por sessão, base para cobrança</span></div>
           <div className="lp-stat"><b>No celular</b><span>Instale como app, sem loja</span></div>
           <div className="lp-stat"><b>Multiempresa</b><span>Dados isolados por cliente</span></div>
+        </div>
+
+        <div className="lp-wrap">
+          <Link href="/indique" className="lp-referral" aria-label="Indique e ganhe R$ 250: ver como funciona">
+            <span className="lp-ico"><Gift size={22} aria-hidden="true"/></span>
+            <span className="lp-referral-text"><strong>Indique e ganhe R$ 250</strong><span>Conhece um comércio ou condomínio que poderia ter recarga? Compartilhe seu link e receba no Pix.</span></span>
+            <span className="lp-referral-go">Ver como funciona <ArrowRight size={16} aria-hidden="true"/></span>
+          </Link>
         </div>
 
         <section id="como" className="lp-sec"><div className="lp-wrap">
@@ -140,7 +148,7 @@ export function Landing() {
       </main>
       <WhatsAppButton/>
 
-      <footer className="lp-wrap lp-foot"><span><Zap size={13} style={{verticalAlign:"-2px"}}/> Telektro, operação de recarga</span><Link href="/privacidade">Privacidade</Link><Link href="/termos">Termos</Link><Link href="/login">Entrar</Link><small className="lp-company">{COMPANY_NOTE}</small></footer>
+      <footer className="lp-wrap lp-foot"><span><Zap size={13} style={{verticalAlign:"-2px"}}/> Telektro, operação de recarga</span><Link href="/privacidade">Privacidade</Link><Link href="/indique">Indique e ganhe</Link><Link href="/termos">Termos</Link><Link href="/login">Entrar</Link><small className="lp-company">{COMPANY_NOTE}</small></footer>
     </div>
   );
 }
