@@ -23,7 +23,7 @@ const faq = [
 const structuredData = {
   "@context": "https://schema.org",
   "@graph": [
-    { "@type": "Organization", "@id": `${SITE_URL}/#org`, name: "Telektro", legalName: "Nexa Labs Serviços LTDA", url: SITE_URL, logo: `${SITE_URL}/icon.svg`, contactPoint: { "@type": "ContactPoint", contactType: "sales", telephone: `+${WHATSAPP_NUMBER}`, availableLanguage: "pt-BR" } },
+    { "@type": "Organization", "@id": `${SITE_URL}/#org`, name: "Telektro", alternateName: ["Telektro Eletroposto", "Telektro recarga de carro elétrico"], legalName: "Nexa Labs Serviços LTDA", url: SITE_URL, logo: `${SITE_URL}/icon.svg`, contactPoint: { "@type": "ContactPoint", contactType: "sales", telephone: `+${WHATSAPP_NUMBER}`, availableLanguage: "pt-BR" } },
     { "@type": "WebSite", "@id": `${SITE_URL}/#site`, url: SITE_URL, name: "Telektro", inLanguage: "pt-BR", publisher: { "@id": `${SITE_URL}/#org` } },
     { "@type": "SoftwareApplication", "@id": `${SITE_URL}/#software`, name: "Telektro", applicationCategory: "BusinessApplication", operatingSystem: "Web (PWA)", inLanguage: "pt-BR", publisher: { "@id": `${SITE_URL}/#org` }, description: SITE_DESCRIPTION, url: SITE_URL, offers: { "@type": "Offer", price: "0", priceCurrency: "BRL", description: "Plano Residencial gratuito" } },
     { "@type": "FAQPage", "@id": `${SITE_URL}/#faq`, inLanguage: "pt-BR", mainEntity: faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })) },
