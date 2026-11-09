@@ -40,7 +40,7 @@ export function Landing() {
             <svg viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" fill="#0f776c"/><path fill="#fff" d="M112 118h288v78H300v198h-88V196h-100z"/><path fill="#bcebd1" d="m278 224-79 112h55l-23 90 91-132h-59l34-70z"/></svg>
             TELEKTRO
           </Link>
-          <nav className="lp-links" aria-label="Seções"><a href="#como">Como funciona</a><a href="#solucoes">Soluções</a><a href="#planos">Planos</a><a href="#onde-carregar">Onde carregar</a><Link href="/parceiro">Seja parceiro</Link><Link href="/indique">Indique e ganhe</Link></nav>
+          <nav className="lp-links" aria-label="Seções"><a href="#como">Como funciona</a><a href="#solucoes">Soluções</a><a href="#planos">Planos</a><a href="#onde-carregar">Onde carregar</a><Link href="/parceiro">Seja parceiro</Link><Link href="/guias">Guias</Link><Link href="/indique">Indique e ganhe</Link></nav>
           <Link href="/login" className="lp-btn ghost">Entrar</Link>
         </div>
       </header>
@@ -148,7 +148,7 @@ export function Landing() {
       </main>
       <WhatsAppButton/>
 
-      <footer className="lp-wrap lp-foot"><span><Zap size={13} style={{verticalAlign:"-2px"}}/> Telektro, operação de recarga</span><Link href="/privacidade">Privacidade</Link><Link href="/indique">Indique e ganhe</Link><Link href="/termos">Termos</Link><Link href="/login">Entrar</Link><small className="lp-company">{COMPANY_NOTE}</small></footer>
+      <footer className="lp-wrap lp-foot"><span><Zap size={13} style={{verticalAlign:"-2px"}}/> Telektro, operação de recarga</span><Link href="/privacidade">Privacidade</Link><Link href="/guias">Guias</Link><Link href="/eletroposto">Software para eletroposto</Link><Link href="/condominio">Carregador no condomínio</Link><Link href="/parceiro">Seja parceiro</Link><Link href="/indique">Indique e ganhe</Link><Link href="/termos">Termos</Link><Link href="/login">Entrar</Link><small className="lp-company">{COMPANY_NOTE}</small></footer>
     </div>
   );
 }
