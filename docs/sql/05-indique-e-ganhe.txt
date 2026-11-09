@@ -1,0 +1,258 @@
+begin;
+-- 05 - Indique e ganhe: codigo de indicacao por usuario, rastreamento de indicacoes e equipe interna.
+-- Somente rastreamento: NENHUM pagamento automatico de comissao. A comissao (R$ 250) e paga manualmente pela equipe.
+-- Idempotente: pode colar de novo sem erro.
+
+-- 1. Codigo de indicacao (um por usuario)
+create table if not exists public.referral_codes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade unique,
+  code text not null unique check (code ~ '^[A-Z0-9]{6}$'),
+  created_at timestamptz not null default now()
+);
+alter table public.referral_codes enable row level security;
+
+-- 2. Indicacoes
+--    registrado = lead cadastrado pela equipe | cadastrou = criou conta pelo link
+--    ativo = ponto funcionando e pagamento do comerciante recebido (comissao disponivel) | pago = comissao paga | cancelado = sem validade
+create table if not exists public.referrals (
+  id uuid primary key default gen_random_uuid(),
+  referrer_user_id uuid not null references auth.users(id) on delete cascade,
+  referred_user_id uuid references auth.users(id) on delete set null unique,
+  referred_name text,
+  referred_contact text,
+  status text not null default 'registrado' check (status in ('registrado','cadastrou','ativo','pago','cancelado')),
+  commission_amount numeric(12,2) not null default 250 check (commission_amount >= 0),
+  commission_eligible boolean not null default true,
+  source text not null default 'link' check (source in ('link','admin')),
+  notes text,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists referrals_referrer_idx on public.referrals (referrer_user_id, created_at desc);
+alter table public.referrals enable row level security;
+
+-- 3. Equipe interna (dono + socio): acompanha e cadastra indicacoes, NAO ganha comissao
+create table if not exists public.referral_admins (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+alter table public.referral_admins enable row level security;
+insert into public.referral_admins (user_id) values ('e0bab98e-f41d-49bf-9ab3-89f26a24ab87') on conflict do nothing;
+
+-- 4. Funcao de equipe
+create or replace function public.is_referral_admin()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.referral_admins a where a.user_id = (select auth.uid()));
+$$;
+revoke all on function public.is_referral_admin() from public;
+grant execute on function public.is_referral_admin() to authenticated;
+
+-- 5. RLS: leitura minima direta; escritas so via funcoes (security definer)
+drop policy if exists "Users read own referral code" on public.referral_codes;
+create policy "Users read own referral code" on public.referral_codes
+  for select to authenticated using (user_id = (select auth.uid()) or public.is_referral_admin());
+drop policy if exists "Referrers read own referrals" on public.referrals;
+create policy "Referrers read own referrals" on public.referrals
+  for select to authenticated using (referrer_user_id = (select auth.uid()) or public.is_referral_admin());
+drop policy if exists "Members read team row" on public.referral_admins;
+create policy "Members read team row" on public.referral_admins
+  for select to authenticated using (user_id = (select auth.uid()) or public.is_referral_admin());
+
+grant select on public.referral_codes to authenticated;
+grant select on public.referrals to authenticated;
+grant select on public.referral_admins to authenticated;
+grant select on public.referral_codes to service_role;
+grant select, insert, update on public.referrals to service_role;
+grant select on public.referral_admins to service_role;
+
+-- 6. Meu codigo: devolve o existente ou cria um novo (6 caracteres, sem letras ambiguas)
+create or replace function public.get_my_referral_code()
+returns text language plpgsql security definer set search_path = '' as $$
+declare
+  v_user uuid := (select auth.uid());
+  v_code text;
+begin
+  if v_user is null then raise exception 'AUTHENTICATION_REQUIRED' using errcode = '42501'; end if;
+  select code into v_code from public.referral_codes where user_id = v_user;
+  if v_code is not null then return v_code; end if;
+  loop
+    v_code := upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 6));
+    begin
+      insert into public.referral_codes (user_id, code) values (v_user, v_code);
+      return v_code;
+    exception when unique_violation then
+      select code into v_code from public.referral_codes where user_id = v_user;
+      if v_code is not null then return v_code; end if;
+    end;
+  end loop;
+end;
+$$;
+revoke all on function public.get_my_referral_code() from public;
+grant execute on function public.get_my_referral_code() to authenticated;
+
+-- 7. Pre-visualizacao publica do link: so o primeiro nome de quem indicou (nao expoe conta nem e-mail)
+create or replace function public.get_referral_preview(p_code text)
+returns table (valid boolean, referrer_first_name text) language plpgsql stable security definer set search_path = '' as $$
+begin
+  return query
+    select true, nullif(split_part(coalesce(u.display_name, ''), ' ', 1), '')
+    from public.referral_codes c join public.users u on u.id = c.user_id
+    where c.code = upper(btrim(p_code));
+  if not found then return query select false, null::text; end if;
+end;
+$$;
+revoke all on function public.get_referral_preview(text) from public;
+grant execute on function public.get_referral_preview(text) to anon, authenticated;
+
+-- 8. Vincular conta ao codigo (idempotente). Regras: codigo existe, nao e o proprio usuario,
+--    usuario ainda nao foi indicado e ainda nao e cliente (sem organizacao).
+create or replace function public.bind_referral(p_code text)
+returns text language plpgsql security definer set search_path = '' as $$
+declare
+  v_user uuid := (select auth.uid());
+  v_referrer uuid;
+begin
+  if v_user is null then raise exception 'AUTHENTICATION_REQUIRED' using errcode = '42501'; end if;
+  select user_id into v_referrer from public.referral_codes where code = upper(btrim(p_code));
+  if v_referrer is null then return 'INVALID_CODE'; end if;
+  if v_referrer = v_user then return 'SELF'; end if;
+  if exists (select 1 from public.referrals r where r.referred_user_id = v_user) then return 'ALREADY_BOUND'; end if;
+  if exists (select 1 from public.memberships m where m.user_id = v_user) then return 'NOT_ELIGIBLE'; end if;
+  -- equipe interna nao ganha comissao: indicacoes dela servem so para acompanhamento
+  insert into public.referrals (referrer_user_id, referred_user_id, status, source, commission_eligible)
+    values (v_referrer, v_user, 'cadastrou', 'link',
+      not exists (select 1 from public.referral_admins a where a.user_id = v_referrer));
+  return 'OK';
+exception when unique_violation then return 'ALREADY_BOUND';
+end;
+$$;
+revoke all on function public.bind_referral(text) from public;
+grant execute on function public.bind_referral(text) to authenticated;
+
+-- 9. Minhas indicacoes (painel do usuario)
+create or replace function public.my_referrals()
+returns table (id uuid, label text, status text, commission_amount numeric, commission_eligible boolean, created_at timestamptz)
+language plpgsql stable security definer set search_path = '' as $$
+declare v_user uuid := (select auth.uid());
+begin
+  if v_user is null then raise exception 'AUTHENTICATION_REQUIRED' using errcode = '42501'; end if;
+  return query
+    select r.id,
+      coalesce(nullif(btrim(r.referred_name), ''),
+        nullif(split_part(coalesce(ru.display_name, ''), ' ', 1), ''),
+        'Conta criada') as label,
+      r.status, r.commission_amount, r.commission_eligible, r.created_at
+    from public.referrals r
+    left join public.users ru on ru.id = r.referred_user_id
+    where r.referrer_user_id = v_user
+    order by r.created_at desc;
+end;
+$$;
+revoke all on function public.my_referrals() from public;
+grant execute on function public.my_referrals() to authenticated;
+
+-- 10. Painel da equipe: lista completa com identificacao de quem indicou e do indicado
+create or replace function public.admin_list_referrals()
+returns table (id uuid, referrer_label text, referred_label text, referred_contact text,
+               status text, source text, notes text, commission_amount numeric, commission_eligible boolean, created_at timestamptz)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not public.is_referral_admin() then raise exception 'REFERRAL_ADMIN_REQUIRED' using errcode = '42501'; end if;
+  return query
+    select r.id,
+      coalesce(nullif(btrim(u.display_name), ''), split_part(au.email::text, '@', 1), 'Usuario') as referrer_label,
+      coalesce(nullif(btrim(r.referred_name), ''), nullif(btrim(ru.display_name), ''),
+        case when r.referred_user_id is not null then 'Conta criada' else null end, 'Lead') as referred_label,
+      coalesce(r.referred_contact, rau.email::text) as referred_contact,
+      r.status, r.source, r.notes, r.commission_amount, r.commission_eligible, r.created_at
+    from public.referrals r
+    left join public.users u on u.id = r.referrer_user_id
+    left join auth.users au on au.id = r.referrer_user_id
+    left join public.users ru on ru.id = r.referred_user_id
+    left join auth.users rau on rau.id = r.referred_user_id
+    order by r.created_at desc;
+end;
+$$;
+revoke all on function public.admin_list_referrals() from public;
+grant execute on function public.admin_list_referrals() to authenticated;
+
+-- 11. Equipe cadastra indicacao manualmente (lead, sem conta)
+create or replace function public.admin_add_referral(p_referrer_email text, p_name text, p_contact text, p_notes text default null)
+returns text language plpgsql security definer set search_path = '' as $$
+declare
+  v_referrer uuid;
+begin
+  if not public.is_referral_admin() then raise exception 'REFERRAL_ADMIN_REQUIRED' using errcode = '42501'; end if;
+  if nullif(btrim(p_name), '') is null then return 'NAME_REQUIRED'; end if;
+  select id into v_referrer from auth.users where lower(email::text) = lower(btrim(p_referrer_email));
+  if v_referrer is null then return 'REFERRER_NOT_FOUND'; end if;
+  insert into public.referrals (referrer_user_id, referred_name, referred_contact, notes, status, source, created_by, commission_eligible)
+    values (v_referrer, btrim(p_name), nullif(btrim(p_contact), ''), nullif(btrim(p_notes), ''), 'registrado', 'admin', (select auth.uid()),
+      not exists (select 1 from public.referral_admins a where a.user_id = v_referrer));
+  return 'OK';
+end;
+$$;
+revoke all on function public.admin_add_referral(text, text, text, text) from public;
+grant execute on function public.admin_add_referral(text, text, text, text) to authenticated;
+
+-- 12. Equipe muda o status (ex.: ativo quando o ponto entra em operacao; pago apos o Pix da comissao)
+create or replace function public.admin_set_referral_status(p_referral_id uuid, p_status text, p_notes text default null)
+returns text language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_referral_admin() then raise exception 'REFERRAL_ADMIN_REQUIRED' using errcode = '42501'; end if;
+  if p_status not in ('registrado','cadastrou','ativo','pago','cancelado') then return 'INVALID_STATUS'; end if;
+  update public.referrals r
+    set status = p_status, notes = coalesce(nullif(btrim(p_notes), ''), r.notes), updated_at = now()
+    where r.id = p_referral_id;
+  if not found then return 'NOT_FOUND'; end if;
+  return 'OK';
+end;
+$$;
+revoke all on function public.admin_set_referral_status(uuid, text, text) from public;
+grant execute on function public.admin_set_referral_status(uuid, text, text) to authenticated;
+
+-- 13. Equipe: adicionar/remover membro pelo e-mail da conta Telektro (sempre sobra ao menos 1 membro)
+create or replace function public.admin_list_members()
+returns table (user_id uuid, email text, created_at timestamptz)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not public.is_referral_admin() then raise exception 'REFERRAL_ADMIN_REQUIRED' using errcode = '42501'; end if;
+  return query
+    select a.user_id, au.email::text, a.created_at
+    from public.referral_admins a join auth.users au on au.id = a.user_id
+    order by a.created_at;
+end;
+$$;
+revoke all on function public.admin_list_members() from public;
+grant execute on function public.admin_list_members() to authenticated;
+
+create or replace function public.admin_add_member(p_email text)
+returns text language plpgsql security definer set search_path = '' as $$
+declare v_user uuid;
+begin
+  if not public.is_referral_admin() then raise exception 'REFERRAL_ADMIN_REQUIRED' using errcode = '42501'; end if;
+  select id into v_user from auth.users where lower(email::text) = lower(btrim(p_email));
+  if v_user is null then return 'NOT_FOUND'; end if;
+  insert into public.referral_admins (user_id) values (v_user) on conflict do nothing;
+  return 'OK';
+end;
+$$;
+revoke all on function public.admin_add_member(text) from public;
+grant execute on function public.admin_add_member(text) to authenticated;
+
+create or replace function public.admin_remove_member(p_user_id uuid)
+returns text language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_referral_admin() then raise exception 'REFERRAL_ADMIN_REQUIRED' using errcode = '42501'; end if;
+  if (select count(*) from public.referral_admins) <= 1 then return 'LAST_MEMBER'; end if;
+  delete from public.referral_admins where user_id = p_user_id;
+  if not found then return 'NOT_FOUND'; end if;
+  return 'OK';
+end;
+$$;
+revoke all on function public.admin_remove_member(uuid) from public;
+grant execute on function public.admin_remove_member(uuid) to authenticated;
+
+commit;

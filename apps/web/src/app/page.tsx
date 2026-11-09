@@ -55,6 +55,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   const pendingClaim = (await cookies()).get("telektro_claim")?.value;
   // Claim precisa de uma organizacao propria: quem ainda nao e dono de nenhuma cai no onboarding primeiro e volta ao QR depois.
   if (pendingClaim && /^[a-f0-9]{32}$/.test(pendingClaim) && memberships?.some((membership) => membership.role === "owner")) redirect(`/c/${pendingClaim}`);
+  // Indicação: conta nova que chegou por um link /i/CODIGO fica vinculada a quem indicou (idempotente; só vale antes de ter organização).
+  const pendingRef = (await cookies()).get("tk_ref")?.value;
+  if (!memberships?.length && pendingRef && /^[A-Z0-9]{6}$/.test(pendingRef)) await supabase.rpc("bind_referral", { p_code: pendingRef });
   if (!memberships?.length) return <OrganizationOnboarding email={user.email ?? "Conta Telektro"}/>;
 
   const organizationIds = memberships.map((membership) => membership.organization_id);
