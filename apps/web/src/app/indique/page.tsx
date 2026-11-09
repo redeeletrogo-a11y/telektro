@@ -7,9 +7,9 @@ import { ReferralLanding, type ReferralBanner, type ReferralPanelData } from "@/
 
 export const metadata: Metadata = {
   title: "Indique e ganhe R$ 250",
-  description: "Indique a Telektro para um comércio ou condomínio. Quando o ponto do seu indicado entrar em operação, você recebe R$ 250 no Pix. Sem limite de indicações.",
+  description: "Indique a Telektro para um comércio ou condomínio. Quando o seu indicado pagar e o ponto estiver funcionando, você recebe R$ 250 no Pix. Sem limite de indicações.",
   alternates: { canonical: "/indique" },
-  openGraph: { title: "Indique e ganhe R$ 250 | Telektro", description: "Compartilhe seu link: quando o ponto do seu indicado entrar em operação, você recebe R$ 250 no Pix.", url: "/indique" },
+  openGraph: { title: "Indique e ganhe R$ 250 | Telektro", description: "Compartilhe seu link: quando o seu indicado pagar e o ponto estiver funcionando, você recebe R$ 250 no Pix.", url: "/indique" },
 };
 
 type PreviewRow = { valid: boolean; referrer_first_name: string | null };

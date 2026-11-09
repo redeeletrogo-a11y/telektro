@@ -18,20 +18,20 @@ export type ReferralPanelData = {
 const steps = [
   { icon: Gift, title: "Pegue seu código", text: "Crie sua conta e receba um código e um link só seus, prontos para compartilhar." },
   { icon: Share2, title: "Compartilhe", text: "Envie o link para donos de comércio, síndicos e administradores que poderiam ter um ponto de recarga." },
-  { icon: Banknote, title: "Acompanhe e receba", text: "Quando o ponto do seu indicado entrar em operação, a comissão de R$ 250 é liberada e paga no seu Pix." },
+  { icon: Banknote, title: "Acompanhe e receba", text: "Quando o seu indicado pagar a Telektro e o ponto estiver funcionando, a comissão de R$ 250 fica disponível e é paga no seu Pix." },
 ];
 
 const rules = [
   "Comissão única de R$ 250 por indicação válida, sem limite de indicações.",
   "A indicação vale para novos clientes: a pessoa precisa criar a conta Telektro pelo seu link ou código.",
-  "A comissão é liberada quando o ponto do indicado entra em operação com a Telektro.",
+  "A comissão fica disponível quando a Telektro recebe o pagamento do seu indicado e o ponto dele está funcionando. Não depende de recargas.",
   "O pagamento é feito pela equipe Telektro via Pix; você acompanha cada etapa aqui nesta página.",
   "Não vale autoindicação nem contas que já existiam antes do uso do código.",
   "O programa pode ser ajustado ou encerrado a qualquer momento, respeitando as indicações já ativadas.",
 ];
 
 const faq = [
-  { q: "Quando eu recebo?", a: "Quando o ponto do seu indicado entrar em operação com a Telektro. Você acompanha o status nesta página: ao mudar para \"Ponto ativado\", a comissão está liberada para pagamento." },
+  { q: "Quando eu recebo?", a: "Quando a Telektro receber o pagamento do seu indicado e o ponto dele estiver funcionando (não precisa ter recargas). Você acompanha nesta página: ao mudar para \"Ponto ativado\", a comissão está disponível para pagamento." },
   { q: "Como eu recebo?", a: "Via Pix, pago pela equipe Telektro. Nada é cobrado de você em nenhuma etapa." },
   { q: "Quantas pessoas posso indicar?", a: "Quantas quiser. Cada indicação válida vale R$ 250, sem teto." },
   { q: "O que meu indicado precisa fazer?", a: "Criar a conta pelo seu link e conversar com a Telektro sobre o ponto de recarga. Nós cuidamos de todo o resto." },
@@ -61,7 +61,7 @@ function ReferralPanel({ panel }: { panel: ReferralPanelData }) {
     <section className="lp-wrap rf-hero" aria-labelledby="rf-title">
       <span className="lp-eyebrow">Programa de indicação</span>
       <h1 id="rf-title">Seu link de indicação</h1>
-      <p className="lp-lead">Compartilhe com quem pode ter um ponto de recarga. Quando o ponto do indicado entrar em operação, você recebe {formatBRL(250)} no Pix.</p>
+      <p className="lp-lead">Compartilhe com quem pode ter um ponto de recarga. Quando o indicado pagar e o ponto estiver funcionando, você recebe {formatBRL(250)} no Pix.</p>
 
       <div className="rf-code-card">
         <div className="rf-code-row">
@@ -160,7 +160,7 @@ export function ReferralLanding({ banner, panel }: { banner: ReferralBanner | nu
           <section className="lp-wrap lp-hero" aria-labelledby="rf-title" style={{ paddingBottom: 0 }}>
             <span className="lp-eyebrow">Programa de indicação Telektro</span>
             <h1 id="rf-title">Indique a Telektro e ganhe <em>R$ 250</em></h1>
-            <p className="lp-lead">Conhece um comércio ou condomínio que poderia ter recarga de carro elétrico? Compartilhe seu link. Quando o ponto do seu indicado entrar em operação, você recebe R$ 250 no Pix.</p>
+            <p className="lp-lead">Conhece um comércio ou condomínio que poderia ter recarga de carro elétrico? Compartilhe seu link. Quando o seu indicado pagar e o ponto estiver funcionando, você recebe R$ 250 no Pix.</p>
             <div className="lp-cta">
               <Link className="lp-btn primary" href="/register">Pegar meu código</Link>
               <Link className="lp-btn ghost" href="/login">Já tenho conta</Link>

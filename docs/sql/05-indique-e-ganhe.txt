@@ -14,7 +14,7 @@ alter table public.referral_codes enable row level security;
 
 -- 2. Indicacoes
 --    registrado = lead cadastrado pela equipe | cadastrou = criou conta pelo link
---    ativo = ponto do indicado em operacao (comissao devida) | pago = comissao paga | cancelado = sem validade
+--    ativo = ponto funcionando e pagamento do comerciante recebido (comissao disponivel) | pago = comissao paga | cancelado = sem validade
 create table if not exists public.referrals (
   id uuid primary key default gen_random_uuid(),
   referrer_user_id uuid not null references auth.users(id) on delete cascade,
