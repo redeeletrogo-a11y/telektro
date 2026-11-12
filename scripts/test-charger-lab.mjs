@@ -57,3 +57,27 @@ assert.equal((await a.start()).energyWh, 0, "new session resets fixture");
 console.log(
   "PASS: identity/collision, demo proof, real-adapter gates, state transitions, disconnection/reconciliation and non-billable fixture.",
 );
+const discoverySource = fs.readFileSync(
+  new URL("../apps/web/src/lib/charger-lab/discovery.ts", import.meta.url),
+  "utf8",
+);
+const discoveryJs = ts.transpileModule(discoverySource, {
+  compilerOptions: {
+    module: ts.ModuleKind.ESNext,
+    target: ts.ScriptTarget.ES2022,
+  },
+}).outputText;
+const { compareSuffix, discoveryError } = await import(
+  "data:text/javascript;base64," + Buffer.from(discoveryJs).toString("base64")
+);
+assert.equal(compareSuffix("CHARGER-67890", "67890"), "match");
+assert.equal(compareSuffix("CHARGER-12345", "67890"), "different");
+for (const name of [undefined, null, "No serial", "67890-more"])
+  assert.equal(compareSuffix(name, "67890"), "unknown");
+assert.equal(compareSuffix("CHARGER-67890", "890"), "unknown");
+assert.match(discoveryError("NotFoundError"), /cancelada/);
+assert.match(discoveryError("NotAllowedError"), /negada/);
+assert.match(discoveryError("NotSupportedError"), /indisponível/);
+console.log(
+  "PASS discovery helpers: suffix is informational only; absent/invalid serial and browser errors handled.",
+);

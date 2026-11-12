@@ -15,6 +15,7 @@ import {
   type Transport,
 } from "@/lib/charger-lab/core";
 import "./charger-lab.css";
+import { ChargerDiscovery } from "./charger-discovery";
 
 export function ChargerLab() {
   const [family, setFamily] = useState("gwm");
@@ -115,12 +116,13 @@ export function ChargerLab() {
         </p>
       </section>
       <div className="cl-notice">
-        <strong>Sem cobrança. Sem aparelho conectado.</strong>
+        <strong>Sem cobrança. Nenhuma conexão com aparelho.</strong>
         <span>
-          Nenhum comando sai desta página. Os dados somem ao recarregar ou
-          fechar a aba.
+          A busca Bluetooth é opcional e real quando escolhida. Não conecta, não
+          configura e não envia comandos. O cadastro abaixo continua fictício.
         </span>
       </div>
+      <ChargerDiscovery />
       <div className="cl-layout">
         <section className="cl-panel">
           <nav className="cl-steps" aria-label="Etapas do cadastro">
@@ -494,7 +496,10 @@ export function ChargerLab() {
             <ul>
               <li>Não cadastra um ponto no banco.</li>
               <li>Não valida posse real, marca ou firmware.</li>
-              <li>Não acessa Wi-Fi ou Bluetooth.</li>
+              <li>
+                Não acessa Wi-Fi ou serviços GATT. Bluetooth só abre seletor
+                quando solicitado.
+              </li>
               <li>Não envia comandos a carregadores.</li>
             </ul>
             <p className="cl-help">
