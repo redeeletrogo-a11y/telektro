@@ -1,0 +1,10 @@
+-- Telektro: taxa da plataforma 8% (Pix e cartao) no ponto piloto.
+-- Rodar no Supabase (SQL Editor) UMA vez. So vale para pagamentos NOVOS; pagamentos antigos mantem a taxa gravada.
+-- Nao mexe em cobranca do cliente: a taxa e so o registro do repasse (fee_amount = valor cobrado x percentual).
+
+update public.eletroposto_points
+set platform_fee_pix_pct = 8, platform_fee_card_pct = 8
+where public_code = '06eaf5db6b7d6982';
+
+-- Conferencia (deve mostrar 8 e 8):
+select public_code, platform_fee_pix_pct, platform_fee_card_pct from public.eletroposto_points;

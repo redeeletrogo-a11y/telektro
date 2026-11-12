@@ -47,7 +47,7 @@ Texto legal já decidido: Pix = "pago agora, a sobra volta no mesmo Pix" (não c
 
 Pix: estorno parcial ou total no MP com chave de idempotência `ep-refund-<id>`. Cartão: captura parcial (`PUT /v1/payments/{id}`, `capture=true`, `transaction_amount` = cobrado, chave `ep-capture-<id>`); se nada foi consumido, cancela a reserva (`ep-cancel-<id>`). Cartão não tem reembolso: a sobra volta ao limite. Se capturar ou estornar falhar, o pagamento fica `settling` com `needs_attention` e é tentado de novo a cada varredura (a reserva de cartão vale cerca de 5 dias).
 
-Taxa da plataforma: por ponto, `platform_fee_pix_pct` e `platform_fee_card_pct`, gravadas no pagamento (`fee_pct`) e calculadas sobre o valor efetivamente cobrado (`fee_amount`). Ponto piloto: 5% Pix, 5% cartão (os padrões da migration são 5 e 9).
+Taxa da plataforma: por ponto, `platform_fee_pix_pct` e `platform_fee_card_pct`, gravadas no pagamento (`fee_pct`) e calculadas sobre o valor efetivamente cobrado (`fee_amount`). Ponto piloto: **8% Pix e 8% cartão desde 28/10/2026** (SQL docs/sql/04, aplicado pelo Maycon e conferido por leitura no banco; antes 5% e 5%). Vale só para pagamentos novos; os antigos mantêm a taxa gravada (testes de cartão de 4/10 ficaram com 9%). Os padrões da migration para pontos NOVOS continuam 5 (Pix) e 9 (cartão): não foram alterados.
 
 Casos: pago mas carregador offline ou conector ocupado = devolução total (`cannot_start`); início rejeitado ou sem sessão em 12 min = devolução total (`start_rejected`, `start_timeout`); medidor inconsistente = `review` (nada é cobrado sozinho); consumo acima do pago = cliente paga no máximo o valor pago; chargeback = `needs_attention` com `attention_reason = chargeback`.
 
@@ -152,6 +152,8 @@ Conferir: `charged_amount + refund_amount = 10`, `refund_id` preenchido, sem `ne
 
 **NeoCharge (ws):** cadastrar o carregador, ligar "Permitir ws" (só o dono), configurar o equipamento com `ws://telektro-ocpp-gateway.fly.dev/ocpp/<ID>` (porta 80), usuário = ID, senha = credencial. Conferir no painel "Última conexão: ws" e que ele aparece online. Trocar a senha ao migrar para wss. Também validar com ele o alerta de sem sinal (desligar da tomada e esperar 5 minutos) e o fechamento de sessão órfã (20 minutos).
 
+**Taxa 8% (conferir na próxima recarga real, sem teste pago só para isso):** no pagamento, `fee_pct` = 8 e `fee_amount` = `charged_amount` x 8%; o cliente paga o mesmo valor de antes.
+
 Já provado antes (4/10/2026, hardware ou simulador do Codex com Mercado Pago real): cartão com reserva de R$ 20, cobrado R$ 4 por captura parcial; Pix com sobra devolvida. O código mudou depois (PRs 55 a 62), por isso o teste real acima ainda é necessário.
 
 ## 9. Histórico de entregas (PRs mesclados)
@@ -167,6 +169,7 @@ Já provado antes (4/10/2026, hardware ou simulador do Codex com Mercado Pago re
 - Alerta de carregador sem sinal só no painel do dono, sem e-mail.
 - Aceitar ws e wss: o padrão dele é wss; modelos só ws (NeoCharge) entram por opção por carregador, com senha própria e aviso. O modelo Telektro deve servir de referência e aceitar todos os carregadores.
 - Relatar sempre o que foi testado de verdade e o que foi simulado.
+- 28/10/2026: taxa da plataforma do ponto piloto sobe de 5% para 8% (mesmo valor para Pix e cartão). Escopo: só o ponto piloto; padrão de pontos futuros não decidido. Falta observar o cálculo (`fee_pct` = 8, `fee_amount` = cobrado x 8%) no próximo pagamento real; não foi feito teste pago para isso.
 
 ## 11. Pendências e ideias não feitas
 
