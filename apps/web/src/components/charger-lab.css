@@ -435,3 +435,48 @@ body:has(.charger-lab) .pwa-install-button {
 .cl-diagnostic h3 {
   line-height: 1.5;
 }
+
+.cl-discovery {
+  max-width: 1120px;
+  margin: 24px auto;
+}
+.cl-discovery > .cl-primary {
+  max-width: 400px;
+}
+.cl-discovery > input {
+  max-width: 400px;
+}
+.cl-discovery .cl-notice {
+  margin: 18px 0;
+}
+.cl-demo-discovery {
+  padding: 18px;
+  border: 1px dashed #43675b;
+  border-radius: 10px;
+  margin-top: 20px;
+}
+.cl-panel .cl-demo-consent {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.cl-panel .cl-demo-consent input {
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+}
+.cl-discovery-results {
+  border-top: 1px solid #345047;
+  margin-top: 24px;
+  padding-top: 20px;
+}
+.cl-discovery-results li {
+  padding: 10px 0;
+  overflow-wrap: anywhere;
+}
+.cl-discovery-results li span {
+  display: block;
+  font-size: 12px;
+  color: #a6bcb5;
+}

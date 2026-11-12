@@ -4,7 +4,7 @@ Rota isolada: `/laboratorio/carregadores` (noindex; sem inclusão em menus/sitem
 
 ## Escopo
 - Cadastro efêmero em memória da aba: marca/família de referência, sufixo ou texto de QR de **unidades fictícias**, seleção de serial completo no caso de colisão e prova de posse **simulada**.
-- Nenhum banco, conta de fornecedor, câmera, Bluetooth, LAN, gateway, cobrança ou carregador é acessado. Nenhum novo SQL.
+- Sem banco, conta de fornecedor, câmera, LAN, gateway ou cobrança. Nenhum novo SQL. Bluetooth: seletor real opcional mediante clique e permissão, sem conectar GATT, ler características ou enviar comandos.
 - QR demonstrativo é texto colado, não leitura de câmera. A marca selecionada não declara homologação. Não aceitar códigos de posse reais neste laboratório.
 - `registered`: cadastro fictício confirmado, não conectado; `simulated`: simulador em uso. `validated` está no contrato para evolução, sem ação no formulário que conceda homologação real.
 - Transporte OCPP/LAN/BLE reservado no contrato, **sem drivers conectados**. Selecionar esses transportes não tenta rede. Apenas simulado executa.
@@ -25,3 +25,8 @@ A simulação não comprova funcionamento num equipamento. Merge/deploy exige no
 Cadastro/configuração primeiro: diagnóstico de conexão, configuração de OCPP no ponto e confirmação no Telektro. Hoje as verificações são simuladas/não executadas. Sem alteração de endpoint ou credencial em equipamento. Carga fictícia é seção secundária.
 
 Roadmap: identificar família/firmware e interface autorizada; diagnóstico somente leitura no piloto autorizado; revisão das mudanças OCPP, aplicação autorizada e verificação no servidor; ampliar famílias homologadas; só depois avaliar liberação/parada de modelos sem OCPP. Não confere suporte universal.
+
+## Descoberta Bluetooth opcional
+Web Bluetooth `requestDevice({acceptAllDevices:true})` abre o seletor do navegador e retorna somente o dispositivo selecionado pelo usuário. Não é varredura contínua nem lista completa. Só o nome é guardado em memória, sem ID/endereço, sem serviços solicitados, sem GATT connect/leitura/escrita. Limite de cinco escolhas por aba; reload limpa. Apagar a lista não revoga permissões do browser. Nome pode não conter serial e pode ser falsificado: comparação de final nunca concede posse/cadastro/homologação.
+
+Sem suporte: mensagem clara e demonstração separada com consentimento fictício. Nenhum fallback é apresentado como descoberta real. Testes de API em automação são mocks, não ensaio de rádio real. Não utilizar no carregador da farmácia. Não há driver pronto para configurar aparelho real. Rota escondida/noindex não equivale a autenticação ou controle de acesso.
