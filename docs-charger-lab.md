@@ -20,3 +20,8 @@ Validar protocolo e acesso autorizado de cada família: GWM G/K usa Zeeda, não 
 `node scripts/test-charger-lab.mjs` (após instalar dependências do workspace).
 
 A simulação não comprova funcionamento num equipamento. Merge/deploy exige nova aprovação do proprietário.
+
+## Prioridade do assistente (12/11)
+Cadastro/configuração primeiro: diagnóstico de conexão, configuração de OCPP no ponto e confirmação no Telektro. Hoje as verificações são simuladas/não executadas. Sem alteração de endpoint ou credencial em equipamento. Carga fictícia é seção secundária.
+
+Roadmap: identificar família/firmware e interface autorizada; diagnóstico somente leitura no piloto autorizado; revisão das mudanças OCPP, aplicação autorizada e verificação no servidor; ampliar famílias homologadas; só depois avaliar liberação/parada de modelos sem OCPP. Não confere suporte universal.

@@ -422,3 +422,16 @@
 body:has(.charger-lab) .pwa-install-button {
   display: none;
 }
+.cl-roadmap {
+  list-style: decimal;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: #bdcec8;
+}
+.cl-diagnostic {
+  margin-top: 24px;
+}
+.cl-diagnostic h3 {
+  line-height: 1.5;
+}

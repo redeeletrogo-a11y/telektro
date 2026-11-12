@@ -102,15 +102,16 @@ export function ChargerLab() {
         <span className="cl-tag">Protótipo isolado</span>
       </header>
       <section className="cl-intro">
-        <p className="cl-eyebrow">MAIS MODELOS. UM SÓ LUGAR.</p>
+        <p className="cl-eyebrow">ASSISTENTE DE CONFIGURAÇÃO</p>
         <h1>
-          Seu carregador,
+          Cadastrar. Configurar.
           <br />
-          <span>do seu jeito.</span>
+          <span>Conferir a conexão.</span>
         </h1>
         <p>
-          Uma base simples para cadastrar e testar integrações. Por enquanto,
-          tudo aqui é demonstração.
+          Um caminho guiado para adicionar carregadores ao Telektro. Este
+          laboratório demonstra o cadastro e o diagnóstico, sem configurar um
+          aparelho real.
         </p>
       </section>
       <div className="cl-notice">
@@ -123,7 +124,7 @@ export function ChargerLab() {
       <div className="cl-layout">
         <section className="cl-panel">
           <nav className="cl-steps" aria-label="Etapas do cadastro">
-            {["Identificar", "Prova de posse", "Testar"].map((s, i) => (
+            {["Identificar", "Prova de posse", "Diagnóstico"].map((s, i) => (
               <span
                 key={s}
                 aria-current={stage === i + 1 ? "step" : undefined}
@@ -312,33 +313,31 @@ export function ChargerLab() {
                 </div>
               ) : (
                 <>
-                  <div className="cl-metrics">
-                    <div>
-                      <span>Estado simulado</span>
-                      <strong>
-                        {!snapshot
-                          ? "Não conectado"
-                          : snapshot.state === "unknown"
-                            ? "Desconhecido"
-                            : snapshot.state === "charging"
-                              ? "Em recarga"
-                              : "Disponível"}
-                      </strong>
-                    </div>
-                    <div>
-                      <span>Energia fictícia</span>
-                      <strong>
-                        {snapshot?.energyWh == null
-                          ? "—"
-                          : `${(snapshot.energyWh / 1000).toLocaleString("pt-BR")} kWh`}
-                      </strong>
-                    </div>
-                  </div>
-                  <p className="cl-help">
-                    A leitura de teste usa 420 Wh fixos durante a sessão. Não é
-                    medidor e nunca é usada para cobrar.
-                  </p>
-                  <div className="cl-actions">
+                  <section
+                    className="cl-diagnostic"
+                    aria-label="Diagnóstico demonstrativo"
+                  >
+                    <h3>Conferir conexão · simulação</h3>
+                    <p className="cl-help">
+                      Conecte o simulador para exercitar o diagnóstico. Uma
+                      etapa simulada nunca confirma comunicação com um aparelho
+                      real.
+                    </p>
+                    <ul>
+                      <li>Identificação: unidade fictícia selecionada</li>
+                      <li>
+                        Posse: código de demonstração, não verificada no
+                        aparelho
+                      </li>
+                      <li>
+                        Transporte:{" "}
+                        {snapshot?.connected
+                          ? "simulador conectado"
+                          : "não conectado"}
+                      </li>
+                      <li>Configuração OCPP no ponto: não executada</li>
+                      <li>Conexão com o Telektro: não testada</li>
+                    </ul>
                     <button
                       className="cl-primary"
                       type="button"
@@ -349,47 +348,88 @@ export function ChargerLab() {
                         ? "Reconectar simulador"
                         : "Conectar simulador"}
                     </button>
-                    <button
-                      className="cl-secondary"
-                      type="button"
-                      disabled={
-                        busy ||
-                        !snapshot?.connected ||
-                        snapshot.state === "charging"
-                      }
-                      onClick={() => act("start")}
-                    >
-                      Simular início
-                    </button>
-                    <button
-                      className="cl-secondary"
-                      type="button"
-                      disabled={busy || !snapshot?.connected}
-                      onClick={() => act("read")}
-                    >
-                      Ler exemplo
-                    </button>
-                    <button
-                      className="cl-secondary"
-                      type="button"
-                      disabled={
-                        busy ||
-                        !snapshot?.connected ||
-                        snapshot.state !== "charging"
-                      }
-                      onClick={() => act("stop")}
-                    >
-                      Simular parada
-                    </button>
-                    <button
-                      className="cl-secondary"
-                      type="button"
-                      disabled={busy || !snapshot?.connected}
-                      onClick={() => act("disconnect")}
-                    >
-                      Simular perda de conexão
-                    </button>
-                  </div>
+                    <p className="cl-help">
+                      Futuro: ler configuração atual, apresentar alterações OCPP
+                      para revisão, aplicar só com autorização e confirmar
+                      retorno do ponto. Bluetooth depende do protocolo
+                      específico do modelo.
+                    </p>
+                  </section>
+                  <details className="cl-secondary-test">
+                    <summary>Bônus: testar recarga fictícia</summary>
+                    <p>
+                      Controle de carga é uma etapa posterior. Estes botões só
+                      operam o simulador.
+                    </p>
+                    <div className="cl-metrics">
+                      <div>
+                        <span>Estado simulado</span>
+                        <strong>
+                          {!snapshot
+                            ? "Não conectado"
+                            : snapshot.state === "unknown"
+                              ? "Desconhecido"
+                              : snapshot.state === "charging"
+                                ? "Em recarga"
+                                : "Disponível"}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Energia fictícia</span>
+                        <strong>
+                          {snapshot?.energyWh == null
+                            ? "—"
+                            : `${(snapshot.energyWh / 1000).toLocaleString("pt-BR")} kWh`}
+                        </strong>
+                      </div>
+                    </div>
+                    <p className="cl-help">
+                      A leitura de teste usa 420 Wh fixos durante a sessão. Não
+                      é medidor e nunca é usada para cobrar.
+                    </p>
+                    <div className="cl-actions">
+                      <button
+                        className="cl-secondary"
+                        type="button"
+                        disabled={
+                          busy ||
+                          !snapshot?.connected ||
+                          snapshot.state === "charging"
+                        }
+                        onClick={() => act("start")}
+                      >
+                        Simular início
+                      </button>
+                      <button
+                        className="cl-secondary"
+                        type="button"
+                        disabled={busy || !snapshot?.connected}
+                        onClick={() => act("read")}
+                      >
+                        Ler exemplo
+                      </button>
+                      <button
+                        className="cl-secondary"
+                        type="button"
+                        disabled={
+                          busy ||
+                          !snapshot?.connected ||
+                          snapshot.state !== "charging"
+                        }
+                        onClick={() => act("stop")}
+                      >
+                        Simular parada
+                      </button>
+                      <button
+                        className="cl-secondary"
+                        type="button"
+                        disabled={busy || !snapshot?.connected}
+                        onClick={() => act("disconnect")}
+                      >
+                        Simular perda de conexão
+                      </button>
+                    </div>
+                  </details>
                   {snapshot && !snapshot.connected && (
                     <p className="cl-warning">
                       Sem conexão não há confirmação de parada. Reconecte para
@@ -429,7 +469,19 @@ export function ChargerLab() {
         <aside className="cl-sidebar">
           <section className="cl-panel">
             <p className="cl-eyebrow">BASE REAPROVEITÁVEL</p>
-            <h2>Conexões, sem confusão.</h2>
+            <h2>Primeiro, configurar.</h2>
+            <ol className="cl-roadmap">
+              <li>Identificar marca, modelo e firmware</li>
+              <li>Confirmar posse e acesso autorizado</li>
+              <li>Verificar transporte disponível</li>
+              <li>Configurar OCPP quando suportado</li>
+              <li>Confirmar conexão no Telektro</li>
+            </ol>
+            <p className="cl-help">
+              Hoje: cadastro e diagnóstico simulados. Configuração por
+              Bluetooth/Wi-Fi real vem após validar cada protocolo.
+              Liberar/parar modelos sem OCPP fica para depois.
+            </p>
             {adapterCatalog.map((a) => (
               <div className="cl-adapter" key={a.transport}>
                 <strong>{a.label}</strong>
