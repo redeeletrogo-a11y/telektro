@@ -2,6 +2,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { serviceClient } from '@/lib/pix';
 import { balanceRepasse, monthRange, normalizePix, summarizeRepasse, type PayoutRecord, type RepassePayment } from '@/lib/eletroposto-repasse';
+import { disconnectMercadoPagoConnection, getMercadoPagoConnectionRow, mercadoPagoOAuthConfigured } from '@/lib/mercadopago-oauth';
 import type { FormState } from '@/app/workspace-actions';
 
 async function access(organizationId: string) {
@@ -44,7 +45,7 @@ export async function getPayoutStatement(organizationId: string, month: string) 
   // Paginate; fail closed rather than give an incomplete financial total.
   for (let offset = 0; offset <= 10000; offset += 500) {
     const { data, error } = await client.from('eletroposto_payments').select('id,settled_at,charged_amount,fee_amount,needs_attention,payment_method,cap_amount,refund_amount')
-      .eq('organization_id', organizationId).eq('status', 'settled').gte('settled_at', range.from).lt('settled_at', range.to)
+      .eq('organization_id', organizationId).eq('status', 'settled').is('mp_collector_id', null).gte('settled_at', range.from).lt('settled_at', range.to)
       .order('settled_at').order('id').range(offset, offset + 499);
     if (error) return { error: 'Não foi possível carregar o extrato.' };
     rows.push(...(data ?? []) as RepassePayment[]);
@@ -70,4 +71,31 @@ export async function recordPayout(organizationId: string, month: string, _previ
   if (note.length > 200 || /[\u0000-\u001f]/.test(note)) return { error: 'Observação muito longa.' };
   const { error } = await serviceClient().from('eletroposto_payouts').insert({ organization_id: organizationId, month, amount, paid_on: paidOn, note: note || null, recorded_by: auth.userId });
   return error ? { error: 'Não foi possível registrar. Confira se a migração foi aplicada.' } : { success: 'Repasse registrado. Isso só anota o recebimento; nenhuma transferência foi feita.' };
+}
+
+export type MercadoPagoConnectionInfo = {
+  connected: boolean; configured: boolean; canEdit: boolean; unavailable?: boolean;
+  mpUserIdSuffix?: string; connectedAt?: string; expiresAt?: string; lastError?: string | null;
+};
+export async function getMercadoPagoConnection(organizationId: string): Promise<MercadoPagoConnectionInfo | { error: string }> {
+  const auth = await access(organizationId);
+  if (!auth) return { error: 'Acesso não permitido.' };
+  const base = { connected: false, configured: mercadoPagoOAuthConfigured(), canEdit: auth.isOwner };
+  try {
+    const connection = await getMercadoPagoConnectionRow(organizationId);
+    if (!connection) return base;
+    return { ...base, connected: true, mpUserIdSuffix: connection.mp_user_id.slice(-4), connectedAt: connection.connected_at, expiresAt: connection.expires_at, lastError: connection.last_error };
+  } catch {
+    return { ...base, unavailable: true };
+  }
+}
+export async function removeMercadoPagoConnection(organizationId: string): Promise<FormState> {
+  const auth = await access(organizationId);
+  if (!auth?.isOwner) return { error: 'Só o dono da conta pode desconectar o Mercado Pago.' };
+  try {
+    await disconnectMercadoPagoConnection(organizationId, auth.userId);
+    return { success: 'Mercado Pago desconectado. Novas vendas voltam ao repasse manual; revogue também o acesso no painel do Mercado Pago, se desejar.' };
+  } catch {
+    return { error: 'Não foi possível desconectar agora.' };
+  }
 }

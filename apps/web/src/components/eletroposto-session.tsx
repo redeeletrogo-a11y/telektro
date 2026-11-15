@@ -47,7 +47,7 @@ export function SessionView({ token, initial }: { token: string; initial: Public
   const max = maxKwh(s.cap, s.pricePerKwh);
   const back = card ? "A parte não usada da reserva é liberada no cartão." : "O que não for usado volta no mesmo Pix.";
   // Janela real de inicio: o comando ao carregador expira em 5 min (gateway, transaction_confirmation_timeout). Apos isso a tentativa ja era; a tela nao pode mandar conectar.
-  const startWindowOpen = s.paidAt ? Date.now() - new Date(s.paidAt).getTime() < 5 * 60 * 1000 : true;
+  const startWindowOpen = s.paidAt ? new Date(s.serverNow).getTime() - new Date(s.paidAt).getTime() < 5 * 60 * 1000 : true;
   const dark = ["paid", "starting", "charging", "settling"].includes(s.status) || (s.status === "settled" && s.failure !== "start");
   return <div className={dark ? "login-form ep-dark" : "login-form"}>
     {showSteps && <ol className="ep-steps" aria-label="Etapas da recarga">
