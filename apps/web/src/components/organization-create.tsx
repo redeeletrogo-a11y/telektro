@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { createPortal } from "react-dom";
 import { ArrowRight, Home, PlugZap, Plus, X } from "lucide-react";
 import { createOrganization, type FormState } from "@/app/workspace-actions";
 
@@ -23,7 +24,7 @@ function OrganizationCreateDialog({ onClose }: { onClose: () => void }) {
   const [type, setType] = useState<ExtraAccountType>("eletroposto");
   const slug = makeSlug(name);
 
-  return <div className="organization-create-backdrop" onClick={() => { if (!pending) onClose(); }}>
+  const dialog = <div className="organization-create-backdrop" onClick={() => { if (!pending) onClose(); }}>
     <section className="organization-create-dialog" role="dialog" aria-modal="true" aria-labelledby="organization-create-title" onClick={(event) => event.stopPropagation()}>
       <button type="button" className="organization-create-close" onClick={onClose} disabled={pending} aria-label="Fechar"><X size={16}/></button>
       <p className="eyebrow">Nova organização</p>
@@ -55,6 +56,7 @@ function OrganizationCreateDialog({ onClose }: { onClose: () => void }) {
       </form>
     </section>
   </div>;
+  return typeof document === "undefined" ? dialog : createPortal(dialog, document.body);
 }
 
 export function OrganizationCreate() {
