@@ -11,6 +11,7 @@ import { Activity, ArrowRight, Building2, Car, Check, Clock3, Copy, LayoutDashbo
 import { EletropostoPainel, type EpPoint } from "@/components/eletroposto-painel";
 import { EletropostoRepasse } from "@/components/eletroposto-repasse";
 import { EletropostoVendas } from "@/components/eletroposto-vendas";
+import { OrganizationCreate } from "@/components/organization-create";
 import { createSite, getChargerClaim, registerCharger, setChargerInsecureWs, registerRfidAuthorization, removeCharger, requestChargingLimit, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, rotateChargerClaim, rotateChargerCredential, revokeChargerClaim, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
 import QRCode from "qrcode";
 
@@ -298,6 +299,7 @@ export function Dashboard({
               {organizations.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           </form>
+          <OrganizationCreate/>
           <ThemeToggle/>
           <span className="account-email" title={email}>{email}</span>
           <form action={signOut}><button className="signout-button" type="submit">Sair</button></form>
@@ -782,4 +784,4 @@ function CommandHistory({ commands, chargers }: { commands: CommandRecord[]; cha
     const actionName = command.action === "RemoteStartTransaction" ? "Iniciar recarga" : command.action === "RemoteStopTransaction" ? "Parar recarga" : command.action === "GetConfiguration" ? "Ler configuração OCPP" : command.action;
     return <div className="command-history-row" key={command.id}><span>{actionName} · {chargerNames.get(command.charger_id) ?? "Carregador"}{command.status === "rejected" && command.action === "RemoteStartTransaction" ? <small> O carregador não autorizou o início remoto. Verifique a configuração ou use o cartão RFID.</small> : reason && <small> {reason}</small>}</span><strong className={`command-state command-${command.status}`}>{labels[command.status] ?? command.status}</strong><small>{new Date(command.requested_at).toLocaleString("pt-BR")}</small></div>;
   })}</div>;
-    }
+                        }

@@ -51,7 +51,7 @@ export async function createOrganization(_previous: FormState, formData: FormDat
   }
 
   revalidatePath("/");
-  redirect("/");
+  redirect(`/?org=${newOrganizationId}`);
 }
 
 export async function createSite(organizationId: string, _previous: FormState, formData: FormData): Promise<FormState> {
@@ -638,4 +638,4 @@ export async function setChargerInsecureWs(organizationId: string, chargerId: st
   }
   revalidatePath("/");
   return { success: enable ? "ws liberado para este carregador." : "ws desligado. O carregador volta a exigir wss." };
-}
+                                       }
