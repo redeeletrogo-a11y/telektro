@@ -276,16 +276,21 @@ export async function settleRefunds(onlyId?: string): Promise<number> {
     try {
       const full = refund >= Number(row.cap_amount);
       const credentials = await getMercadoPagoPaymentCredentials(String(row.organization_id), Boolean(row.mp_collector_id));
-      const result = await mpFetch(`/v1/payments/${encodeURIComponent(String(row.mp_payment_id))}/refunds`, {
+      // Confere antes se o MP ja devolveu (evita estorno em dobro se uma resposta se perdeu).
+      const current = await mpFetch(`/v1/payments/${encodeURIComponent(String(row.mp_payment_id))}`, undefined, credentials.accessToken);
+      const refundedSoFar = Array.isArray(current?.refunds) ? current.refunds.filter((r: { status?: string }) => r.status !== "cancelled" && r.status !== "rejected").reduce((sum: number, r: { amount?: number }) => sum + Number(r.amount ?? 0), 0) : 0;
+      const alreadyRefunded = Math.round(refundedSoFar * 100) / 100 >= refund;
+      // Chave nova a cada hora: o MP guarda a resposta por chave, e a chave fixa repetia o erro antigo.
+      const result = alreadyRefunded ? { id: current?.refunds?.[0]?.id } : await mpFetch(`/v1/payments/${encodeURIComponent(String(row.mp_payment_id))}/refunds`, {
         method: "POST",
-        headers: { "X-Idempotency-Key": `ep-refund-${row.id}` },
+        headers: { "X-Idempotency-Key": `ep-refund-${row.id}-${Math.floor(Date.now() / 3600_000)}` },
         body: JSON.stringify(full ? {} : { amount: refund }),
       }, credentials.accessToken);
       await supabase.from("eletroposto_payments").update({ status: "settled", fee_amount: feeAmount, refund_id: result?.id ? String(result.id) : null, settled_at: nowIso, last_error: null, needs_attention: false, attention_reason: null, updated_at: nowIso }).eq("id", row.id).eq("status", "settling");
       done += 1;
     } catch (caught) {
       // Fica em "settling" e a proxima varredura tenta de novo; o dono ve o alerta.
-      await supabase.from("eletroposto_payments").update({ last_error: caught instanceof Error ? caught.message.slice(0, 120) : "refund_failed", needs_attention: true, attention_reason: "refund_failed", updated_at: nowIso }).eq("id", row.id);
+      await supabase.from("eletroposto_payments").update({ last_error: caught instanceof Error ? `${caught.message}${(caught as { mpDetail?: string }).mpDetail ? ` ${(caught as { mpDetail?: string }).mpDetail}` : ""}`.slice(0, 160) : "refund_failed", needs_attention: true, attention_reason: "refund_failed", updated_at: nowIso }).eq("id", row.id);
     }
   }
   return done;

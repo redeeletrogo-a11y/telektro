@@ -56,7 +56,11 @@ export async function mpFetch(path: string, init?: RequestInit, tokenOverride?: 
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     console.error("mercadopago_error", path, response.status, JSON.stringify(body).slice(0, 500));
-    throw new Error(`mercadopago_${response.status}`);
+    const failure = new Error(`mercadopago_${response.status}`) as Error & { mpDetail?: string };
+    // Motivo seguro do MP (sem token): mensagem e codigos de causa, para diagnostico no banco.
+    const cause = Array.isArray((body as { cause?: unknown }).cause) ? ((body as { cause: Array<{ code?: unknown; description?: unknown }> }).cause.map(c => `${String(c.code ?? "")}:${String(c.description ?? "")}`).join("|")) : "";
+    failure.mpDetail = `${String((body as { message?: unknown }).message ?? "")} ${cause}`.trim().replace(/[^\w .:|,/-]/g, "").slice(0, 100);
+    throw failure;
   }
   return body;
 }
