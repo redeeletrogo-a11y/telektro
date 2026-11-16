@@ -42,3 +42,19 @@ export function balanceRepasse(netReais: number, payouts: { amount: number }[]) 
   const paid = payouts.reduce((sum, p) => sum + Math.round(Number(p.amount) * 100), 0);
   return { paid: paid / 100, due: Math.max(net - paid, 0) / 100, overpaid: Math.max(paid - net, 0) / 100 };
 }
+// Recorte semanal: segunda a domingo no horario de Fortaleza (UTC-3, sem horario de verao).
+export function mondayOf(dateIso: string): string | null {
+  if (!/^20\d{2}-\d{2}-\d{2}$/.test(dateIso)) return null;
+  const d = new Date(dateIso + 'T12:00:00Z');
+  if (Number.isNaN(d.getTime())) return null;
+  d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7);
+  return d.toISOString().slice(0, 10);
+}
+export function addDaysIso(dateIso: string, days: number): string {
+  return new Date(new Date(dateIso + 'T12:00:00Z').getTime() + days * 86400000).toISOString().slice(0, 10);
+}
+export function weekRange(weekStart: string) {
+  if (mondayOf(weekStart) !== weekStart) return null;
+  const from = new Date(weekStart + 'T00:00:00-03:00');
+  return { from: from.toISOString(), to: new Date(from.getTime() + 7 * 86400000).toISOString() };
+}

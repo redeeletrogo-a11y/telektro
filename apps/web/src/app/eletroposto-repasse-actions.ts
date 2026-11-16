@@ -1,7 +1,7 @@
 "use server";
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { serviceClient } from '@/lib/pix';
-import { balanceRepasse, monthRange, normalizePix, summarizeRepasse, type PayoutRecord, type RepassePayment } from '@/lib/eletroposto-repasse';
+import { addDaysIso, balanceRepasse, monthRange, normalizePix, summarizeRepasse, weekRange, type PayoutRecord, type RepassePayment } from '@/lib/eletroposto-repasse';
 import { disconnectMercadoPagoConnection, getMercadoPagoConnectionRow, mercadoPagoOAuthConfigured } from '@/lib/mercadopago-oauth';
 import type { FormState } from '@/app/workspace-actions';
 
@@ -36,10 +36,10 @@ export async function savePayoutProfile(organizationId: string, _previous: FormS
   const { error } = await serviceClient().from('eletroposto_payout_profiles').upsert({ organization_id: organizationId, pix_kind: kind, pix_key: key, holder_name: holder, updated_by: auth.userId, updated_at: new Date().toISOString() }, { onConflict: 'organization_id' });
   return error ? { error: 'Não foi possível salvar. Confira se a migração foi aplicada.' } : { success: 'Chave salva para conferência. Nenhuma transferência foi feita.' };
 }
-export async function getPayoutStatement(organizationId: string, month: string) {
+export async function getPayoutStatement(organizationId: string, month: string, weekStart?: string) {
   if (!await access(organizationId)) return { error: 'Acesso não permitido.' };
-  const range = monthRange(month);
-  if (!range) return { error: 'Mês inválido.' };
+  const range = weekStart ? weekRange(weekStart) : monthRange(month);
+  if (!range) return { error: weekStart ? 'Semana inválida.' : 'Mês inválido.' };
   const client = serviceClient();
   const rows: RepassePayment[] = [];
   // Paginate; fail closed rather than give an incomplete financial total.
@@ -49,11 +49,13 @@ export async function getPayoutStatement(organizationId: string, month: string) 
       .order('settled_at').order('id').range(offset, offset + 499);
     if (error) return { error: 'Não foi possível carregar o extrato.' };
     rows.push(...(data ?? []) as RepassePayment[]);
-    if (rows.length > 10000) return { error: 'Este mês ultrapassa 10.000 registros. O total não será exibido incompleto; peça uma exportação assistida.' };
+    if (rows.length > 10000) return { error: `${weekStart ? 'Esta semana' : 'Este mês'} ultrapassa 10.000 registros. O total não será exibido incompleto; peça uma exportação assistida.` };
     if ((data?.length ?? 0) < 500) break;
   }
   const statement = summarizeRepasse(rows);
-  const { data: payouts, error: payoutError } = await client.from('eletroposto_payouts').select('id,amount,paid_on,note').eq('organization_id', organizationId).eq('month', month).order('paid_on').order('created_at');
+  let payoutsQuery = client.from('eletroposto_payouts').select('id,amount,paid_on,note').eq('organization_id', organizationId).order('paid_on').order('created_at');
+  payoutsQuery = weekStart ? payoutsQuery.gte('paid_on', weekStart).lt('paid_on', addDaysIso(weekStart, 7)) : payoutsQuery.eq('month', month);
+  const { data: payouts, error: payoutError } = await payoutsQuery;
   if (payoutError) return { statement, payouts: [] as PayoutRecord[], balance: null, payoutsUnavailable: true };
   const list = (payouts ?? []).map(p => ({ ...p, amount: Number(p.amount) })) as PayoutRecord[];
   return { statement, payouts: list, balance: balanceRepasse(statement.net, list), payoutsUnavailable: false };

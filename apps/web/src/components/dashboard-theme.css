@@ -455,3 +455,5 @@ html[data-theme="light"] .app-shell .offline-alert li > span, html[data-theme="l
   .organization-create-dialog { padding: 21px 18px; }
   .organization-type-grid { grid-template-columns: 1fr; }
 }
+
+.ep-month .ep-csv[aria-pressed="true"] { border-color: var(--green); color: var(--green); }
