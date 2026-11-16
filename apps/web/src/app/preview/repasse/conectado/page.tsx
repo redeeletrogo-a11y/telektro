@@ -4,7 +4,8 @@ import '@/components/dashboard-theme.css';
 export const dynamic = 'force-dynamic';
 const preview = {
   profile: { pix_kind: 'email', pix_key: 'dono@example.invalid', holder_name: 'Dono demonstrativo', updated_at: '2026-10-05T12:00:00Z' },
-  statement: { gross: 0, fee: 0, net: 0, excluded: 0, rows: [] },
+  statement: { gross: 50, fee: 4, net: 46, excluded: 0, rows: [{ id: 'demo-pix-1', at: '2026-11-03T12:00:00Z', method: 'Pix', reserved: 30, refunded: 10, gross: 20, fee: 1.6, net: 18.4 }, { id: 'demo-pix-2', at: '2026-11-04T15:30:00Z', method: 'Pix', reserved: 30, refunded: 0, gross: 30, fee: 2.4, net: 27.6 }] },
+  payouts: [{ id: 'demo-pay-1', amount: 18.4, paid_on: '2026-11-09', note: 'Pix semana anterior' }],
   mp: { connected: true, configured: true, canEdit: false, mpUserIdSuffix: '4321', connectedAt: '2026-11-15T12:00:00Z' },
 };
 export default function RepasseConectadoPreview() {
