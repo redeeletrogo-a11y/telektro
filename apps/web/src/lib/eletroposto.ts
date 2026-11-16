@@ -108,8 +108,9 @@ export async function createEletropostoPayment(args: { code: string; name: strin
   if (args.card) return createCardReservation(paymentId, token, { ...args, card: args.card, place: pre?.siteName || pre?.chargerName || "Telektro" });
   try {
     const { data: stored } = await supabase.from("eletroposto_payments").select("cap_amount, expires_at, organization_id, fee_pct").eq("id", paymentId).single();
-    const credentials = await getMercadoPagoPaymentCredentials(String(stored!.organization_id));
-    const applicationFee = credentials.mode === "seller" ? applicationFeeAmount(Number(stored!.cap_amount), stored!.fee_pct === null ? null : Number(stored!.fee_pct)) : null;
+    // Pix sempre cai na conta da plataforma (repasse semanal ao dono): o troco volta da propria conta, sem split nem saldo do dono.
+    const credentials = platformCredentials();
+    const applicationFee: number | null = null;
     const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
     const notificationUrl = new URL("/api/billing/mercadopago/webhook", args.origin);
     if (bypass) notificationUrl.searchParams.set("x-vercel-protection-bypass", bypass);
@@ -129,7 +130,7 @@ export async function createEletropostoPayment(args: { code: string; name: strin
     }, credentials.accessToken);
     const tx = payment?.point_of_interaction?.transaction_data ?? {};
     if (!payment.id || !tx.qr_code) throw new Error("pix_no_qr");
-    const { error: updateError } = await supabase.from("eletroposto_payments").update({ mp_payment_id: String(payment.id), mp_collector_id: credentials.mode === "seller" ? credentials.sellerUserId : null, qr_code: String(tx.qr_code), qr_code_base64: tx.qr_code_base64 ? String(tx.qr_code_base64) : null, updated_at: new Date().toISOString() }).eq("id", paymentId).eq("status", "awaiting_payment");
+    const { error: updateError } = await supabase.from("eletroposto_payments").update({ mp_payment_id: String(payment.id), mp_collector_id: null, qr_code: String(tx.qr_code), qr_code_base64: tx.qr_code_base64 ? String(tx.qr_code_base64) : null, updated_at: new Date().toISOString() }).eq("id", paymentId).eq("status", "awaiting_payment");
     if (updateError) throw new Error("update_failed");
     return { token };
   } catch {
@@ -193,13 +194,21 @@ async function createCardReservation(paymentId: string, token: string, args: { n
   }
 }
 
+// Credencial pelo recebedor REAL do pagamento: sem mp_collector_id o dinheiro entrou na conta da plataforma (Pix de qualquer ponto, ou ponto sem conexao).
+// Nao usar a conexao da organizacao aqui: uma org conectada ainda tem Pix na plataforma, e o token do dono nao enxerga esse pagamento.
+function platformCredentials() {
+  return { mode: "platform" as const, accessToken: eletropostoAccessToken(), publicKey: null as string | null, sellerUserId: null as string | null };
+}
+async function credentialsForPayment(organizationId: string, collectorId: unknown) {
+  return collectorId ? getMercadoPagoPaymentCredentials(organizationId, true) : platformCredentials();
+}
 // Chamado pelo webhook do Mercado Pago. Retorna null se NAO for um pagamento de eletroposto (sem tocar no banco),
 // para o fluxo de mensalidade continuar igual. O pagamento e sempre relido no Mercado Pago (nunca confia no corpo da notificacao).
 export async function applyEletropostoPayment(paymentId: string): Promise<string | null> {
   const supabase = serviceClient();
   const { data: known } = await supabase.from("eletroposto_payments").select("organization_id, mp_collector_id").eq("mp_payment_id", paymentId).maybeSingle();
   const credentials = known
-    ? await getMercadoPagoPaymentCredentials(String(known.organization_id), Boolean(known.mp_collector_id))
+    ? await credentialsForPayment(String(known.organization_id), known.mp_collector_id)
     : { mode: "platform" as const, accessToken: eletropostoAccessToken(), publicKey: null, sellerUserId: null };
   let payment;
   try { payment = await mpFetch(`/v1/payments/${encodeURIComponent(paymentId)}`, undefined, credentials.accessToken); }
@@ -252,10 +261,10 @@ export async function settleRefunds(onlyId?: string): Promise<number> {
       // Cartao: captura so o consumo (parcial) ou cancela a reserva se nada foi consumido. Sem reembolso, a sobra volta ao limite.
       try {
         if (charged > 0) {
-          const credentials = await getMercadoPagoPaymentCredentials(String(row.organization_id), Boolean(row.mp_collector_id));
+          const credentials = await credentialsForPayment(String(row.organization_id), row.mp_collector_id);
           await mpFetch(`/v1/payments/${encodeURIComponent(String(row.mp_payment_id))}`, { method: "PUT", headers: { "X-Idempotency-Key": `ep-capture-${row.id}` }, body: JSON.stringify({ transaction_amount: charged, capture: true }) }, credentials.accessToken);
         } else {
-          const credentials = await getMercadoPagoPaymentCredentials(String(row.organization_id), Boolean(row.mp_collector_id));
+          const credentials = await credentialsForPayment(String(row.organization_id), row.mp_collector_id);
           await mpFetch(`/v1/payments/${encodeURIComponent(String(row.mp_payment_id))}`, { method: "PUT", headers: { "X-Idempotency-Key": `ep-cancel-${row.id}` }, body: JSON.stringify({ status: "cancelled" }) }, credentials.accessToken);
         }
         await supabase.from("eletroposto_payments").update({ status: "settled", fee_amount: feeAmount, settled_at: nowIso, last_error: null, needs_attention: false, attention_reason: null, updated_at: nowIso }).eq("id", row.id).eq("status", "settling");
@@ -275,17 +284,22 @@ export async function settleRefunds(onlyId?: string): Promise<number> {
     if (row.paid_at && Date.now() - new Date(String(row.paid_at)).getTime() < 60_000) continue;
     try {
       const full = refund >= Number(row.cap_amount);
-      const credentials = await getMercadoPagoPaymentCredentials(String(row.organization_id), Boolean(row.mp_collector_id));
-      const result = await mpFetch(`/v1/payments/${encodeURIComponent(String(row.mp_payment_id))}/refunds`, {
+      const credentials = await credentialsForPayment(String(row.organization_id), row.mp_collector_id);
+      // Confere antes se o MP ja devolveu (evita estorno em dobro se uma resposta se perdeu).
+      const current = await mpFetch(`/v1/payments/${encodeURIComponent(String(row.mp_payment_id))}`, undefined, credentials.accessToken);
+      const refundedSoFar = Array.isArray(current?.refunds) ? current.refunds.filter((r: { status?: string }) => r.status !== "cancelled" && r.status !== "rejected").reduce((sum: number, r: { amount?: number }) => sum + Number(r.amount ?? 0), 0) : 0;
+      const alreadyRefunded = Math.round(refundedSoFar * 100) / 100 >= refund;
+      // Chave nova a cada hora: o MP guarda a resposta por chave, e a chave fixa repetia o erro antigo.
+      const result = alreadyRefunded ? { id: current?.refunds?.[0]?.id } : await mpFetch(`/v1/payments/${encodeURIComponent(String(row.mp_payment_id))}/refunds`, {
         method: "POST",
-        headers: { "X-Idempotency-Key": `ep-refund-${row.id}` },
+        headers: { "X-Idempotency-Key": `ep-refund-${row.id}-${Math.floor(Date.now() / 3600_000)}` },
         body: JSON.stringify(full ? {} : { amount: refund }),
       }, credentials.accessToken);
       await supabase.from("eletroposto_payments").update({ status: "settled", fee_amount: feeAmount, refund_id: result?.id ? String(result.id) : null, settled_at: nowIso, last_error: null, needs_attention: false, attention_reason: null, updated_at: nowIso }).eq("id", row.id).eq("status", "settling");
       done += 1;
     } catch (caught) {
       // Fica em "settling" e a proxima varredura tenta de novo; o dono ve o alerta.
-      await supabase.from("eletroposto_payments").update({ last_error: caught instanceof Error ? caught.message.slice(0, 120) : "refund_failed", needs_attention: true, attention_reason: "refund_failed", updated_at: nowIso }).eq("id", row.id);
+      await supabase.from("eletroposto_payments").update({ last_error: caught instanceof Error ? `${caught.message}${(caught as { mpDetail?: string }).mpDetail ? ` ${(caught as { mpDetail?: string }).mpDetail}` : ""}`.slice(0, 160) : "refund_failed", needs_attention: true, attention_reason: "refund_failed", updated_at: nowIso }).eq("id", row.id);
     }
   }
   return done;
