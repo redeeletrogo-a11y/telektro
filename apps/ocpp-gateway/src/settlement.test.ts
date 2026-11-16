@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createSettlementRequester } from "./settlement.js";
+import { createSettlementRequester, createSettlementWatcher, shouldSweepPending } from "./settlement.js";
 
 const ok = () => Promise.resolve(new Response("{}", { status: 200 }));
 describe("settlement requester", () => {
@@ -40,5 +40,27 @@ describe("settlement requester", () => {
     await vi.advanceTimersByTimeAsync(100); expect(f).toHaveBeenCalledTimes(2);
     await vi.advanceTimersByTimeAsync(1000); expect(f).toHaveBeenCalledTimes(2);
     vi.useRealTimers();
+  });
+});
+
+describe("settlement watcher", () => {
+  const now = Date.parse("2026-11-16T16:00:00Z");
+  const row = (over: Partial<{ needs_attention: boolean; updated_at: string; paid_at: string }> = {}) => ({ id: "a", needs_attention: false, updated_at: "2026-11-16T15:59:00Z", paid_at: "2026-11-16T15:55:00Z", ...over });
+  it("sweeps when a pending payment has no attention flag", () => { expect(shouldSweepPending([row()], now)).toBe(true); });
+  it("does nothing with no pending payments", () => { expect(shouldSweepPending([], now)).toBe(false); });
+  it("waits 10 minutes before retrying a failed payment", () => {
+    expect(shouldSweepPending([row({ needs_attention: true })], now)).toBe(false);
+    expect(shouldSweepPending([row({ needs_attention: true, updated_at: "2026-11-16T15:45:00Z" })], now)).toBe(true);
+  });
+  it("gives up on failed payments paid more than 6 hours ago", () => {
+    expect(shouldSweepPending([row({ needs_attention: true, updated_at: "2026-11-16T15:00:00Z", paid_at: "2026-11-16T09:00:00Z" })], now)).toBe(false);
+  });
+  it("calls the sweep only when needed and survives errors", async () => {
+    const sweep = vi.fn(() => Promise.resolve(true));
+    expect(await createSettlementWatcher({ loadPending: () => Promise.resolve([]), sweep, now: () => now })()).toBe(false);
+    expect(sweep).not.toHaveBeenCalled();
+    expect(await createSettlementWatcher({ loadPending: () => Promise.resolve([row()]), sweep, now: () => now })()).toBe(true);
+    expect(sweep).toHaveBeenCalledTimes(1);
+    expect(await createSettlementWatcher({ loadPending: () => Promise.reject(new Error("db")), sweep, now: () => now })()).toBe(false);
   });
 });

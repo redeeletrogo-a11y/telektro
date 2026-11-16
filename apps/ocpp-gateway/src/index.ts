@@ -20,7 +20,7 @@ import {
   StopTransactionSchema,
 } from "./protocol.js";
 import { requestTransport, transportAllowed } from "./transport.js";
-import { createSettlementRequester } from "./settlement.js";
+import { createSettlementRequester, createSettlementWatcher, type PendingSettlement } from "./settlement.js";
 
 type ChargerRecord = {
   id: string;
@@ -948,10 +948,22 @@ async function closeOrphanSessions() {
   } finally { closingOrphans = false; }
 }
 
+// Liquida sozinho pagamentos parados em "starting"/"settling" (ex.: inicio rejeitado), sem depender da pagina do cliente.
+const watchPendingSettlements = createSettlementWatcher({
+  loadPending: async () => {
+    if (!registry) return [];
+    const { data, error } = await registry.from("eletroposto_payments").select("id, needs_attention, updated_at, paid_at").in("status", ["starting", "settling"]).limit(50);
+    if (error) { reportPersistenceFailure("settlement_watch", "gateway", error); return []; }
+    return (data ?? []) as PendingSettlement[];
+  },
+  sweep: () => settlement.sweepOnce(),
+});
+
 async function startGateway() {
   await recoverInterruptedCommands();
   startupRecoveryComplete = true;
   setInterval(() => { void closeOrphanSessions(); }, 60_000).unref();
+  if (settlement.enabled) setInterval(() => { void watchPendingSettlements(); }, 60_000).unref();
   server.listen(port, "0.0.0.0", () => console.info(JSON.stringify({ event: "gateway.started", port, healthPath: "/health", ocppPath: "/ocpp/{chargePointId}" })));
 }
 

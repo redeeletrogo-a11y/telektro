@@ -53,3 +53,28 @@ export function createSettlementRequester(options: SettlementOptions = {}) {
     sweepOnce,
   };
 }
+
+// Vigia pagamentos que aguardam liquidacao e chama a varredura sozinho. Cobre o que nao tem StopTransaction
+// (inicio rejeitado ou sem resposta): o Pix pago volta sem o motorista abrir a pagina e sem depender do cron diario (1x/dia no plano Hobby).
+// So chama a web quando ha algo pendente; pagamentos que falharam (needs_attention) so voltam a ser tentados apos pausa, para nao martelar o Mercado Pago.
+export type PendingSettlement = { id: string; needs_attention: boolean | null; updated_at: string | null; paid_at: string | null };
+export function shouldSweepPending(rows: PendingSettlement[], now = Date.now(), retryAfterMs = 10 * 60_000, giveUpAfterMs = 6 * 3_600_000): boolean {
+  return rows.some((row) => {
+    if (!row.needs_attention) return true;
+    const updated = row.updated_at ? Date.parse(row.updated_at) : 0;
+    const paid = row.paid_at ? Date.parse(row.paid_at) : 0;
+    return now - updated >= retryAfterMs && now - paid <= giveUpAfterMs;
+  });
+}
+export function createSettlementWatcher(deps: { loadPending: () => Promise<PendingSettlement[]>; sweep: () => Promise<boolean>; now?: () => number }) {
+  let busy = false;
+  return async function tick(): Promise<boolean> {
+    if (busy) return false;
+    busy = true;
+    try {
+      const rows = await deps.loadPending();
+      if (!shouldSweepPending(rows, (deps.now ?? Date.now)())) return false;
+      return await deps.sweep();
+    } catch { return false; } finally { busy = false; }
+  };
+}
