@@ -96,3 +96,6 @@
 .lp-referral-text strong { font-size:18px; }
 .lp-referral-text span { color:var(--lp-mut); font-size:14px; }
 .lp-referral-go { display:inline-flex; align-items:center; gap:6px; color:var(--lp-acc2); font-weight:700; font-size:14px; }
+@media (max-width:380px){ .lp-loc-cta .lp-btn { font-size:13px; padding:0 14px; gap:6px; } }
+@media (max-width:359px){ .lp-wa { left:auto; right:16px; } }
+@media (max-width:340px){ .lp-loc-cta .lp-btn { padding:0 10px; } }
