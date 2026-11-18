@@ -54,7 +54,6 @@ select public_code from public.eletroposto_points order by created_at desc limit
 
 ## Fora do piloto (a fazer / validar)
 
-- OAuth do Mercado Pago do dono + comissão (`marketplace_fee`/`application_fee`): exige credenciais da aplicação e confirmação comercial do Pix com split e estorno parcial. No piloto o Pix cai na conta MP configurada no servidor.
 - Cartão, conta do motorista, recibo por e-mail, painel do dono com lista de pagamentos.
 - Obrigações fiscais/legais da operação de eletroposto: validar com o contador.
 - Teste real no carregador: o `RemoteStop` não garante parar no kWh exato; a margem (5%) precisa ser calibrada com o intervalo de `MeterValues` do equipamento.
@@ -67,6 +66,21 @@ O eletroposto pode usar uma aplicação do Mercado Pago só dele, para separar o
 - `MERCADOPAGO_ELETROPOSTO_WEBHOOK_SECRET`: segredo do webhook dessa aplicação (URL `/api/billing/mercadopago/webhook`, evento "Pagamentos"). O webhook aceita o segredo padrão ou este.
 - Se o pagamento notificado não pertence à aplicação do eletroposto (leitura 401/403/404 com token próprio), o fluxo segue como mensalidade, sem efeito no eletroposto.
 
+## OAuth do Mercado Pago do dono + split automático
+
+Quando o dono conecta a própria conta Mercado Pago, o pagamento do motorista é criado com o access token OAuth dessa conta. O dinheiro cai no Mercado Pago do dono e o Telektro informa sua parte em `application_fee`; sem conexão, o fluxo antigo continua: pagamento na conta da plataforma e repasse manual semanal.
+
+- Migração: `docs/sql/06-mercadopago-oauth-split.txt` (também em `supabase/migrations/202611150032_eletroposto_mp_oauth_split.sql`), transacional e idempotente. Ela cria `eletroposto_mp_connections` (tokens criptografados pela aplicação, RLS ligado, sem grant para `anon`/`authenticated`), `eletroposto_mp_connection_events` e a coluna `eletroposto_payments.mp_collector_id` (marca vendas que caíram direto na conta do dono).
+- Variáveis da aplicação integradora: `MERCADOPAGO_MARKETPLACE_CLIENT_ID`, `MERCADOPAGO_MARKETPLACE_CLIENT_SECRET` e `MERCADOPAGO_OAUTH_TOKEN_SECRET` (segredo novo e longo; criptografa tokens e assina o `state`). O fluxo precisa da URL de redirecionamento cadastrada na aplicação do Mercado Pago: `https://telektro.com.br/api/eletroposto/mercadopago/callback`.
+- Conexão: botão "Conectar Mercado Pago" na tela Repasses, só para owner de organização `eletroposto`. O `state` é assinado e expira em 15 minutos. A conta do Mercado Pago precisa passar pela verificação exigida pelo Mercado Pago; a documentação não promete que toda conta PF seja aceita no Split 1:1.
+- Renovação: o access token OAuth vale até 180 dias; o código renova automaticamente quando falta menos de 24 h e guarda o novo refresh token criptografado. Falha de renovação fica em `last_error` e aparece para o dono reconectar.
+- Pagamentos conectados: Pix e cartão usam o seller access token no backend e enviam `application_fee = fee_pct x valor máximo`. O cartão no navegador continua usando a public key da aplicação integradora (`NEXT_PUBLIC_MERCADOPAGO_ELETROPOSTO_PUBLIC_KEY`), conforme a documentação do Split; a public key do seller não é usada no frontend.
+- Desconexão: novas vendas voltam para a credencial da plataforma e ao repasse manual. Pagamentos já criados ficam marcados com `mp_collector_id` e continuam sendo lidos/liquidados pela conta que os criou, mesmo depois da desconexão local.
+- Repasse manual: o extrato ignora vendas com `mp_collector_id`; elas já caíram na conta do dono. O extrato mostra só vendas que caíram na plataforma.
+- Reembolso Pix no split: a documentação do Mercado Pago diz que o reembolso é dividido proporcionalmente entre vendedor e marketplace. Em cartão com reserva + captura parcial, o comportamento exato do `application_fee` ainda precisa ser validado no teste controlado antes de ampliar o uso.
+
+Ordem de rollout: aplicar a migration 06 no Supabase, cadastrar a URL de callback e as três variáveis no ambiente da Vercel, só depois fazer deploy. Antes do teste com conta real, usar organização/ponto fictício e não tocar no ponto da Unifarma.
+
 ## Cartão de crédito (reserva + captura parcial) e taxa da plataforma
 
 - Pix continua igual e é o meio padrão. O cartão aparece quando `NEXT_PUBLIC_MERCADOPAGO_ELETROPOSTO_PUBLIC_KEY` está definida (chave pública da aplicação do eletroposto, não é segredo).
@@ -74,5 +88,7 @@ O eletroposto pode usar uma aplicação do Mercado Pago só dele, para separar o
 - Servidor: `POST /v1/payments` com `capture=false` reserva o valor máximo. Reserva `authorized` libera a recarga pelo mesmo `eletroposto_mark_paid` e RemoteStart do Pix.
 - Liquidação do cartão: captura parcial do consumo (`PUT /v1/payments/{id}` com `capture=true` e `transaction_amount` = valor cobrado). Se nada foi consumido (ou a recarga não iniciou), a reserva é cancelada. Não há reembolso: a sobra volta ao limite do cartão. A reserva expira em 5 dias; a varredura diária (`/api/eletroposto/sweep`) tenta capturar/cancelar de novo e o pagamento fica com `needs_attention` (`card_capture_failed`) se falhar.
 - Chargeback (webhook `charged_back`): marca `needs_attention` com `attention_reason = 'chargeback'`.
-- Taxa da plataforma (migration 202610030022): `platform_fee_pix_pct` (padrão 5) e `platform_fee_card_pct` (padrão 9) por ponto, gravadas em cada pagamento como `fee_pct` e calculadas na liquidação em `fee_amount` sobre o valor efetivamente cobrado. Não há repasse automático; é registro para o repasse ao proprietário. Tarifas do Mercado Pago (online): Pix 0,99%; crédito à vista 4,98% na hora, 4,49% em 14 dias, 3,98% em 30 dias; conferir no painel da conta.
-- Ordem de rollout: rodar a migration 202610030022 (em 3 partes) ANTES do deploy; o código novo lê as colunas novas.
+- Taxa da plataforma (migration 202610030022): `platform_fee_pix_pct` (padrão 5) e `platform_fee_card_pct` (padrão 5 desde 15/11/2026, migration 202611160033; antes 9) por ponto, gravadas em cada pagamento como `fee_pct` e calculadas na liquidação em `fee_amount` sobre o valor efetivamente cobrado. Em ponto sem conta conectada, é registro para o repasse manual ao proprietário; em ponto conectado, também alimenta o `application_fee` do split. Tarifas do Mercado Pago (online): Pix 0,99%; crédito à vista 4,98% na hora, 4,49% em 14 dias, 3,98% em 30 dias; conferir no painel da conta.
+- Ordem de rollout do cartão: rodar a migration 202610030022 (em 3 partes) ANTES do deploy; o código novo lê as colunas novas.
+
+**Liquidação sem depender da página (gateway).** Com `SWEEP_URL` e `CRON_SECRET` no gateway, ele confere a cada 60 s se há pagamentos em `starting`/`settling` e chama a varredura (inclui início rejeitado ou sem resposta, que não têm `StopTransaction`). Sem pendência, não chama a web. Pagamento com `needs_attention` só é tentado de novo após 10 min e até 6 h depois de pago. Idempotente (banco + `X-Idempotency-Key`). Sem os dois segredos, nada muda.

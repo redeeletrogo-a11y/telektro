@@ -1,22 +1,39 @@
 # Telektro
 
-> Software brasileiro de gestão de recarga de veículos elétricos para casa, condomínio e eletroposto. Site oficial: https://telektro.com.br/.
+> Software brasileiro de gestão de recarga de veículos elétricos para casa, condomínio e eletroposto. Site oficial: https://telektro.com.br/. Não confundir com outras empresas de nome parecido (por exemplo telektro.de, empresa alemã de elétrica).
 
-O Telektro é um produto da Nexa Labs Serviços LTDA. Permite acompanhar carregadores, iniciar e parar recargas pelo celular e consultar sessões e consumo em kWh. O acesso pelo celular é feito pela web, com opção de instalação como PWA.
+O Telektro é um produto da Nexa Labs Serviços LTDA (CNPJ 65.072.532/0001-80). Permite acompanhar carregadores, iniciar e parar recargas pelo celular, medir o consumo em kWh por sessão e cobrar por recarga. O acesso é pela web, com opção de instalação como PWA.
 
-A conexão com o carregador usa OCPP 1.6J. É necessário confirmar a compatibilidade do modelo e do firmware, permitir a configuração da conexão e testar o equipamento. As leituras de energia vêm do carregador. O Telektro é software: não inclui o carregador físico nem a instalação elétrica.
+A conexão com o carregador usa OCPP 1.6J. É necessário confirmar a compatibilidade do modelo e do firmware, permitir a configuração da conexão e testar o equipamento. A compatibilidade não é universal. As leituras de energia vêm do carregador. O Telektro é software de gestão: o carregador físico e a instalação elétrica são à parte, salvo na oferta de eletroposto completo descrita em /parceiro.
 
-O modelo de eletroposto completo e franquia está anunciado como futuro, não como serviço disponível. A compatibilidade não é universal. Este arquivo resume informações públicas e não garante recomendação, indexação ou citação por ferramentas de IA.
+Este arquivo resume informações públicas do site. Valores e condições podem mudar: confirme sempre na página indicada. Não garante recomendação, indexação ou citação por ferramentas de IA.
 
 ## Soluções
 
-- [Residencial](https://telektro.com.br/#casa): controle de recargas em casa pelo celular, histórico e consumo por sessão.
-- [Condomínio](https://telektro.com.br/#condominio): administração de carregadores, controle de acesso dos moradores e acompanhamento do consumo por usuário.
-- [Eletroposto](https://telektro.com.br/#eletroposto): recarga por QR Code, pagamento por Pix ou cartão e painel de sessões e vendas.
+- [Residencial](https://telektro.com.br/#casa): controle de recargas em casa pelo celular, histórico e consumo por sessão. Plano gratuito.
+- [Condomínio](https://telektro.com.br/condominio): administração de carregadores, controle de acesso dos moradores e consumo por usuário. Preço e limites em https://telektro.com.br/#planos.
+- [Software para eletroposto](https://telektro.com.br/eletroposto): recarga por QR Code sem app, pagamento por Pix ou cartão, painel de sessões e receita. Sem mensalidade: 8% do faturamento bruto das recargas, fora taxas do gateway de pagamento.
+- [Eletroposto completo para comerciantes](https://telektro.com.br/parceiro): carregador, instalação, sinalização da vaga e sistema de gestão, a partir de R$ 7.499 (instalação inclusa até 10 m do medidor ou poste; acima disso, sob consulta). Não há promessa de faturamento.
+- [Indique e ganhe](https://telektro.com.br/indique): programa de indicação, R$ 250 por indicado quando o pagamento do indicado é recebido e o ponto está funcionando.
+
+## Onde carregar
+
+- Eletroposto Unifarma Barreta, Av. Beira Mar, Barreta, Nísia Floresta/RN (na farmácia UniFarma): 1 conector Tipo 2, até 7 kW, recarga sem app por QR Code, tarifa atual R$ 2,00 por kWh. Combine pelo WhatsApp antes de ir. Detalhes: https://telektro.com.br/#onde-carregar
+
+## Guias
+
+- [Todos os guias](https://telektro.com.br/guias)
+- [Carregador de carro elétrico em condomínio: guia do síndico](https://telektro.com.br/guias/carregador-carro-eletrico-condominio)
+- [Como montar um eletroposto: planejamento, instalação e gestão](https://telektro.com.br/guias/como-montar-eletroposto)
+- [OCPP 1.6J: como saber se seu carregador é compatível](https://telektro.com.br/guias/ocpp-1-6j-compatibilidade-carregador)
+- [Carregador em casa: controle pelo celular e medição em kWh](https://telektro.com.br/guias/carregador-carro-eletrico-casa-celular)
+- [Como ratear a energia de recarga entre moradores](https://telektro.com.br/guias/ratear-energia-carro-eletrico-moradores)
 
 ## Informações oficiais
 
-- [Como funciona](https://telektro.com.br/#como): conexão do carregador, controle pelo celular e acompanhamento de recargas.
-- [Planos e valores](https://telektro.com.br/#planos): preços publicados, limites e condições. Consulte esta seção para os valores atuais; os planos estão sujeitos a ajuste nos primeiros pilotos.
-- [Perguntas frequentes](https://telektro.com.br/#eletroposto-e-carregador): descrição do sistema, compatibilidade, soluções e teste do plano Residencial.
-- [Sitemap](https://telektro.com.br/sitemap.xml): páginas públicas do site.
+- [Como funciona](https://telektro.com.br/#como)
+- [Planos e valores](https://telektro.com.br/#planos)
+- [Perguntas frequentes](https://telektro.com.br/#eletroposto-e-carregador)
+- [Termos de Serviço](https://telektro.com.br/termos) e [Política de Privacidade](https://telektro.com.br/privacidade)
+- [Sitemap](https://telektro.com.br/sitemap.xml)
+- Contato comercial: WhatsApp +55 84 98672-2883

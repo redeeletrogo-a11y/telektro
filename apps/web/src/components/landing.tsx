@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Building2, Check, Gauge, Home, MapPin, MessageCircle, Navigation, PlugZap, QrCode, ShieldCheck, Smartphone, Zap } from "lucide-react";
+import { ArrowRight, Building2, Check, Gauge, Gift, Home, MapPin, MessageCircle, Navigation, PlugZap, QrCode, ShieldCheck, Smartphone, Zap } from "lucide-react";
 import { HeroCarousel } from "./hero-carousel";
 import { WhatsAppButton } from "./whatsapp-button";
 import { COMPANY_NOTE, SITE_DESCRIPTION, SITE_URL, WHATSAPP_NUMBER, whatsappUrl } from "@/lib/site";
@@ -8,22 +8,22 @@ import "./landing.css";
 const check = <Check size={16} aria-hidden="true"/>;
 
 const plans = [
-  { id: "casa", icon: <Home size={20}/>, name: "Residencial", tag: "Casa", price: "Grátis", unit: "", text: "Grátis, um brinde da Telektro: use nossos sistemas para controlar seu carro elétrico em casa pelo celular.", items: ["Iniciar, parar e acompanhar a recarga pelo celular", "Medição de kWh por sessão", "Histórico de recargas", "Instalável no celular (PWA)"] },
-  { id: "condominio", icon: <Building2 size={20}/>, name: "Condomínio", tag: "Mais procurado", hl: true, price: "R$ 199", unit: "/mês", text: "Até 5 carregadores por local. Carregador extra: + R$ 19,90/mês cada.", items: ["Vários carregadores e usuários em um painel", "Controle de acesso por morador", "Módulo de cobrança e rateio: + R$ 49,90/mês", "Pode haver taxa, conforme a operação de cobrança de cada condomínio", "Exportação de consumo para a administração"] },
-  { id: "eletroposto", icon: <PlugZap size={20}/>, name: "Eletroposto", tag: "Público", price: "5%", unit: " do faturamento bruto", text: "Sem mensalidade e sem aluguel. Você paga apenas 5% do faturamento bruto das recargas.", items: ["Recarga por QR Code e controle de pagamento", "Status em tempo real via OCPP 1.6J", "Relatórios de sessões e receita", "Sem mensalidade"] },
+  { id: "casa", icon: <Home size={20}/>, name: "Residencial", tag: "Casa", more: "", price: "Grátis", unit: "", text: "Grátis, um brinde da Telektro: use nossos sistemas para controlar seu carro elétrico em casa pelo celular.", items: ["Iniciar, parar e acompanhar a recarga pelo celular", "Medição de kWh por sessão", "Histórico de recargas", "Instalável no celular (PWA)"] },
+  { id: "condominio", icon: <Building2 size={20}/>, name: "Condomínio", tag: "Mais procurado", hl: true, more: "/condominio", price: "R$ 199", unit: "/mês", text: "Até 5 carregadores por local. Carregador extra: + R$ 19,90/mês cada.", items: ["Vários carregadores e usuários em um painel", "Controle de acesso por morador", "Consumo em kWh por morador e por recarga", "Exportação de consumo para a administração"] },
+  { id: "eletroposto", icon: <PlugZap size={20}/>, name: "Eletroposto", tag: "Público", more: "/eletroposto", price: "8%", unit: " do faturamento bruto", text: "Sem mensalidade e sem aluguel. Você paga apenas 8% do faturamento bruto das recargas.", items: ["Recarga por QR Code e controle de pagamento", "Status em tempo real via OCPP 1.6J", "Relatórios de sessões e receita", "Sem mensalidade"] },
 ];
 
 const faq = [
   { q: "O que é um sistema de gestão de carregador elétrico?", a: "É um software que conecta o carregador de carro elétrico à internet via OCPP, para ligar, desligar e medir cada recarga pelo celular, com histórico e relatórios de consumo." },
   { q: "O Telektro funciona com qualquer carregador?", a: "O Telektro usa OCPP 1.6J. O carregador precisa permitir a configuração da conexão com a plataforma. Antes de contratar, confirme a compatibilidade do modelo e do firmware e faça um teste de conexão; os recursos dependem do equipamento." },
-  { q: "Serve para condomínio e para eletroposto?", a: "Sim. Há planos para casa, condomínio (vários carregadores e moradores, controle de acesso e rateio) e eletroposto (recarga por QR Code, status em tempo real e relatórios de receita)." },
-  { q: "Quanto custa?", a: "O plano Residencial é grátis, um brinde da Telektro para quem usa o sistema em casa. O Eletroposto não tem mensalidade: a cobrança é de 5% do faturamento bruto das recargas. O valor do Condomínio está na seção de planos. Valores e percentuais podem ser ajustados." },
+  { q: "Serve para condomínio e para eletroposto?", a: "Sim. Há planos para casa, condomínio (vários carregadores e moradores, controle de acesso e consumo em kWh) e eletroposto (recarga por QR Code, status em tempo real e relatórios de receita)." },
+  { q: "Quanto custa?", a: "O plano Residencial é grátis, um brinde da Telektro para quem usa o sistema em casa. O Eletroposto não tem mensalidade: a cobrança é de 8% do faturamento bruto das recargas. O valor do Condomínio está na seção de planos. Valores e percentuais podem ser ajustados." },
 ];
 
 const structuredData = {
   "@context": "https://schema.org",
   "@graph": [
-    { "@type": "Organization", "@id": `${SITE_URL}/#org`, name: "Telektro", legalName: "Nexa Labs Serviços LTDA", url: SITE_URL, logo: `${SITE_URL}/icon.svg`, contactPoint: { "@type": "ContactPoint", contactType: "sales", telephone: `+${WHATSAPP_NUMBER}`, availableLanguage: "pt-BR" } },
+    { "@type": "Organization", "@id": `${SITE_URL}/#org`, name: "Telektro", alternateName: ["Telektro Eletroposto", "Telektro recarga de carro elétrico"], legalName: "Nexa Labs Serviços LTDA", url: SITE_URL, logo: `${SITE_URL}/icon.svg`, contactPoint: { "@type": "ContactPoint", contactType: "sales", telephone: `+${WHATSAPP_NUMBER}`, availableLanguage: "pt-BR" } },
     { "@type": "WebSite", "@id": `${SITE_URL}/#site`, url: SITE_URL, name: "Telektro", inLanguage: "pt-BR", publisher: { "@id": `${SITE_URL}/#org` } },
     { "@type": "SoftwareApplication", "@id": `${SITE_URL}/#software`, name: "Telektro", applicationCategory: "BusinessApplication", operatingSystem: "Web (PWA)", inLanguage: "pt-BR", publisher: { "@id": `${SITE_URL}/#org` }, description: SITE_DESCRIPTION, url: SITE_URL, offers: { "@type": "Offer", price: "0", priceCurrency: "BRL", description: "Plano Residencial gratuito" } },
     { "@type": "FAQPage", "@id": `${SITE_URL}/#faq`, inLanguage: "pt-BR", mainEntity: faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })) },
@@ -40,7 +40,7 @@ export function Landing() {
             <svg viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" fill="#0f776c"/><path fill="#fff" d="M112 118h288v78H300v198h-88V196h-100z"/><path fill="#bcebd1" d="m278 224-79 112h55l-23 90 91-132h-59l34-70z"/></svg>
             TELEKTRO
           </Link>
-          <nav className="lp-links" aria-label="Seções"><a href="#como">Como funciona</a><a href="#solucoes">Soluções</a><a href="#planos">Planos</a><a href="#onde-carregar">Onde carregar</a></nav>
+          <nav className="lp-links" aria-label="Seções"><a href="#como">Como funciona</a><a href="#solucoes">Soluções</a><a href="#planos">Planos</a><a href="#onde-carregar">Onde carregar</a><Link href="/parceiro">Seja parceiro</Link><Link href="/guias">Guias</Link><Link href="/indique">Indique e ganhe</Link></nav>
           <Link href="/login" className="lp-btn ghost">Entrar</Link>
         </div>
       </header>
@@ -67,13 +67,21 @@ export function Landing() {
           <div className="lp-stat"><b>Multiempresa</b><span>Dados isolados por cliente</span></div>
         </div>
 
+        <div className="lp-wrap">
+          <Link href="/indique" className="lp-referral" aria-label="Indique e ganhe R$ 250: ver como funciona">
+            <span className="lp-ico"><Gift size={22} aria-hidden="true"/></span>
+            <span className="lp-referral-text"><strong>Indique e ganhe R$ 250</strong><span>Conhece um comércio ou condomínio que poderia ter recarga? Compartilhe seu link e receba no Pix.</span></span>
+            <span className="lp-referral-go">Ver como funciona <ArrowRight size={16} aria-hidden="true"/></span>
+          </Link>
+        </div>
+
         <section id="como" className="lp-sec"><div className="lp-wrap">
           <h2>Como funciona</h2>
           <p className="lp-sub">Em três passos, do carregador ao controle.</p>
           <div className="lp-grid c3">
             <div className="lp-card"><div className="lp-ico"><PlugZap size={20}/></div><div className="lp-step-n" style={{marginTop:12}}>PASSO 1</div><h3>Conecte o carregador</h3><p>Cadastre o carregador no painel e aponte-o para o Telektro com as credenciais geradas.</p></div>
             <div className="lp-card"><div className="lp-ico"><Smartphone size={20}/></div><div className="lp-step-n" style={{marginTop:12}}>PASSO 2</div><h3>Controle pelo celular</h3><p>Inicie e pare recargas, veja potência e energia em tempo real, sem cartão RFID.</p></div>
-            <div className="lp-card"><div className="lp-ico"><Gauge size={20}/></div><div className="lp-step-n" style={{marginTop:12}}>PASSO 3</div><h3>Acompanhe e cobre</h3><p>Histórico, relatórios e medição de kWh para rateio ou cobrança por recarga.</p></div>
+            <div className="lp-card"><div className="lp-ico"><Gauge size={20}/></div><div className="lp-step-n" style={{marginTop:12}}>PASSO 3</div><h3>Acompanhe o consumo</h3><p>Histórico, relatórios e medição de kWh por recarga.</p></div>
           </div>
         </div></section>
 
@@ -87,7 +95,7 @@ export function Landing() {
           </div>
           <div className="lp-card" style={{marginTop:16,display:"flex",gap:14,alignItems:"flex-start"}}>
             <div className="lp-ico"><QrCode size={20}/></div>
-            <div><h3 style={{margin:"0 0 6px"}}>Em breve: Eletroposto completo e franquia</h3><p>Instalação, gestão, controle de pagamentos e fornecimento do carregador, em modelo de franquia. Fale com a gente para entrar na lista.</p></div>
+            <div><h3 style={{margin:"0 0 6px"}}>Eletroposto completo para o seu comércio</h3><p>Carregador, instalação, sinalização da vaga e sistema de gestão, a partir de R$ 7.499. Sem mensalidade: 8% do faturamento bruto das recargas. <Link href="/parceiro" style={{color:"var(--lp-acc)"}}>Seja parceiro Telektro</Link></p></div>
           </div>
         </div></section>
 
@@ -102,7 +110,7 @@ export function Landing() {
                 <div className="lp-price">{p.price}<small>{p.unit}</small></div>
                 <p>{p.text}</p>
                 <ul className="lp-feat">{p.items.map((i) => <li key={i}>{check}<span>{i}</span></li>)}</ul>
-                <Link href="/login" className={`lp-btn ${p.hl ? "primary" : "ghost"}`}>Contratar / Entrar</Link>
+                <div className="lp-plan-cta"><Link href="/login" className={`lp-btn ${p.hl ? "primary" : "ghost"}`}>Contratar / Entrar</Link>{p.more && <Link href={p.more} className="lp-more">Saiba mais</Link>}</div>
               </article>
             ))}
           </div>
@@ -140,7 +148,7 @@ export function Landing() {
       </main>
       <WhatsAppButton/>
 
-      <footer className="lp-wrap lp-foot"><span><Zap size={13} style={{verticalAlign:"-2px"}}/> Telektro, operação de recarga</span><Link href="/privacidade">Privacidade</Link><Link href="/termos">Termos</Link><Link href="/login">Entrar</Link><small className="lp-company">{COMPANY_NOTE}</small></footer>
+      <footer className="lp-wrap lp-foot"><span><Zap size={13} style={{verticalAlign:"-2px"}}/> Telektro, operação de recarga</span><Link href="/privacidade">Privacidade</Link><Link href="/guias">Guias</Link><Link href="/eletroposto">Software para eletroposto</Link><Link href="/condominio">Carregador no condomínio</Link><Link href="/parceiro">Seja parceiro</Link><Link href="/indique">Indique e ganhe</Link><Link href="/termos">Termos</Link><Link href="/login">Entrar</Link><small className="lp-company">{COMPANY_NOTE}</small></footer>
     </div>
   );
 }

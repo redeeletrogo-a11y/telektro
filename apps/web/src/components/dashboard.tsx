@@ -6,13 +6,13 @@ import "./dashboard-theme.css";
 import { Outfit } from "next/font/google";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CondoBilling } from "@/components/condo-billing";
 import { ResidentsPanel, type Invite, type Resident, type ResidentTag } from "@/components/residents-panel";
 import { Activity, ArrowRight, Building2, Car, Check, Clock3, Copy, LayoutDashboard, MapPin, Menu, Moon, Sun, Play, PlugZap, QrCode, Receipt, RotateCcw, Square, Trash2, Users, Zap } from "lucide-react";
 import { EletropostoPainel, type EpPoint } from "@/components/eletroposto-painel";
 import { EletropostoRepasse } from "@/components/eletroposto-repasse";
 import { EletropostoVendas } from "@/components/eletroposto-vendas";
-import { createSite, getChargerClaim, registerCharger, setChargerInsecureWs, registerRfidAuthorization, removeCharger, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, rotateChargerClaim, rotateChargerCredential, revokeChargerClaim, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
+import { OrganizationCreate } from "@/components/organization-create";
+import { createSite, getChargerClaim, registerCharger, setChargerInsecureWs, registerRfidAuthorization, removeCharger, requestChargingLimit, requestGetConfiguration, requestRemoteStart, requestRemoteStop, restoreCharger, rotateChargerClaim, rotateChargerCredential, revokeChargerClaim, revokeRfidAuthorization, signOut, type FormState } from "@/app/workspace-actions";
 import QRCode from "qrcode";
 
 type Organization = { id: string; name: string; slug: string; account_type?: string; resident_limit?: number | null };
@@ -193,7 +193,7 @@ function ChargerForm({ organizationId, sites, isOwner }: { organizationId: strin
 }
 
 export function Dashboard({
-  email, organizations, organization, role, accountType, trialDaysLeft, pixDueDays, condoTariff, epPoints = [], epTariff = null, residents, residentTags, invites, sites, chargers, removedChargers, connectors, authorizations, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, completedSessionRows, meterReadings, commandRows, dataLoadedAt,
+  email, organizations, organization, role, accountType, trialDaysLeft, pixDueDays, epPoints = [], epTariff = null, residents, residentTags, invites, sites, chargers, removedChargers, connectors, authorizations, capacityKw, totalChargers, onlineChargers, activeSessions, sessionRows, completedSessionRows, meterReadings, commandRows, dataLoadedAt,
 }: {
   email: string;
   organizations: Organization[];
@@ -202,7 +202,6 @@ export function Dashboard({
   accountType: string;
   trialDaysLeft: number | null;
   pixDueDays: number | null;
-  condoTariff: { price_per_kwh: number; session_fee: number } | null;
   epPoints?: EpPoint[];
   epTariff?: number | null;
   residents: Resident[];
@@ -255,9 +254,8 @@ export function Dashboard({
   const mobileQr = { name: "QR e placas", label: "QR", icon: <QrCode/> };
   const mobileRepasse = { name: "Repasses", label: "Repasses", icon: <Receipt/> };
   const mobileVendas = { name: "Vendas", label: "Vendas", icon: <Receipt/> };
-  const mobileBilling = { name: "Cobrança", label: "Cobrança", icon: <Zap/> };
   const mobilePrimary = isCondoManager ? [mobileHome, mobileChargers, mobileSessions, mobileResidents] : accountType === "eletroposto" ? [mobileHome, mobileQr, mobileVendas, mobileChargers] : [mobileHome, mobileSites, mobileChargers, mobileSessions];
-  const mobileMore = isCondoManager ? [mobileSites, mobileEnergy, mobileBilling] : accountType === "eletroposto" ? [...(canManageSites ? [mobileRepasse] : []), mobileSessions, mobileSites, mobileEnergy] : [mobileEnergy];
+  const mobileMore = isCondoManager ? [mobileSites, mobileEnergy] : accountType === "eletroposto" ? [...(canManageSites ? [mobileRepasse] : []), mobileSessions, mobileSites, mobileEnergy] : [mobileEnergy];
   const moreActive = mobileMore.some((item) => item.name === activeNav);
   const canManageChargers = role === "owner" || role === "admin" || role === "technician";
   const canControlChargers = role === "owner" || role === "admin" || role === "operator" || role === "technician";
@@ -287,7 +285,6 @@ export function Dashboard({
         <button className={`nav-item ${activeNav === "Sessões" ? "active" : ""}`} onClick={() => setActiveNav("Sessões")}><Activity size={16}/>Sessões<span className="nav-count">{activeSessions}</span></button>
         <button className={`nav-item ${activeNav === "Energia" ? "active" : ""}`} onClick={() => setActiveNav("Energia")}><Zap size={16}/>Energia</button>
         {accountType === "condominio" && canManageSites ? <button className={`nav-item ${activeNav === "Moradores" ? "active" : ""}`} onClick={() => setActiveNav("Moradores")}><Users size={16}/>Moradores<span className="nav-count">{residents.length}</span></button> : <button className="nav-item nav-item-disabled" disabled title="Disponível em uma próxima etapa"><Users size={16}/>Usuários</button>}
-        {accountType === "condominio" && canManageSites && <button className={`nav-item ${activeNav === "Cobrança" ? "active" : ""}`} onClick={() => setActiveNav("Cobrança")}><Zap size={16}/>Cobrança</button>}
       </nav>
       <div className="sidebar-bottom"><div className="gateway-card"><div className="gateway-row"><i className="gateway-dot"/>{onlineChargers ? `${onlineChargers} carregador(es) online` : "Gateway aguardando conexão"}</div><div className="gateway-note">{chargers.length ? `${chargers.length} carregador(es) cadastrado(s); o estado de conexão vem do gateway OCPP.` : "Cadastre um carregador para preparar a conexão OCPP."}</div></div><div className="profile"><div className="avatar">{email.slice(0, 1).toUpperCase() || "T"}</div><div className="profile-copy"><div className="profile-name">{organization.name}</div><div className="profile-role">{role}</div></div></div></div>
     </aside>
@@ -302,6 +299,7 @@ export function Dashboard({
               {organizations.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           </form>
+          <OrganizationCreate/>
           <ThemeToggle/>
           <span className="account-email" title={email}>{email}</span>
           <form action={signOut}><button className="signout-button" type="submit">Sair</button></form>
@@ -325,7 +323,7 @@ export function Dashboard({
         </> : activeNav === "QR e placas" ? <EletropostoPainel organizationId={organization.id} chargers={chargers.map((charger) => ({ id: charger.id, charge_point_id: charger.charge_point_id, site_id: charger.site_id, model: charger.model, online: charger.online, connector_count: charger.connector_count }))} points={epPoints} tariffPrice={epTariff} canManage={canManageSites}/>
         : activeNav === "Repasses" ? <EletropostoRepasse organizationId={organization.id}/>
         : activeNav === "Vendas" ? <EletropostoVendas organizationId={organization.id} sites={sites} chargers={chargers} removedChargers={removedChargers}/>
-        : activeNav === "Moradores" ? <ResidentsPanel organizationId={organization.id} residents={residents} invites={invites} tags={residentTags} residentLimit={organization.resident_limit ?? null}/> : activeNav === "Cobrança" && accountType === "condominio" ? <CondoBilling organizationId={organization.id} organizationName={organization.name} tariff={condoTariff}/> : activeNav === "Energia" ? <SiteDemand sites={sites} chargers={chargers} sessions={sessionRows} meterReadings={meterReadings} now={clockNow} expanded/> : activeNav === "Locais" ? <div className="site-management">
+        : activeNav === "Moradores" ? <ResidentsPanel organizationId={organization.id} residents={residents} invites={invites} tags={residentTags} residentLimit={organization.resident_limit ?? null}/> : activeNav === "Energia" ? <SiteDemand sites={sites} chargers={chargers} sessions={sessionRows} meterReadings={meterReadings} now={clockNow} expanded/> : activeNav === "Locais" ? <div className="site-management">
           <section className="panel site-list-panel"><div className="panel-heading"><div><h2 className="panel-title">Locais cadastrados</h2><div className="panel-kicker">{sites.length} local(is) em {organization.name}</div></div><MapPin size={17}/></div><SiteList sites={sites}/></section>
           {canManageSites ? <section className="panel site-create-panel"><div className="panel-heading"><div><h2 className="panel-title">Adicionar local</h2><div className="panel-kicker">Cadastre os dados elétricos e de localização.</div></div></div><SiteForm organizationId={organization.id}/></section> : <section className="panel site-create-panel"><h2 className="panel-title">Cadastro restrito</h2><p className="panel-kicker">Peça a um owner ou admin para cadastrar locais nesta organização.</p></section>}
         </div> : activeNav === "Carregadores" ? <div className="site-management charger-management">
@@ -452,6 +450,7 @@ function ChargerList({ chargers, removedChargers, connectors, authorizations, si
     const remoteStop = capabilityLabel(charger.capabilities?.remoteStop);
     const rfidCapability = capabilityLabel(charger.capabilities?.rfid);
     const remoteAuthorization = charger.capabilities?.authorizeRemoteTxRequests as { state?: string; value?: string | null } | undefined;
+    const smartCharging = charger.capabilities?.smartCharging as { state?: string; value?: string | null } | undefined;
     return <article className="panel site-row charger-row" key={charger.id}>
       <div className="site-row-icon"><PlugZap size={16}/></div>
       <div className="site-row-main"><strong>{charger.charge_point_id}</strong><span>{siteNames.get(charger.site_id) ?? "Local indisponível"}</span></div>
@@ -475,9 +474,10 @@ function ChargerList({ chargers, removedChargers, connectors, authorizations, si
         <span>Última transação: {charger.last_transaction_at ? `${new Date(charger.last_transaction_at).toLocaleString("pt-BR")} · ID ${charger.last_transaction_id ?? "—"}` : "ainda não recebida"}</span>
         <span>Remote Start: {remoteStart} · Remote Stop: {remoteStop} · RFID OCPP: {rfidCapability}</span>
         <span>AuthorizeRemoteTxRequests: {remoteAuthorization?.state === "SUPPORTED" ? remoteAuthorization.value === "true" ? "ativado" : "desativado" : remoteAuthorization?.state === "UNSUPPORTED" ? "não informado pelo carregador" : "não consultado"}</span>
+        <span>Smart Charging (limite de carga): {smartCharging?.state === "SUPPORTED" ? "suportado" : smartCharging?.state === "UNSUPPORTED" ? "não informado pelo carregador" : "não consultado"}</span>
         {charger.last_ocpp_error && <span className="form-error">Último erro OCPP: {charger.last_ocpp_error}</span>}
       </div>
-      {canManage && <><ConfigurationControl charger={charger} organizationId={organizationId}/><RfidAuthorizationManager charger={charger} authorizations={authorizations.filter((item) => item.charger_id === charger.id)} organizationId={organizationId}/></>}
+      {canManage && <><ConfigurationControl charger={charger} organizationId={organizationId}/><ChargingLimitControl charger={charger} organizationId={organizationId}/><RfidAuthorizationManager charger={charger} authorizations={authorizations.filter((item) => item.charger_id === charger.id)} organizationId={organizationId}/></>}
       {isOwner && <ChargerRemovalControl charger={charger} organizationId={organizationId} hasActiveSession={activeSessionChargerIds.has(charger.id)}/>}
       </details>
     </article>;
@@ -659,7 +659,21 @@ function ChargerRestoreControl({ charger, organizationId, now }: { charger: Char
 
 function ConfigurationControl({ charger, organizationId }: { charger: Charger; organizationId: string }) {
   const [state, action, pending] = useActionState(requestGetConfiguration.bind(null, organizationId, charger.id), initialState);
-  return <div className="charger-control"><form action={action}><button className="secondary-button command-button" type="submit" disabled={!charger.online || pending}>{pending ? "Consultando…" : "Ler configuração de autorização"}</button></form>{state.error && <small className="form-error" role="alert">{state.error}</small>}{state.success && <small className="form-success" role="status">{state.success}</small>}</div>;
+  return <div className="charger-control"><form action={action}><button className="secondary-button command-button" type="submit" disabled={!charger.online || pending}>{pending ? "Consultando…" : "Ler configuração do carregador"}</button></form>{state.error && <small className="form-error" role="alert">{state.error}</small>}{state.success && <small className="form-success" role="status">{state.success}</small>}</div>;
+}
+
+function ChargingLimitControl({ charger, organizationId }: { charger: Charger; organizationId: string }) {
+  const [state, action, pending] = useActionState(requestChargingLimit.bind(null, organizationId, charger.id), initialState);
+  const smartCharging = charger.capabilities?.smartCharging as { state?: string } | undefined;
+  const knownUnsupported = smartCharging?.state === "UNSUPPORTED";
+  return <div className="charger-control"><form action={action}>
+    <label>Limite de corrente (A){charger.connector_count !== null && charger.connector_count > 1
+      ? <span className="limit-row"><input name="limit_amps" inputMode="decimal" placeholder="Ex.: 16" required/><select name="connector_id" defaultValue="1">{Array.from({ length: charger.connector_count }, (_, index) => index + 1).map((id) => <option key={id} value={id}>Conector {id}</option>)}</select></span>
+      : <><input type="hidden" name="connector_id" value="1"/><input name="limit_amps" inputMode="decimal" placeholder="Ex.: 16" required/></>}</label>
+    <button className="secondary-button command-button" type="submit" disabled={!charger.online || pending || knownUnsupported}>{pending ? "Enviando…" : "Aplicar limite de carga"}</button>
+    {knownUnsupported && <small className="field-help">Este carregador não informou suporte a Smart Charging.</small>}
+    {!knownUnsupported && <small className="field-help">Entre 6 A e 80 A. O carregador passa a limitar as recargas neste conector (OCPP SetChargingProfile).</small>}
+  </form>{state.error && <small className="form-error" role="alert">{state.error}</small>}{state.success && <small className="form-success" role="status">{state.success}</small>}</div>;
 }
 
 function RfidAuthorizationManager({ charger, authorizations, organizationId }: { charger: Charger; authorizations: ChargerAuthorization[]; organizationId: string }) {
@@ -770,4 +784,4 @@ function CommandHistory({ commands, chargers }: { commands: CommandRecord[]; cha
     const actionName = command.action === "RemoteStartTransaction" ? "Iniciar recarga" : command.action === "RemoteStopTransaction" ? "Parar recarga" : command.action === "GetConfiguration" ? "Ler configuração OCPP" : command.action;
     return <div className="command-history-row" key={command.id}><span>{actionName} · {chargerNames.get(command.charger_id) ?? "Carregador"}{command.status === "rejected" && command.action === "RemoteStartTransaction" ? <small> O carregador não autorizou o início remoto. Verifique a configuração ou use o cartão RFID.</small> : reason && <small> {reason}</small>}</span><strong className={`command-state command-${command.status}`}>{labels[command.status] ?? command.status}</strong><small>{new Date(command.requested_at).toLocaleString("pt-BR")}</small></div>;
   })}</div>;
-    }
+                        }

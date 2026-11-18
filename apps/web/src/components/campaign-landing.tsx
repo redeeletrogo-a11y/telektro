@@ -23,7 +23,7 @@ const profiles = {
     label: "Para operadores de recarga pública",
     title: "Software para eletroposto",
     description: "Recarga por QR Code, pagamento por Pix ou cartão e acompanhamento das sessões em um só painel.",
-    price: "5%",
+    price: "8%",
     unit: " do faturamento bruto",
     image: "/showcase/eletroposto.webp",
     href: "https://wa.me/558486722883?text=Oi%2C+vi+o+Telektro+e+quero+saber+sobre+software+para+eletroposto",
@@ -108,7 +108,7 @@ export function CampaignLanding({ profile }: { profile: Profile }) {
           <p>{content.detail}</p>
           <p>O Telektro é o software de gestão. Carregador físico e instalação elétrica não estão incluídos. A conexão exige internet e equipamento compatível com OCPP 1.6J; os recursos dependem do modelo e da configuração.</p>
           {profile === "eletroposto"
-            ? <p>Sem mensalidade nem aluguel: 5% do faturamento bruto das recargas. Taxas do gateway de pagamento não estão incluídas. Valores e percentuais podem ser ajustados.</p>
+            ? <p>Sem mensalidade nem aluguel: 8% do faturamento bruto das recargas. Taxas do gateway de pagamento não estão incluídas. Valores e percentuais podem ser ajustados.</p>
             : <p>Mensalidade base. Limites, adicionais e eventuais taxas de cobrança devem ser confirmados na proposta. Taxas do gateway de pagamento não estão incluídas.</p>}
           {cta("details")}<br/>
           <Link className="campaign-guide" href={content.guide}>Ver o guia de uso</Link>

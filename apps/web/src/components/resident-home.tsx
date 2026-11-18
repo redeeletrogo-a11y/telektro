@@ -30,8 +30,7 @@ function StopButton({ session }: { session: SessionRow }) {
   </form>;
 }
 
-type UsageRow = { ended_at: string; kwh: number; price_per_kwh: number; amount: number };
-const brl = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+type UsageRow = { ended_at: string; kwh: number };
 
 export function ResidentHome({ email, organizationName, chargers, connectors, sessions, usage, canControl }: { email: string; organizationName: string; chargers: ChargerRow[]; connectors: ConnectorRow[]; sessions: SessionRow[]; usage: UsageRow[] | null; canControl: boolean }) {
   const router = useRouter();
@@ -43,9 +42,9 @@ export function ResidentHome({ email, organizationName, chargers, connectors, se
     <div><p className="eyebrow">MORADOR · {organizationName.toUpperCase()}</p><h1>Carregadores do condomínio</h1><p className="login-description">{email}</p></div>
     {usage && <section className="panel" style={{ padding: 16 }}>
       <h2 className="panel-title">Meu consumo neste mês</h2>
-      <p className="wallet-balance">{brl(usage.reduce((sum, row) => sum + row.amount, 0))}</p>
-      <p className="field-help">{usage.reduce((sum, row) => sum + row.kwh, 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kWh em {usage.length} recarga(s). O valor entra na cobrança do condomínio no fim do mês.</p>
-      {usage.map((row) => { const fee = Math.round((row.amount - row.kwh * row.price_per_kwh) * 100) / 100; return <div className="resident-row" key={row.ended_at}><span>{new Date(row.ended_at).toLocaleString("pt-BR")} · {row.kwh.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kWh × {brl(row.price_per_kwh)}{fee > 0 ? ` + taxa ${brl(fee)}` : ""}</span><span>{brl(row.amount)}</span></div>; })}
+      <p className="wallet-balance">{usage.reduce((sum, row) => sum + row.kwh, 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kWh</p>
+      <p className="field-help">{usage.length} recarga(s) no mês. O consumo aparece no relatório do condomínio.</p>
+      {usage.map((row) => <div className="resident-row" key={row.ended_at}><span>{new Date(row.ended_at).toLocaleString("pt-BR")}</span><span>{row.kwh.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kWh</span></div>)}
     </section>}
     <section className="panel" style={{ padding: 16 }}>
       <h2 className="panel-title">Carregadores</h2>

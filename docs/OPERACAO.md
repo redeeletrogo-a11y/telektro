@@ -17,7 +17,7 @@ Tipos de conta (organização): residencial, condomínio e eletroposto (cobranç
 | Web (`apps/web`) | Vercel, https://telektro.com.br | Next.js. Painel do dono, telas públicas do cliente (`/carregar/<codigo>`, `/carregar/pagamento/<token>`, `/recibo`), webhooks, varredura (`/api/eletroposto/sweep`). |
 | Gateway OCPP (`apps/ocpp-gateway`) | Fly.io, app `telektro-ocpp-gateway`, região gru, https://telektro-ocpp-gateway.fly.dev | Mantém o WebSocket com cada carregador. Autentica, grava estado/sessões/medições, envia RemoteStart/RemoteStop, fecha sessões órfãs. `/health` mostra `connectedChargers`. |
 | Banco | Supabase, projeto ref `ipgzatvoxcmzghantdqa` | PostgreSQL com RLS. Auth dos usuários. Regras de cobrança em funções SQL. |
-| Pagamentos | Mercado Pago | Pix e cartão de crédito. Webhook em `/api/billing/mercadopago/webhook`. |
+| Pagamentos | Mercado Pago | Pix e cartão de crédito. Ponto conectado recebe por OAuth + Split 1:1; ponto sem conexão segue na conta da plataforma com repasse manual. Webhook em `/api/billing/mercadopago/webhook`. |
 | Código | GitHub `redeeletrogo-a11y/telektro` | `main` = produção (Vercel faz deploy a cada merge). Cada PR gera um preview da Vercel protegido por login. |
 
 O painel nunca fala direto com o carregador. O gateway não roda em serverless (conexão persistente). Web e gateway se falam por: banco (fila de comandos `commands`, tabelas de estado) e por HTTP (o gateway chama `SWEEP_URL` na web com `CRON_SECRET` para liquidar logo após uma recarga).
@@ -47,7 +47,7 @@ Texto legal já decidido: Pix = "pago agora, a sobra volta no mesmo Pix" (não c
 
 Pix: estorno parcial ou total no MP com chave de idempotência `ep-refund-<id>`. Cartão: captura parcial (`PUT /v1/payments/{id}`, `capture=true`, `transaction_amount` = cobrado, chave `ep-capture-<id>`); se nada foi consumido, cancela a reserva (`ep-cancel-<id>`). Cartão não tem reembolso: a sobra volta ao limite. Se capturar ou estornar falhar, o pagamento fica `settling` com `needs_attention` e é tentado de novo a cada varredura (a reserva de cartão vale cerca de 5 dias).
 
-Taxa da plataforma: por ponto, `platform_fee_pix_pct` e `platform_fee_card_pct`, gravadas no pagamento (`fee_pct`) e calculadas sobre o valor efetivamente cobrado (`fee_amount`). Ponto piloto: 5% Pix, 5% cartão (os padrões da migration são 5 e 9).
+Taxa da plataforma: por ponto, `platform_fee_pix_pct` e `platform_fee_card_pct`, gravadas no pagamento (`fee_pct`) e calculadas sobre o valor efetivamente cobrado (`fee_amount`). Padrão para novos pontos: 5% Pix, 5% cartão (migration 202611160033; antes eram 5 e 9). A taxa do Mercado Pago (Pix ~1%, cartão ~4%) fica por conta do dono, por cima da taxa da plataforma. Com Mercado Pago conectado, a mesma taxa vai em `application_fee` na criação do pagamento; sem conexão, ela entra no repasse manual.
 
 Casos: pago mas carregador offline ou conector ocupado = devolução total (`cannot_start`); início rejeitado ou sem sessão em 12 min = devolução total (`start_rejected`, `start_timeout`); medidor inconsistente = `review` (nada é cobrado sozinho); consumo acima do pago = cliente paga no máximo o valor pago; chargeback = `needs_attention` com `attention_reason = chargeback`.
 
@@ -117,6 +117,7 @@ As migrations ficam em `supabase/migrations` (e os pequenos arquivos numerados p
 | 10 | 202610200028 (docs/sql/02) | Livro de repasses (`eletroposto_payouts`) | V |
 | 11 | 202610210029 (docs/sql/03) | ws opcional (`allow_insecure_ws`, `last_transport`, `charger_transport_events`, função `set_charger_insecure_ws`, trigger) | V (testado com org fictícia) |
 | 12 | 202610210030 | Grants explícitos mínimos (regra do Supabase de 30/10/2026: tabela nova não ganha grant automático). Em produção só repete o que já existe. | Só no repositório; **não precisa colar no banco** (opcional, é idempotente) |
+| 13 | 202611150032 (docs/sql/06) | OAuth do Mercado Pago do dono e split automático (`eletroposto_mp_connections`, eventos, `eletroposto_payments.mp_collector_id`, RLS/grants) | PR em preparação |
 
 **Regra para tabela nova:** `CREATE TABLE` + grants mínimos + RLS na mesma entrega. Nunca `GRANT ALL`, nunca conceder a `anon`, e `chargers` nunca é lida inteira por `authenticated` (leitura por coluna, sem `ocpp_credential_hash` e `claim_token`).
 
@@ -175,7 +176,7 @@ Já provado antes (4/10/2026, hardware ou simulador do Codex com Mercado Pago re
 - Verificação de consumo plausível por potência do carregador (reforço contra medidor forjado em ws).
 - Atualizar a tabela de estado em `supabase/migrations/README.md` (desatualizada).
 - Reconferir no banco as migrations marcadas com "?" na seção 6.
-- Obrigações fiscais/legais do eletroposto: validar com contador. Split/comissão via OAuth do Mercado Pago do dono não foi feito.
+- Obrigações fiscais/legais do eletroposto: validar com contador. OAuth + Split 1:1 do Mercado Pago está implementado em PR; validar com conta de teste e revisar com contabilidade antes do uso comercial.
 
 ## 12. Como retomar do zero
 

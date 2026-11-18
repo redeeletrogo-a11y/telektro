@@ -55,6 +55,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   const pendingClaim = (await cookies()).get("telektro_claim")?.value;
   // Claim precisa de uma organizacao propria: quem ainda nao e dono de nenhuma cai no onboarding primeiro e volta ao QR depois.
   if (pendingClaim && /^[a-f0-9]{32}$/.test(pendingClaim) && memberships?.some((membership) => membership.role === "owner")) redirect(`/c/${pendingClaim}`);
+  // Indicação: conta nova que chegou por um link /i/CODIGO fica vinculada a quem indicou (idempotente; só vale antes de ter organização).
+  const pendingRef = (await cookies()).get("tk_ref")?.value;
+  if (!memberships?.length && pendingRef && /^[A-Z0-9]{6}$/.test(pendingRef)) await supabase.rpc("bind_referral", { p_code: pendingRef });
   if (!memberships?.length) return <OrganizationOnboarding email={user.email ?? "Conta Telektro"}/>;
 
   const organizationIds = memberships.map((membership) => membership.organization_id);
@@ -72,10 +75,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
       supabase.from("connectors").select("charger_id, connector_id, status").eq("organization_id", activeOrganization.id).order("connector_id"),
       supabase.from("sessions").select("id, charger_id, started_at, ended_at").eq("organization_id", activeOrganization.id).order("started_at", { ascending: false }).limit(20),
     ]);
-    let usage: { ended_at: string; kwh: number; price_per_kwh: number; amount: number }[] | null = null;
+    let usage: { ended_at: string; kwh: number }[] | null = null;
     if (activeOrganization.account_type === "condominio") {
       const { data: usageRows, error: usageError } = await supabase.rpc("my_condo_usage", { p_organization_id: activeOrganization.id, p_month: new Date().toISOString().slice(0, 7) + "-01" });
-      if (!usageError) usage = (usageRows ?? []).map((row: { ended_at: string; kwh: string | number; price_per_kwh: string | number; amount: string | number }) => ({ ended_at: row.ended_at, kwh: Number(row.kwh), price_per_kwh: Number(row.price_per_kwh), amount: Number(row.amount) }));
+      if (!usageError) usage = (usageRows ?? []).map((row: { ended_at: string; kwh: string | number }) => ({ ended_at: row.ended_at, kwh: Number(row.kwh) }));
     }
     return <ResidentHome email={user.email ?? ""} organizationName={activeOrganization.name} chargers={residentChargers.data ?? []} connectors={residentConnectors.data ?? []} canControl={activeOrganization.account_type === "condominio"} sessions={residentSessions.data ?? []} usage={usage}/>;
   }
@@ -136,11 +139,6 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
     if (meterError) return <SetupMessage title="Falha ao carregar medições" message="As sessões foram encontradas, mas não conseguimos consultar as leituras recentes dos carregadores."/>;
     meterReadings = (meterData ?? []) as MeterReading[];
   }
-  let condoTariff: { price_per_kwh: number; session_fee: number } | null = null;
-  if (activeOrganization.account_type === "condominio" && (activeMembership?.role === "owner" || activeMembership?.role === "admin")) {
-    const { data: tariffRow } = await supabase.from("tariffs").select("price_per_kwh, session_fee").eq("organization_id", activeOrganization.id).eq("active", true).is("site_id", null).order("valid_from", { ascending: false }).limit(1).maybeSingle();
-    if (tariffRow) condoTariff = { price_per_kwh: Number(tariffRow.price_per_kwh), session_fee: Number(tariffRow.session_fee) };
-  }
   let epPoints: EpPoint[] = [];
   let epTariff: number | null = null;
   if (activeOrganization.account_type === "eletroposto" && activeMembership) {
@@ -154,7 +152,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ o
   const capacityKw = sites.reduce((total, site) => total + Number(site.max_power_kw ?? 0), 0);
 
   return <Dashboard email={user.email ?? ""} organizations={availableOrganizations} organization={activeOrganization}
-    role={activeMembership?.role ?? "viewer"} accountType={activeOrganization.account_type} trialDaysLeft={trialDaysLeft(activeOrganization)} pixDueDays={activeOrganization.account_type === "residencial" ? null : pixDueDays(activeOrganization)} condoTariff={condoTariff} epPoints={epPoints} epTariff={epTariff} residents={residents} residentTags={residentTags} invites={invites} sites={sites} chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} capacityKw={capacityKw}
+    role={activeMembership?.role ?? "viewer"} accountType={activeOrganization.account_type} trialDaysLeft={trialDaysLeft(activeOrganization)} pixDueDays={activeOrganization.account_type === "residencial" ? null : pixDueDays(activeOrganization)} epPoints={epPoints} epTariff={epTariff} residents={residents} residentTags={residentTags} invites={invites} sites={sites} chargers={chargers} removedChargers={removedChargers} connectors={connectors} authorizations={authorizations} capacityKw={capacityKw}
     totalChargers={chargersResult.count ?? 0} onlineChargers={onlineResult.count ?? 0} activeSessions={activeSessions.length}
     sessionRows={activeSessions} completedSessionRows={completedSessions} meterReadings={meterReadings} commandRows={commandRows} dataLoadedAt={new Date().toISOString()}/>;
 }
