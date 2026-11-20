@@ -55,6 +55,13 @@ Casos: pago mas carregador offline ou conector ocupado = devolução total (`can
 
 Se o carregador some no meio da recarga (sem StopTransaction), o gateway roda a cada 60 s a função `telektro_close_orphan_sessions`. Sessão sem sinal por `OCPP_ORPHAN_SESSION_MINUTES` (padrão 20, limites 5 a 240) é fechada com a última leitura de energia (`stop_reason = OrphanTimeout`), cobra-se o medido e devolve-se a sobra. Se o StopTransaction chegar depois, as colunas `late_stop_*` registram. Efeito de teste: inserir uma sessão com `started_at` antigo no banco já nasce fechada por esse mecanismo; ajuste `ended_at` e `started_at` depois do insert.
 
+### 3.3.1 Polling do gateway no Supabase (cota de egress e logs)
+Em 20/11/2026 o Supabase avisou que a org passou da cota grátis (egress 5,67 GB de 5 GB; log ingestion 5,3 GB de 1 GB no ciclo 28/10 a 28/11; carência até 20/12). O API Gateway do painel mostrou ~8,6 mil requests/h vindas do gateway: checagem de carregador removido a cada 1 s (~3,5 mil/h) e poll de comandos a cada 1,5 s (~2,4 mil/h). Agora:
+- Poll de comandos: a cada 5 s quando ocioso (`OCPP_COMMAND_POLL_IDLE_MS`, 1500 a 30000); volta a 1,5 s por 60 s depois de qualquer comando encontrado. Efeito prático: partida/parada remota pode demorar até ~3,5 s a mais quando ocioso.
+- Checagem de carregador removido, credencial trocada ou ws desligado: a cada 30 s (`OCPP_REMOVED_CHECK_MS`, 1000 a 300000). O carregador é desconectado em até 30 s (antes 1 s).
+- Expiração de comandos aceitos sem confirmação: no máximo a cada 30 s.
+Estimativa (não medida): de ~8,6 mil para ~1 mil requests/h. Conferir em Observability > API Gateway e em Usage 1 a 2 dias depois do deploy (atualiza a cada hora). Se precisar de latência zero na partida remota, a opção grátis seguinte é Realtime em INSERT de `commands`.
+
 ### 3.4 Alerta de carregador sem sinal (só no painel do dono)
 
 `apps/web/src/lib/charger-alert.ts`. Carregador que já mandou um heartbeat e está há 5 minutos ou mais sem sinal gera um banner vermelho no topo do painel (todas as abas), com nome, "sem sinal há X", último sinal e, se houver recarga aberta, "Há recarga aberta nele". Carregador que nunca conectou não alerta. Some sozinho quando volta. Sem e-mail e sem push. O painel marca offline na tela quando o último heartbeat passa de 180 s (`OCPP_CHARGER_STALE_AFTER_SECONDS`). O heartbeat do carregador é pedido a cada 60 s.
@@ -92,7 +99,7 @@ Conferir após o deploy: `https://telektro.com.br/login` responde 200; `gh api r
 **Fly (app `telektro-ocpp-gateway`, secrets, definidos pelo painel do Fly)**
 - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 - `SWEEP_URL` (`https://telektro.com.br/api/eletroposto/sweep`) e `CRON_SECRET` (o mesmo valor da Vercel)
-- Não-secretos em `fly.toml`: `NODE_ENV`, `OCPP_GATEWAY_PORT`, `OCPP_HEARTBEAT_INTERVAL_SECONDS`. Opcionais: `OCPP_ORPHAN_SESSION_MINUTES`, `OCPP_OPERATION_CONFIRMATION_SECONDS`.
+- Não-secretos em `fly.toml`: `NODE_ENV`, `OCPP_GATEWAY_PORT`, `OCPP_HEARTBEAT_INTERVAL_SECONDS`. Opcionais: `OCPP_ORPHAN_SESSION_MINUTES`, `OCPP_OPERATION_CONFIRMATION_SECONDS`, `OCPP_COMMAND_POLL_IDLE_MS`, `OCPP_REMOVED_CHECK_MS`.
 - `OCPP_DEV_TOKEN` só em ambiente local (recusado em produção). `ENABLE_INSECURE_WS` foi removido.
 
 **Cofre do agente (Instinct vault)**, itens usados: "GitHub write token for redeeletrogo-a11y/telektro" (git/gh), "supabase-service-role (key in password)" (testes com org fictícia), "Telektro CRON_SECRET (Vercel Production)". O login do painel do Fly funciona no navegador com a conta rede.eletrogo; o login do GitHub no navegador é outra conta (usar o token do cofre).
