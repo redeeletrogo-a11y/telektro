@@ -6,6 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import { ZodError } from "zod";
 import { verifyOcppBasicAuth } from "./authentication.js";
 import { capabilityFromCommandResult, mergeCapability, readAuthorizeRemoteTxRequests, readSupportedFeatureProfiles, reportsSmartCharging } from "./capabilities.js";
+import { createPollGate, createThrottle, readMsEnv } from "./polling.js";
 import { commandStatusForResult, operationConfirmationTimeoutStatus, operationEventStatus } from "./operation-state.js";
 import { energyRegisterRegressionError, energyRegisterWh, isRegisteredConnector, meterReadingError, meterTransactionError } from "./validation.js";
 import {
@@ -54,6 +55,10 @@ const registry = supabaseUrl && serviceRoleKey
   : null;
 const settlement = createSettlementRequester({ log: (event, data) => console.warn(JSON.stringify({ event, ...data })) });
 let pollingCommands = false;
+// Polling no Supabase: ocioso a cada 5 s (rapido, a cada 1,5 s, por 60 s depois de qualquer comando); checagem de carregador removido a cada 30 s; expiracao de comandos aceitos a cada 30 s.
+const commandPollGate = createPollGate({ idleMs: readMsEnv(process.env.OCPP_COMMAND_POLL_IDLE_MS, 5_000, 1_500, 30_000) });
+const removedCheckMs = readMsEnv(process.env.OCPP_REMOVED_CHECK_MS, 30_000, 1_000, 300_000);
+const expireDue = createThrottle(30_000);
 let startupRecoveryComplete = false;
 
 const server = createServer((request, response) => {
@@ -535,12 +540,14 @@ async function nextTransactionId(chargerId: string): Promise<number> {
 
 async function pollPendingCommands() {
   if (!registry || !startupRecoveryComplete || pollingCommands) return;
+  if (!commandPollGate.due()) return;
   pollingCommands = true;
   try {
-    await expireAcceptedOperations();
+    if (expireDue()) await expireAcceptedOperations();
     const { data, error } = await registry.from("commands").select("id, charger_id, action, payload, requested_by")
       .eq("status", "pending").order("requested_at", { ascending: true }).limit(25);
     if (error) throw error;
+    if ((data ?? []).length > 0) commandPollGate.boost();
     for (const command of data ?? []) await dispatchCommand(command);
   } catch (error) {
     reportPersistenceFailure("command_poll", "gateway", error);
@@ -893,7 +900,7 @@ async function recoverInterruptedCommands() {
 }
 
 setInterval(() => { void pollPendingCommands(); }, 1_500).unref();
-setInterval(() => { void disconnectRemovedChargerConnections(); }, 1_000).unref();
+setInterval(() => { void disconnectRemovedChargerConnections(); }, removedCheckMs).unref();
 setInterval(() => {
   const now = Date.now();
   for (const [idTag, grant] of idTagGrants) if (grant.expiresAt <= now) idTagGrants.delete(idTag);
