@@ -122,7 +122,7 @@ export function Landing() {
           <article className="lp-card lp-loc">
             <img className="lp-loc-photo" src="/eletropostos-unifarma-barreta.webp" alt="Carregador do eletroposto Unifarma Barreta com a placa Recarga sem app da Telektro" loading="lazy"/>
             <div>
-              <h3 style={{marginTop:0}}>Eletroposto Unifarma Barreta</h3>
+              <h3 style={{marginTop:0}}><Link href="/eletropostos/unifarma-barreta" style={{color:"inherit",textDecoration:"none"}}>Eletroposto Unifarma Barreta</Link></h3>
               <p className="lp-loc-addr"><MapPin size={15} aria-hidden="true"/> Av. Beira Mar, Barreta, Nísia Floresta/RN · na farmácia UniFarma</p>
               <ul className="lp-feat">
                 <li>{check}<span>1 conector Tipo 2, até 7 kW</span></li>
