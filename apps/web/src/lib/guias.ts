@@ -535,6 +535,172 @@ export const GUIAS: Guia[] = [
     },
     "updated": "novembro de 2026"
   },
+  {
+    "slug": "como-cobrar-recarga-carro-eletrico",
+    "title": "Como cobrar pela recarga de carro elétrico: formas, preço e recebimento",
+    "h1": "Como cobrar pela recarga de carro elétrico",
+    "description": "Formas de cobrar pela recarga (kWh, sessão ou tempo), como receber por Pix e cartão com QR Code, como definir o preço com margem real e o que resolver na parte fiscal.",
+    "intro": "Quem tem um carregador em comércio, estacionamento ou condomínio pode cobrar pela recarga. A operação fica mais simples quando o motorista paga pelo celular e o consumo medido aparece em um painel. Este guia mostra as formas de cobrança, como definir o preço e o que combinar antes da primeira venda.",
+    "sections": [
+      {
+        "h": "1. Defina o que está sendo vendido",
+        "p": [
+          "A base mais clara é a energia medida em kWh: o motorista paga pelo que consumiu, e o dono do ponto compara com o custo da própria conta de luz. Tempo de conexão e potência nominal, sozinhos, não medem energia: o carro pode reduzir a potência ou ficar conectado sem carregar.",
+          "Os kWh usados na cobrança vêm das leituras enviadas pelo carregador. Valide essas leituras com o equipamento real antes de cobrar: sessões sem leitura final ou valores incoerentes precisam de conferência, não de um valor inventado."
+        ]
+      },
+      {
+        "h": "2. Escolha a forma de cobrança",
+        "p": [
+          "Não existe modelo obrigatório. O que importa é a regra ser clara para o motorista antes de ele começar a carregar."
+        ],
+        "list": [
+          "Por kWh: preço por energia consumida, o formato mais transparente",
+          "Por sessão: valor fixo por recarga, simples mas pode afastar quem precisa de pouca energia",
+          "Por tempo: fácil de explicar, mas injusto quando o carro carrega devagar",
+          "Pré-pago ou pós-pago: no pré-pago, o motorista paga antes e usa até o limite"
+        ]
+      },
+      {
+        "h": "3. Receba por Pix ou cartão, sem aplicativo",
+        "p": [
+          "No Telektro, o ponto disponibiliza um QR Code: o motorista abre a página de pagamento no celular, sem instalar aplicativo, paga por Pix ou cartão e a recarga é liberada após a confirmação do pagamento e a resposta do carregador.",
+          "O dono do ponto acompanha vendas e consumo no painel. O Telektro é o software de gestão e cobrança: equipamento, instalação e compatibilidade OCPP 1.6J são avaliados separadamente, com teste de conexão antes de contratar."
+        ]
+      },
+      {
+        "h": "4. Entenda taxas e repasse antes de precificar",
+        "p": [
+          "Todo recebimento digital tem custo: taxas de processamento de Pix ou cartão e a taxa da plataforma de gestão. Some esses custos antes de definir o preço ao motorista, não depois.",
+          "Confirme por escrito as condições comerciais: percentuais, prazos de repasse e o que acontece em caso de contestação ou estorno. As condições variam por fornecedor e por formato de operação."
+        ]
+      },
+      {
+        "h": "5. Defina o preço com margem real",
+        "p": [
+          "Exemplo fictício, sem valor de tabela: se a energia custa R$ 0,90/kWh na sua conta e as taxas somam cerca de 8% sobre a venda, um preço de R$ 2,00/kWh deixa cerca de R$ 0,94 de margem por kWh antes dos custos fixos. Os valores são inventados para mostrar a estrutura da conta.",
+          "Refaça o cálculo com a sua tarifa real da distribuidora, as taxas confirmadas e os custos fixos do ponto. Preço baixo demais inviabiliza a operação; preço alto demais afasta o motorista."
+        ]
+      },
+      {
+        "h": "6. Organize a parte fiscal e as regras de uso",
+        "p": [
+          "Cobrar pela recarga é uma atividade econômica. Em geral, o operador usa um CNPJ, verifica enquadramento fiscal e emissão de nota com um contador e confirma exigências locais com a prefeitura. A ANEEL permite a exploração comercial da recarga com preços livremente negociados.",
+          "Este guia não substitui orientação jurídica, contábil ou técnica. Comunique as regras de uso no próprio ponto: preço, forma de pagamento, o que acontece com o valor não consumido e como pedir ajuda."
+        ]
+      }
+    ],
+    "faq": [
+      {
+        "q": "Posso cobrar pela recarga no meu comércio?",
+        "a": "A ANEEL permite a exploração comercial da recarga com preços livremente negociados. Verifique CNPJ, enquadramento fiscal e exigências locais com um contador e a prefeitura."
+      },
+      {
+        "q": "Qual o melhor preço por kWh?",
+        "a": "Não existe preço único. Parta do seu custo de energia, some taxas e custos fixos e compare com pontos da região. Teste e ajuste conforme a utilização."
+      },
+      {
+        "q": "O motorista precisa instalar um aplicativo para pagar?",
+        "a": "No Telektro, não. O motorista abre a página de pagamento pelo QR Code no celular e paga por Pix ou cartão."
+      },
+      {
+        "q": "E se o motorista pagar e não consumir tudo?",
+        "a": "Defina e comunique a regra antes da venda. O tratamento do valor não consumido depende das condições comerciais contratadas: confirme como funciona antes de operar."
+      },
+      {
+        "q": "Cobrar por tempo de conexão é uma boa prática?",
+        "a": "Tempo não mede energia. Um carro que carrega devagar pagaria caro por pouca energia. A cobrança por kWh medido é a base mais justa e fácil de conferir."
+      }
+    ],
+    "cta": {
+      "text": "Quer cobrar pelas recargas do seu ponto com QR Code, Pix e cartão?",
+      "href": "/#eletroposto",
+      "label": "Ver plano Eletroposto"
+    },
+    "updated": "novembro de 2026"
+  },
+  {
+    "slug": "eletroposto-em-condominio-cobranca",
+    "title": "Eletroposto em condomínio: como cobrar moradores e visitantes pela recarga",
+    "h1": "Eletroposto em condomínio: como cobrar pela recarga",
+    "description": "Como o condomínio organiza a cobrança da recarga: quem opera e recebe, cobrança de moradores e visitantes, preço definido em regra e conferência mensal.",
+    "intro": "Um carregador compartilhado no condomínio precisa de regras claras: quem pode usar, quanto custa e para onde vai o dinheiro. Este guia mostra como estruturar a cobrança para moradores e visitantes sem virar discussão de assembleia a cada mês.",
+    "sections": [
+      {
+        "h": "1. Separe as duas operações possíveis",
+        "p": [
+          "Rateio interno é uma coisa: dividir entre os moradores o custo da energia que cada um consumiu. Venda comercial é outra: cobrar de visitantes ou do público um preço com margem. As duas podem conviver no mesmo carregador, mas têm regras e enquadramentos diferentes.",
+          "Para o rateio interno, veja o guia de rateio de energia entre moradores. Este guia trata da cobrança como operação do ponto. Não trate nenhuma sugestão aqui como regra jurídica: confirme com a administradora e, se preciso, com um advogado."
+        ]
+      },
+      {
+        "h": "2. Defina quem opera e quem recebe",
+        "p": [
+          "O dinheiro da recarga pode ir para o condomínio, para a administradora ou para uma empresa contratada para operar o ponto. Cada formato muda CNPJ, obrigações fiscais e prestação de contas.",
+          "Leve a proposta à assembleia com os pontos essenciais: quem recebe, como os valores entram na prestação de contas, quem paga manutenção e software e o que acontece com eventual margem."
+        ]
+      },
+      {
+        "h": "3. Organize a cobrança dos moradores",
+        "p": [
+          "Cada recarga precisa estar ligada a quem a fez. Cadastre os moradores autorizados e mantenha os acessos atualizados quando alguém sair ou trocar de unidade. Não compartilhe um acesso entre moradores se a cobrança é individual.",
+          "No Telektro, o condomínio convida moradores por link ou QR Code, cada sessão registra quem carregou, quando e quantos kWh, e o morador inicia e para a recarga pelo celular."
+        ]
+      },
+      {
+        "h": "4. Atenda visitantes sem cadastro",
+        "p": [
+          "Visitante não vai criar conta para carregar uma vez. No Telektro, o ponto pode disponibilizar um QR Code de pagamento pré-pago: o visitante paga por Pix ou cartão na hora, pelo celular, e a recarga é liberada após a confirmação.",
+          "Se o ponto abre para público externo, defina horário, acesso à garagem, segurança e sinalização com a administração. Um ponto aberto ao público já é uma operação comercial: confirme o enquadramento antes de divulgar."
+        ]
+      },
+      {
+        "h": "5. Fixe preço e regras em decisão formal",
+        "p": [
+          "O preço por kWh, a forma de cobrança e as regras de uso devem constar de uma decisão do condomínio, conforme a convenção e o regimento. Comunique o valor no próprio ponto, antes da recarga começar.",
+          "Exemplo fictício, sem valor de recomendação: o condomínio define R$ 1,50/kWh para moradores e R$ 2,00/kWh para visitantes, com a margem destinada ao fundo de manutenção do equipamento. Os números são inventados: o critério é do condomínio."
+        ]
+      },
+      {
+        "h": "6. Feche o mês com conferência",
+        "p": [
+          "Antes de lançar valores, confira período, sessões, consumo registrado e critério de preço. Separe registros com falha para análise em vez de fechar o mês com um valor estimado.",
+          "Relatório de consumo, cobrança lançada e pagamento confirmado são etapas diferentes. Guarde o histórico: é ele que resolve uma contestação sem depender da memória de ninguém."
+        ],
+        "list": [
+          "Sessões reconciliadas com as leituras do carregador",
+          "Valores de moradores lançados conforme a regra aprovada",
+          "Recebimentos de visitantes conferidos no painel",
+          "Detalhamento disponível para cada morador",
+          "Histórico guardado para prestação de contas"
+        ]
+      }
+    ],
+    "faq": [
+      {
+        "q": "Visitante consegue pagar sem se cadastrar?",
+        "a": "Sim. No Telektro, o visitante usa o QR Code do ponto, paga por Pix ou cartão pelo celular e a recarga é liberada após a confirmação do pagamento."
+      },
+      {
+        "q": "O condomínio pode ter lucro com a recarga?",
+        "a": "Depende do formato aprovado e do enquadramento jurídico e fiscal. Confirme com a administradora, um contador e, se preciso, um advogado antes de definir margem e destino dos valores."
+      },
+      {
+        "q": "E se um morador contestar a cobrança?",
+        "a": "Compare o registro da sessão, a leitura do carregador e a regra de cálculo antes de corrigir. Registre o ajuste para a conferência do mês seguinte."
+      },
+      {
+        "q": "O Telektro instala o carregador no condomínio?",
+        "a": "Não. O Telektro é o software de gestão e cobrança. Projeto elétrico, equipamento e instalação são contratados separadamente, com compatibilidade OCPP 1.6J validada em teste."
+      }
+    ],
+    "cta": {
+      "text": "Quer organizar moradores, visitantes e cobrança em um só painel?",
+      "href": "/#condominio",
+      "label": "Ver plano Condomínio"
+    },
+    "updated": "novembro de 2026"
+  },
 ];
 
 export const getGuia = (slug: string) => GUIAS.find((g) => g.slug === slug);
