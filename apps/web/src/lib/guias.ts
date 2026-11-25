@@ -110,24 +110,33 @@ export const GUIAS: Guia[] = [
         "h": "4. Faça a conta da operação",
         "p": [
           "Não confunda faturamento com lucro. Estime custos fixos, energia, manutenção, taxas de pagamento e software. Compare cenários de utilização baixa, média e alta, sem tratar a melhor hipótese como receita garantida.",
+          "Como referência de mercado, publicações do setor em 2026 indicam wallbox AC de 7 a 22 kW entre R$ 3.000 e R$ 12.000, instalação entre R$ 1.500 e R$ 5.000 e carregadores DC de 30 a 120 kW de cerca de R$ 31.000 a mais de R$ 280.000, conforme potência e marca. São faixas de anúncios públicos, não orçamento: peça propostas para o mesmo escopo. O guia sobre quanto custa abrir um eletroposto detalha cada componente.",
           "Segundo a ANEEL, a atividade de recarga pode ser explorada comercialmente com preços livremente negociados. Isso não dispensa projeto seguro nem a verificação das exigências locais com a prefeitura, distribuidora e profissionais responsáveis."
         ],
         "list": [
           "Investimento inicial: equipamento, projeto, obras e sinalização",
+          "Adequação elétrica: entrada de energia e, em projetos DC, eventual transformador",
           "Custos recorrentes: energia, conectividade, manutenção e gestão",
           "Receita estimada: energia vendida e preço ao cliente",
           "Prazo de retorno: depende da procura e de todos os custos, não só do carregador"
         ]
       },
       {
-        "h": "5. Organize pagamento e acompanhamento",
+        "h": "5. Formalize a operação",
+        "p": [
+          "Cobrar pela recarga é uma atividade econômica. Em geral, o operador abre um CNPJ, verifica alvará e enquadramento fiscal e contrata a energia adequada ao uso comercial. Confirme com um contador e com a prefeitura como emitir nota e recolher tributos no seu caso.",
+          "As exigências variam por município e pelo formato da operação. Este guia não substitui orientação jurídica, contábil ou técnica."
+        ]
+      },
+      {
+        "h": "6. Organize pagamento e acompanhamento",
         "p": [
           "No Telektro, o eletroposto pode disponibilizar um QR para o motorista acessar a recarga pré-paga. A liberação depende da confirmação do pagamento e da resposta do carregador. O consumo medido serve de base para a cobrança.",
           "O dono acompanha vendas e consumo no painel. O Telektro é software: não inclui equipamento, instalação nem garantia de demanda. Confirme condições comerciais, pagamento e repasse antes de contratar."
         ]
       },
       {
-        "h": "6. Abra com um piloto validado",
+        "h": "7. Abra com um piloto validado",
         "p": [
           "Teste o caminho inteiro antes de divulgar: conexão, início e parada, medição, pagamento, sobra não consumida e falha de início. Combine quem presta suporte e como o cliente pede ajuda."
         ],
@@ -143,7 +152,19 @@ export const GUIAS: Guia[] = [
     "faq": [
       {
         "q": "Quanto custa montar um eletroposto?",
-        "a": "Não há um valor único. Potência, equipamento, obra e capacidade elétrica mudam o orçamento. Peça propostas para o mesmo escopo e inclua os custos de operação."
+        "a": "Não há um valor único. Publicações do setor em 2026 indicam um ponto AC comercial a partir de alguns milhares de reais e projetos com carregador DC a partir de dezenas de milhares. O guia sobre quanto custa abrir um eletroposto traz as faixas por componente."
+      },
+      {
+        "q": "Preciso de CNPJ para cobrar pela recarga?",
+        "a": "Em geral, sim: a exploração comercial costuma exigir pessoa jurídica, com obrigações fiscais e locais. Confirme o enquadramento com um contador e com a prefeitura antes de investir."
+      },
+      {
+        "q": "Quanto fatura um eletroposto?",
+        "a": "Não existe faturamento típico garantido. O resultado depende de localização, preço por kWh, utilização e custos. Monte cenários com os dados do seu ponto e desconfie de promessa de renda fixa."
+      },
+      {
+        "q": "Quanto tempo leva para abrir um eletroposto?",
+        "a": "Depende do projeto, da obra e da análise da distribuidora. Um ponto AC simples pode levar semanas; projetos com adequação de rede ou transformador levam mais. Inclua esse prazo no planejamento."
       },
       {
         "q": "Posso cobrar pela recarga?",
@@ -163,7 +184,7 @@ export const GUIAS: Guia[] = [
       "href": "/#eletroposto",
       "label": "Ver plano Eletroposto"
     },
-    "updated": "outubro de 2026"
+    "updated": "novembro de 2026"
   },
   {
     "slug": "ocpp-1-6j-compatibilidade-carregador",
@@ -415,6 +436,104 @@ export const GUIAS: Guia[] = [
       "label": "Ver plano Condomínio"
     },
     "updated": "outubro de 2026"
+  },
+  {
+    "slug": "quanto-custa-abrir-eletroposto",
+    "title": "Quanto custa abrir um eletroposto: equipamento, obra e operação",
+    "h1": "Quanto custa abrir um eletroposto",
+    "description": "Veja os componentes do custo de um eletroposto: carregador AC ou DC, projeto e obra elétrica, adequação da rede, software de gestão e custos mensais de operação.",
+    "intro": "O preço de um eletroposto não é o preço do carregador. Equipamento, projeto elétrico, obra, adequação da rede, software e operação mensal entram na conta. Este guia separa cada componente, com faixas de referência publicadas no mercado brasileiro em 2026, para você montar um orçamento realista antes de investir.",
+    "sections": [
+      {
+        "h": "1. Não existe preço único",
+        "p": [
+          "Dois eletropostos com o mesmo carregador podem custar valores muito diferentes. A potência do equipamento, a distância até o quadro de energia, a capacidade da entrada e o padrão da obra mudam o orçamento.",
+          "Use as faixas deste guia como ponto de partida e peça propostas para o mesmo escopo. Desconfie de orçamento fechado sem visita técnica."
+        ]
+      },
+      {
+        "h": "2. Equipamento: AC ou DC",
+        "p": [
+          "Carregadores AC atendem quem fica horas no local, como comércios, condomínios e estacionamentos. Publicações do setor em 2026 indicam wallbox de 7 kW entre R$ 3.000 e R$ 7.000 e modelos de 22 kW entre R$ 5.000 e R$ 12.000, sem instalação.",
+          "Carregadores DC carregam em minutos e atendem rodovias e pontos de alto giro. Levantamento de anúncios públicos de setembro de 2026 encontrou modelos de 30 kW entre cerca de R$ 31.000 e R$ 130.000 e de 120 kW entre cerca de R$ 102.000 e R$ 280.000, conforme marca e configuração. Potências acima de 150 kW costumam ficar sob consulta.",
+          "Se pretende gerir o ponto pelo Telektro, confirme antes da compra se o modelo usa OCPP 1.6J, permite configurar um servidor externo e teve a conexão validada em teste."
+        ],
+        "list": [
+          "AC: menor custo, recarga em horas, ideal para permanência longa",
+          "DC: maior custo, recarga em minutos, ideal para alto giro",
+          "A escolha errada de potência é um dos erros mais caros do projeto"
+        ]
+      },
+      {
+        "h": "3. Projeto e obra elétrica",
+        "p": [
+          "A instalação exige circuito dedicado, proteções e aterramento, projetados por profissional habilitado conforme a ABNT NBR 17019. Publicações do setor em 2026 indicam instalação de wallbox AC entre R$ 1.500 e R$ 5.000, conforme potência e distância ao quadro.",
+          "Em projetos DC, a conta pode incluir aumento de carga junto à distribuidora, transformador próprio e obras civis. É o componente mais subestimado do orçamento: peça o estudo elétrico antes de comprar o equipamento."
+        ]
+      },
+      {
+        "h": "4. Custos recorrentes da operação",
+        "p": [
+          "Depois de abrir, o eletroposto tem custos mensais que precisam caber na margem entre a energia comprada e a vendida. A margem por kWh, sozinha, não diz se o ponto é viável: o que decide é a utilização."
+        ],
+        "list": [
+          "Energia consumida e demanda contratada junto à distribuidora",
+          "Conectividade de dados do carregador",
+          "Software de gestão e taxas de pagamento",
+          "Manutenção preventiva e corretiva",
+          "Sinalização, seguro e atendimento ao motorista"
+        ]
+      },
+      {
+        "h": "5. Um cenário fictício para enxergar a conta",
+        "p": [
+          "Exemplo fictício, sem valor de orçamento: um comércio instala um carregador AC de 22 kW por R$ 8.000, com R$ 4.000 de instalação. No mês, vende 600 kWh a R$ 2,00/kWh (R$ 1.200) e paga a energia a R$ 0,90/kWh (R$ 540). Antes de software, taxas e manutenção, sobram R$ 660 no mês. Nesse ritmo, o retorno dos R$ 12.000 levaria mais de 18 meses, e só se a utilização se mantiver.",
+          "Os valores acima são inventados para mostrar a estrutura da conta, não uma promessa de resultado. Refaça o cálculo com os números do seu local: tarifa real da distribuidora, proposta formal de equipamento e uma estimativa conservadora de uso."
+        ]
+      },
+      {
+        "h": "6. Como reduzir o risco antes de investir",
+        "p": [
+          "Comece pelo equipamento que o seu público realmente precisa. Para a maioria dos comércios, um ponto AC bem localizado testa a demanda com uma fração do custo de um DC. Amplie quando os dados de uso justificarem.",
+          "No Telektro, o dono do ponto cobra por Pix ou cartão com QR Code, acompanha consumo e vendas no painel e valida a operação antes de escalar. O Telektro é o software de gestão: equipamento, instalação e demanda são avaliados à parte, com a compatibilidade OCPP 1.6J confirmada em teste."
+        ],
+        "list": [
+          "Estudo elétrico concluído antes da compra",
+          "Propostas comparadas com o mesmo escopo",
+          "Cenário pessimista de utilização no papel",
+          "Piloto com um ponto antes de ampliar",
+          "Leituras e cobrança validadas com o equipamento real"
+        ]
+      }
+    ],
+    "faq": [
+      {
+        "q": "Qual o investimento mínimo para abrir um eletroposto?",
+        "a": "Com um carregador AC comercial, publicações de 2026 indicam equipamento e instalação a partir de alguns milhares de reais. Projetos com DC passam de dezenas de milhares. O mínimo real depende da rede elétrica e do público do local."
+      },
+      {
+        "q": "Carregador AC ou DC: qual escolher?",
+        "a": "AC para permanência longa e menor custo; DC para recarga rápida e alto giro. Comece pelo tempo que o cliente fica no local, não pela potência máxima disponível."
+      },
+      {
+        "q": "Qual o custo mensal de um eletroposto?",
+        "a": "Energia e demanda contratada, conectividade, software, taxas de pagamento e manutenção. Monte a conta com a tarifa da sua distribuidora e as condições reais de cada fornecedor."
+      },
+      {
+        "q": "As faixas de preço deste guia são um orçamento?",
+        "a": "Não. São referências coletadas de anúncios e publicações do setor em 2026. Peça propostas formais para o mesmo escopo antes de decidir."
+      },
+      {
+        "q": "O Telektro vende o carregador ou faz a instalação?",
+        "a": "Não. O Telektro é o software de gestão e cobrança das recargas. Equipamento, projeto e obra são contratados separadamente."
+      }
+    ],
+    "cta": {
+      "text": "Quer ver como cobrar e acompanhar as recargas do seu ponto?",
+      "href": "/#eletroposto",
+      "label": "Ver plano Eletroposto"
+    },
+    "updated": "novembro de 2026"
   },
 ];
 
