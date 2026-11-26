@@ -231,7 +231,7 @@ export function Dashboard({
     const clockTimer = window.setInterval(() => setClockNow(Date.now()), 5_000);
     const refreshTimer = window.setInterval(() => {
       if (document.visibilityState === "visible") router.refresh();
-    }, 20_000);
+    }, 60_000);
     const refreshOnReturn = () => {
       if (document.visibilityState === "visible") router.refresh();
     };

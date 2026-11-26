@@ -55,9 +55,15 @@ const registry = supabaseUrl && serviceRoleKey
   : null;
 const settlement = createSettlementRequester({ log: (event, data) => console.warn(JSON.stringify({ event, ...data })) });
 let pollingCommands = false;
-// Polling no Supabase: ocioso a cada 5 s (rapido, a cada 1,5 s, por 60 s depois de qualquer comando); checagem de carregador removido a cada 30 s; expiracao de comandos aceitos a cada 30 s.
-const commandPollGate = createPollGate({ idleMs: readMsEnv(process.env.OCPP_COMMAND_POLL_IDLE_MS, 5_000, 1_500, 30_000) });
-const removedCheckMs = readMsEnv(process.env.OCPP_REMOVED_CHECK_MS, 30_000, 1_000, 300_000);
+// Polling no Supabase: ocioso a cada 10 s (rapido, a cada 1,5 s, por 60 s depois de qualquer comando); checagem de carregador removido a cada 120 s; expiracao de comandos aceitos a cada 30 s.
+// Sem carregador conectado o poll de comandos nao roda (nao ha para quem despachar); ao conectar, o gate e acelerado.
+const commandPollGate = createPollGate({ idleMs: readMsEnv(process.env.OCPP_COMMAND_POLL_IDLE_MS, 10_000, 1_500, 60_000) });
+const removedCheckMs = readMsEnv(process.env.OCPP_REMOVED_CHECK_MS, 120_000, 1_000, 300_000);
+const orphanCheckMs = readMsEnv(process.env.OCPP_ORPHAN_CHECK_MS, 300_000, 60_000, 900_000);
+const settlementWatchMs = readMsEnv(process.env.OCPP_SETTLEMENT_WATCH_MS, 180_000, 60_000, 600_000);
+// Grava o heartbeat no banco no maximo a cada 120 s por carregador (a web marca offline so depois de 180 s sem heartbeat).
+const heartbeatPersistMs = readMsEnv(process.env.OCPP_HEARTBEAT_PERSIST_MS, 120_000, 60_000, 150_000);
+const heartbeatPersistedAt = new Map<string, number>();
 const expireDue = createThrottle(30_000);
 let startupRecoveryComplete = false;
 
@@ -135,6 +141,7 @@ sockets.on("connection", (websocket: WebSocket, request) => {
   connections.set(chargePointId, websocket);
   const charger = socketChargers.get(websocket) ?? null;
   if (charger) chargerConnections.set(charger.id, { chargePointId, websocket, credentialHash: charger.ocpp_credential_hash, insecure: insecureSockets.has(websocket) });
+  if (charger) commandPollGate.boost();
   if (charger && registry) void Promise.resolve(registry.from("chargers").update({ last_transport: insecureSockets.has(websocket) ? "ws" : "wss" }).eq("id", charger.id)).then(({ error }) => { if (error) reportPersistenceFailure("last_transport", chargePointId, error); });
   void setOnline(charger, true).catch((error) => reportPersistenceFailure("connect", chargePointId, error));
   if (insecureSockets.has(websocket)) {
@@ -157,6 +164,7 @@ sockets.on("connection", (websocket: WebSocket, request) => {
     if (connections.get(chargePointId) === websocket) {
       connections.delete(chargePointId);
       if (charger && chargerConnections.get(charger.id)?.websocket === websocket) chargerConnections.delete(charger.id);
+      if (charger) heartbeatPersistedAt.delete(charger.id);
       void setOffline(charger).catch((error) => reportPersistenceFailure("disconnect", chargePointId, error));
     }
     console.info(JSON.stringify({ event: "ocpp.disconnected", chargePointId }));
@@ -244,8 +252,13 @@ async function persistCall(charger: ChargerRecord | null, action: string, payloa
 
   if (action === "Heartbeat") {
     HeartbeatSchema.parse(payload);
-    const { error } = await registry.from("chargers").update({ online: true, last_heartbeat_at: now }).eq("id", charger.id);
-    if (error) throw error;
+    // Persiste no maximo 1 vez a cada heartbeatPersistMs por carregador: corta ~2/3 das escritas de heartbeat sem derrubar o status online na web (janela de 180 s).
+    const lastPersist = heartbeatPersistedAt.get(charger.id) ?? Number.NEGATIVE_INFINITY;
+    if (Date.now() - lastPersist >= heartbeatPersistMs) {
+      heartbeatPersistedAt.set(charger.id, Date.now());
+      const { error } = await registry.from("chargers").update({ online: true, last_heartbeat_at: now }).eq("id", charger.id);
+      if (error) throw error;
+    }
     return { currentTime: now };
   }
 
@@ -540,6 +553,7 @@ async function nextTransactionId(chargerId: string): Promise<number> {
 
 async function pollPendingCommands() {
   if (!registry || !startupRecoveryComplete || pollingCommands) return;
+  if (chargerConnections.size === 0) return;
   if (!commandPollGate.due()) return;
   pollingCommands = true;
   try {
@@ -969,8 +983,8 @@ const watchPendingSettlements = createSettlementWatcher({
 async function startGateway() {
   await recoverInterruptedCommands();
   startupRecoveryComplete = true;
-  setInterval(() => { void closeOrphanSessions(); }, 60_000).unref();
-  if (settlement.enabled) setInterval(() => { void watchPendingSettlements(); }, 60_000).unref();
+  setInterval(() => { void closeOrphanSessions(); }, orphanCheckMs).unref();
+  if (settlement.enabled) setInterval(() => { void watchPendingSettlements(); }, settlementWatchMs).unref();
   server.listen(port, "0.0.0.0", () => console.info(JSON.stringify({ event: "gateway.started", port, healthPath: "/health", ocppPath: "/ocpp/{chargePointId}" })));
 }
 

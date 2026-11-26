@@ -62,6 +62,15 @@ Em 20/11/2026 o Supabase avisou que a org passou da cota grátis (egress 5,67 GB
 - Expiração de comandos aceitos sem confirmação: no máximo a cada 30 s.
 Estimativa (não medida): de ~8,6 mil para ~1 mil requests/h. Conferir em Observability > API Gateway e em Usage 1 a 2 dias depois do deploy (atualiza a cada hora). Se precisar de latência zero na partida remota, a opção grátis seguinte é Realtime em INSERT de `commands`.
 
+Rodada 2 (26/11/2026, ciclo seguiu estourado: egress 117%, log ingestion 547%):
+- Poll de comandos: ocioso a cada 10 s (`OCPP_COMMAND_POLL_IDLE_MS`, agora 1500 a 60000) e NÃO roda enquanto não há carregador conectado (não há para quem despachar); ao conectar um carregador, o poll acelera para 1,5 s por 60 s. Partida/parada remota ociosa pode demorar até ~11,5 s a mais no pior caso.
+- Checagem de carregador removido: a cada 120 s (padrão novo de `OCPP_REMOVED_CHECK_MS`).
+- Sessões órfãs: varredura a cada 300 s (`OCPP_ORPHAN_CHECK_MS`, 60000 a 900000; antes 60 s fixo). O fechamento continua pelo limite de `OCPP_ORPHAN_SESSION_MINUTES`.
+- Liquidação de pagamentos parados (starting/settling): a cada 180 s (`OCPP_SETTLEMENT_WATCH_MS`, 60000 a 600000; antes 60 s fixo). O caminho feliz (webhook do MP) não muda.
+- Heartbeat: grava no banco no máximo 1 vez a cada 120 s por carregador (`OCPP_HEARTBEAT_PERSIST_MS`, 60000 a 150000). A web marca offline só após 180 s sem heartbeat, então o status online não é afetado.
+- Web: painel do dono atualiza sozinho a cada 60 s (antes 20 s) e a tela do morador a cada 30 s (antes 10 s), sempre só com a aba visível.
+Estimativa (não medida): de ~1 mil para ~400 requests/h com carregador conectado e ~30/h sem nenhum conectado.
+
 ### 3.4 Alerta de carregador sem sinal (só no painel do dono)
 
 `apps/web/src/lib/charger-alert.ts`. Carregador que já mandou um heartbeat e está há 5 minutos ou mais sem sinal gera um banner vermelho no topo do painel (todas as abas), com nome, "sem sinal há X", último sinal e, se houver recarga aberta, "Há recarga aberta nele". Carregador que nunca conectou não alerta. Some sozinho quando volta. Sem e-mail e sem push. O painel marca offline na tela quando o último heartbeat passa de 180 s (`OCPP_CHARGER_STALE_AFTER_SECONDS`). O heartbeat do carregador é pedido a cada 60 s.
@@ -99,7 +108,7 @@ Conferir após o deploy: `https://telektro.com.br/login` responde 200; `gh api r
 **Fly (app `telektro-ocpp-gateway`, secrets, definidos pelo painel do Fly)**
 - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 - `SWEEP_URL` (`https://telektro.com.br/api/eletroposto/sweep`) e `CRON_SECRET` (o mesmo valor da Vercel)
-- Não-secretos em `fly.toml`: `NODE_ENV`, `OCPP_GATEWAY_PORT`, `OCPP_HEARTBEAT_INTERVAL_SECONDS`. Opcionais: `OCPP_ORPHAN_SESSION_MINUTES`, `OCPP_OPERATION_CONFIRMATION_SECONDS`, `OCPP_COMMAND_POLL_IDLE_MS`, `OCPP_REMOVED_CHECK_MS`.
+- Não-secretos em `fly.toml`: `NODE_ENV`, `OCPP_GATEWAY_PORT`, `OCPP_HEARTBEAT_INTERVAL_SECONDS`. Opcionais: `OCPP_ORPHAN_SESSION_MINUTES`, `OCPP_OPERATION_CONFIRMATION_SECONDS`, `OCPP_COMMAND_POLL_IDLE_MS`, `OCPP_REMOVED_CHECK_MS`, `OCPP_ORPHAN_CHECK_MS`, `OCPP_SETTLEMENT_WATCH_MS`, `OCPP_HEARTBEAT_PERSIST_MS`.
 - `OCPP_DEV_TOKEN` só em ambiente local (recusado em produção). `ENABLE_INSECURE_WS` foi removido.
 
 **Cofre do agente (Instinct vault)**, itens usados: "GitHub write token for redeeletrogo-a11y/telektro" (git/gh), "supabase-service-role (key in password)" (testes com org fictícia), "Telektro CRON_SECRET (Vercel Production)". O login do painel do Fly funciona no navegador com a conta rede.eletrogo; o login do GitHub no navegador é outra conta (usar o token do cofre).

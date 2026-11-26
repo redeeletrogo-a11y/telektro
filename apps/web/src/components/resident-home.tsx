@@ -35,8 +35,8 @@ type UsageRow = { ended_at: string; kwh: number };
 export function ResidentHome({ email, organizationName, chargers, connectors, sessions, usage, canControl }: { email: string; organizationName: string; chargers: ChargerRow[]; connectors: ConnectorRow[]; sessions: SessionRow[]; usage: UsageRow[] | null; canControl: boolean }) {
   const router = useRouter();
   const active = sessions.find((session) => !session.ended_at) ?? null;
-  // Atualiza sozinho a cada 10s enquanto a tela esta aberta, para mostrar o inicio/fim confirmado pelo carregador.
-  useEffect(() => { if (!canControl) return; const timer = setInterval(() => { if (document.visibilityState === "visible") router.refresh(); }, 10000); return () => clearInterval(timer); }, [canControl, router]);
+  // Atualiza sozinho a cada 30s enquanto a tela esta aberta, para mostrar o inicio/fim confirmado pelo carregador.
+  useEffect(() => { if (!canControl) return; const timer = setInterval(() => { if (document.visibilityState === "visible") router.refresh(); }, 30000); return () => clearInterval(timer); }, [canControl, router]);
   return <main className="resident-home">
     <div className="login-brand"><span className="brand-mark"><Zap size={20}/></span><span>TELEKTRO</span></div>
     <div><p className="eyebrow">MORADOR · {organizationName.toUpperCase()}</p><h1>Carregadores do condomínio</h1><p className="login-description">{email}</p></div>
