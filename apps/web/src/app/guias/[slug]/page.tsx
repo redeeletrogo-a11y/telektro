@@ -51,6 +51,10 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
           <h2>Perguntas frequentes</h2>
         </div>
         <div className="lp-faq" style={{ maxWidth: "70ch" }}>{g.faq.map((f) => <details key={f.q}><summary>{f.q}</summary><p>{f.a}</p></details>)}</div>
+        <nav className="gd-related" aria-label="Outros guias">
+          <h2>Outros guias</h2>
+          <ul>{GUIAS.filter((x) => x.slug !== g.slug).map((x) => <li key={x.slug}><Link href={`/guias/${x.slug}`}>{x.h1}</Link></li>)}</ul>
+        </nav>
         <div className="gd-cta"><p>{g.cta.text}</p><Link href={g.cta.href} className="lp-btn primary">{g.cta.label}</Link></div>
       </article>
     </GuiaShell>
